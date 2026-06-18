@@ -21,6 +21,12 @@ const flagEventSchema = new Schema(
     },
     homeSiteId: { type: Schema.Types.ObjectId, ref: "ProjectSite", default: null },
     homeSiteName: { type: String, default: null }, // denormalized
+
+    // missed_clockout only: links the flag to the open attendance record and
+    // its site-local day, so HR knows which record/day to correct.
+    attendanceId: { type: Schema.Types.ObjectId, ref: "Attendance", default: null },
+    date: { type: String, default: null }, // site-local "YYYY-MM-DD"
+
     timestamp: { type: Date, default: Date.now },
     resolved: { type: Boolean, default: false },
   },
@@ -28,6 +34,11 @@ const flagEventSchema = new Schema(
 );
 
 flagEventSchema.index({ resolved: 1, timestamp: 1 });
+// At most one missed_clockout flag per attendance record (idempotent sweep).
+flagEventSchema.index(
+  { type: 1, attendanceId: 1 },
+  { unique: true, partialFilterExpression: { attendanceId: { $type: "objectId" } } },
+);
 
 export type FlagEvent = InferSchemaType<typeof flagEventSchema>;
 export const FlagEventModel = model("FlagEvent", flagEventSchema, "flag_events");
