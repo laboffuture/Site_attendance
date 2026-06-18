@@ -1,0 +1,57 @@
+<%- include('../partials/app-top', { title: title, active: active }) %>
+
+<div class="oh-page-header">
+  <h1 class="oh-page-title">Site Stations</h1>
+  <p class="oh-page-subtitle">Each capture laptop is bound to one site. Sign in on the laptop at <code>/station/login</code> with its key.</p>
+</div>
+
+<div class="oh-card oh-stack">
+  <% if (sites.length) { %>
+  <form class="oh-form-inline" method="post" action="/stations">
+    <div class="oh-input-group oh-grow">
+      <label class="oh-label" for="stationName">Station name</label>
+      <input class="oh-input" id="stationName" name="stationName" placeholder="e.g. VBW Gate Laptop" required />
+    </div>
+    <div class="oh-input-group">
+      <label class="oh-label" for="projectSiteId">Bound site</label>
+      <select class="oh-select" id="projectSiteId" name="projectSiteId" required>
+        <% sites.forEach(function (s) { %>
+        <option value="<%= s._id %>"><%= s.name %> (<%= s.code %>)</option>
+        <% }); %>
+      </select>
+    </div>
+    <button class="oh-btn oh-btn--secondary" type="submit">Register station</button>
+  </form>
+  <% } else { %>
+  <p class="oh-muted">Add a project site first, then register a station for it.</p>
+  <% } %>
+
+  <% if (stations.length) { %>
+  <table class="oh-table">
+    <thead>
+      <tr><th>Station</th><th>Site</th><th>Status</th><th>Last seen</th><th class="oh-col-action"></th></tr>
+    </thead>
+    <tbody>
+      <% stations.forEach(function (st) { %>
+      <tr>
+        <td><%= st.stationName %></td>
+        <td><%= siteNameById.get(String(st.projectSiteId)) || "—" %></td>
+        <td>
+          <span class="oh-badge oh-badge--<%= st.active ? 'success' : 'muted' %>"><%= st.active ? "active" : "inactive" %></span>
+        </td>
+        <td><%= st.lastSeen ? new Date(st.lastSeen).toLocaleString() : "—" %></td>
+        <td class="oh-col-action">
+          <form method="post" action="/stations/<%= st._id %>/toggle" style="margin:0">
+            <button class="oh-btn oh-btn--small" type="submit"><%= st.active ? "Deactivate" : "Activate" %></button>
+          </form>
+        </td>
+      </tr>
+      <% }); %>
+    </tbody>
+  </table>
+  <% } else { %>
+  <p class="oh-muted">No stations registered yet.</p>
+  <% } %>
+</div>
+
+<%- include('../partials/app-bottom') %>

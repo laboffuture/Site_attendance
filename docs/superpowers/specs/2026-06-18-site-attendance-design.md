@@ -48,11 +48,11 @@ Collections: `branches`, `designations`, `project_sites` (embeds optional per-de
 
 **Key indexes:** `attendance` {siteId,date}, {workerId,date} unique, {branchId,date}, {"overtime.status"}; `workers` unique empRegNo + {siteId,status}; `users` unique email; `counters` unique key.
 
-## 3. Capture + face-match + location-lock flow  — _TBD, validate before build_
-Daily In/Out logic, server-side encoding/compare, threshold, reject+flag path, missed-clockout detection.
+## 3. Capture + face-match + location-lock flow  — ✅ RESOLVED & BUILT
+Station signs in once with a key (sha256-hashed) → station session bound to one site. Scan → encode probe → `bestMatch` against **all** active workers (so off-site workers are still identified) → location-lock: matched worker's site must equal the station's site, else reject + `flag_event` (no time logged). Day boundary = **IST (Asia/Kolkata)**. First scan of the day = In; later scans update Out (**last-scan-wins**). Missed-clockout detection deferred to a later sweep.
 
-## 4. Overtime computation & approval  — _TBD, validate before build_
-Compute on Out; standard hours from site (+ optional per-designation override); pending→approved/adjusted/rejected by HR/Management; only approved counts in final report.
+## 4. Overtime computation & approval  — _compute ✅ BUILT; approval = step 7_
+On Out: `total = Out − In`; standard hours = site shift (end − start), **no break deduction** (+ optional per-designation override); `overtime = max(0, total − standard)`, status **pending** if >0. Approval workflow (HR/Management approve/adjust/reject) is step 7.
 
 ## 5. Dashboards & reporting  — _TBD, validate before build_
 Role-scoped views; **grouping by branch → site → supervisor**; OT status always visible (pending/approved/rejected); flagged events; filters (branch/site/date/designation/worker); PDF + xlsx export. Exact column layout pending user's reference sheet.
@@ -65,13 +65,13 @@ Build order (✅ = done, verified):
 2. ✅ Auth + 5-role permissions (sessions in Mongo, bcrypt, capability matrix, route guards, seed script, app shell with role-scoped sidebar) — verified by `npm run e2e:login`
 3. ✅ Org CRUD — branches / project sites (unique codes, shift times) / designations; flash messages; view-only for HR/PM, manage for Management — verified by `npm run e2e:org`
 4. ✅ Worker enrollment — webcam/upload capture, 128-d face encoding, auto empRegNo (TRGBI-####), denormalized names, site-scoped list/edit; faceless photos rejected — verified by `npm run e2e:workers`
-5. ⬜ Site Station capture + location-lock
-6. ⬜ Attendance logging + standard-hours / OT computation
-7. ⬜ OT approval queue
+5. ✅ Site Station capture + location-lock — station key sign-in, kiosk scan screen, match-all + location-lock + flag events — verified by `npm run e2e:station`
+6. ✅ Attendance logging + standard-hours / OT computation — In/Out (last-scan-wins, IST), OT = max(0, total − site standard) pending; computed on the Out scan
+7. ⬜ OT approval queue (HR/Management approve / adjust / reject)
 8. ⬜ Role-scoped dashboards + reports + PDF/xlsx export
 9. ⬜ Polish + deploy
 
-**Verification commands:** `npm run build` (type-check) · `npm run smoke` (boot, no DB) · `npm run seed` (admin + org data) · `npm run e2e:login` (auth) · `npm run e2e:org` (org CRUD + permissions) · `npm run e2e:workers` (enrollment + face + scope) · `npm run dev` (live at :3000).
+**Verification commands:** `npm run build` (type-check) · `npm run smoke` (boot, no DB) · `npm run seed` (admin + org data) · `npm run e2e:login` (auth) · `npm run e2e:org` (org CRUD + permissions) · `npm run e2e:workers` (enrollment + face + scope) · `npm run e2e:station` (capture + location-lock + OT) · `npm run dev` (live at :3000).
 
 ## Open items
 - Exact report/output column layout — pending user's reference sheet.

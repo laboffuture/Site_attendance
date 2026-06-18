@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <%- include('../partials/head', { title: title }) %>
+  </head>
+  <body>
+    <div class="oh-kiosk">
+      <header class="oh-kiosk__header">
+        <div>
+          <div class="oh-kiosk__site"><%= station.siteName %></div>
+          <div class="oh-kiosk__station"><%= station.name %></div>
+        </div>
+        <form method="post" action="/station/logout" style="margin:0">
+          <button class="oh-btn oh-btn--small" type="submit">Sign out station</button>
+        </form>
+      </header>
+
+      <main class="oh-kiosk__main">
+        <video id="video" class="oh-kiosk__video" autoplay playsinline muted></video>
+        <canvas id="canvas" hidden></canvas>
+        <div id="result" class="oh-result oh-result--idle">Ready — face the camera and tap Scan.</div>
+        <button id="scanBtn" class="oh-btn oh-btn--secondary oh-scan-btn">Scan</button>
+        <p id="camNote" class="oh-muted"></p>
+      </main>
+    </div>
+    <script src="/static/js/station.js"></script>
+  </body>
+</html>

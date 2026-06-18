@@ -353,6 +353,94 @@ code {
   margin-top: 0.6rem;
 }
 
+/* ---- Station management: key display ---- */
+.oh-keybox {
+  background: #1f1f1f;
+  color: #fff;
+  padding: 1rem;
+  font-family: "Courier New", monospace;
+  font-size: 1rem;
+  word-break: break-all;
+  white-space: pre-wrap;
+  border: 1px solid var(--c-border);
+  margin: 0.35rem 0 1rem;
+}
+
+/* ---- Kiosk capture screen (standalone, dark) ---- */
+.oh-kiosk {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--c-brand);
+  color: #fff;
+}
+.oh-kiosk__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.08);
+}
+.oh-kiosk__site {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+.oh-kiosk__station {
+  font-size: 0.8rem;
+  color: #cfd2d6;
+}
+.oh-kiosk__main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  padding: 2rem;
+}
+.oh-kiosk__video {
+  width: min(640px, 90vw);
+  max-height: 58vh;
+  background: #000;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transform: scaleX(-1); /* mirror for a natural selfie view (capture is unmirrored) */
+}
+.oh-kiosk .oh-muted {
+  color: #cfd2d6;
+}
+.oh-scan-btn {
+  font-size: 1.15rem;
+  padding: 1rem 3rem;
+}
+.oh-result {
+  width: min(640px, 90vw);
+  min-height: 2.5rem;
+  padding: 0.85rem 1.25rem;
+  font-size: 1rem;
+  text-align: center;
+  border: 1px solid transparent;
+}
+.oh-result--idle {
+  background: rgba(255, 255, 255, 0.06);
+  color: #cfd2d6;
+}
+.oh-result--in {
+  background: #e1fbe9;
+  color: #1f7a44;
+}
+.oh-result--out {
+  background: #ebf3fd;
+  color: #1d4ed8;
+}
+.oh-result--warn {
+  background: #fff8e1;
+  color: #8a6d1b;
+}
+.oh-result--error {
+  background: #fdebeb;
+  color: #b3261e;
+}
+
 /* ---- App shell ---- */
 .oh-wrapper {
   display: flex;

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <%- include('../partials/head', { title: title }) %>
+  </head>
+  <body>
+    <div class="oh-auth">
+      <div class="oh-auth-card">
+        <h1 class="oh-auth-card__title">Station Sign-in</h1>
+        <p class="oh-auth-card__subtitle">Enter this laptop's station key</p>
+
+        <% if (typeof error !== 'undefined' && error) { %>
+        <div class="oh-alert oh-alert--danger"><%= error %></div>
+        <% } %>
+
+        <form class="oh-form-group" method="post" action="/station/login">
+          <div class="oh-input-group">
+            <label class="oh-label" for="stationKey">Station key</label>
+            <input class="oh-input" id="stationKey" name="stationKey" autocomplete="off" required autofocus />
+          </div>
+          <button type="submit" class="oh-btn oh-btn--secondary oh-btn--shadow w-100">
+            Sign in station
+          </button>
+        </form>
+      </div>
+    </div>
+  </body>
+</html>

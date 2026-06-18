@@ -14,6 +14,8 @@ import dashboardRouter from "./routes/dashboard";
 import designationsRouter from "./routes/designations";
 import indexRouter from "./routes/index";
 import orgRouter from "./routes/org";
+import stationRouter from "./routes/station";
+import stationsRouter from "./routes/stations";
 import workersRouter from "./routes/workers";
 
 /**
@@ -77,6 +79,8 @@ export function createApp(): Express {
   app.use("/", orgRouter);
   app.use("/", designationsRouter);
   app.use("/", workersRouter);
+  app.use("/", stationsRouter);
+  app.use("/", stationRouter);
 
   return app;
 }

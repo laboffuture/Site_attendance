@@ -8,6 +8,7 @@ import { requireCapability } from "../auth/middleware";
 import type { CurrentUser } from "../auth/types";
 import { config } from "../config";
 import { encodeFace } from "../lib/face";
+import { dataUrlToBuffer } from "../lib/image";
 import { siteScopeFilter, canUseSite } from "../lib/scope";
 import { escapeRegex } from "../lib/validate";
 import { CounterModel } from "../models/Counter";
@@ -40,16 +41,6 @@ async function nextEmpRegNo(): Promise<string> {
   );
   const prefix = (config.companyName || "EMP").replace(/[^A-Za-z0-9]/g, "").toUpperCase() || "EMP";
   return `${prefix}-${String(c!.seq).padStart(4, "0")}`;
-}
-
-function dataUrlToBuffer(s: string): Buffer | null {
-  const m = /^data:image\/[a-zA-Z+]+;base64,(.+)$/.exec(s ?? "");
-  if (!m) return null;
-  try {
-    return Buffer.from(m[1], "base64");
-  } catch {
-    return null;
-  }
 }
 
 /** Resolves a designation from the form: an existing id, or a new name typed
