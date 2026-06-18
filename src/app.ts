@@ -18,6 +18,7 @@ import orgRouter from "./routes/org";
 import overtimeRouter from "./routes/overtime";
 import reportsRouter from "./routes/reports";
 import stationRouter from "./routes/station";
+import usersRouter from "./routes/users";
 import stationsRouter from "./routes/stations";
 import workersRouter from "./routes/workers";
 
@@ -87,6 +88,7 @@ export function createApp(): Express {
   app.use("/", overtimeRouter);
   app.use("/", reportsRouter);
   app.use("/", flagsRouter);
+  app.use("/", usersRouter);
 
   return app;
 }

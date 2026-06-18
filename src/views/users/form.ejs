@@ -1,0 +1,55 @@
+<%- include('../partials/app-top', { title: title, active: active }) %>
+<%
+  var isEdit = mode === "edit";
+  var u = user || {};
+  var assigned = (u.assignedSiteIds || []).map(function (x) { return String(x); });
+  var self = typeof isSelf !== "undefined" && isSelf;
+%>
+
+<div class="oh-page-header">
+  <h1 class="oh-page-title"><%= isEdit ? "Edit user" : "Add user" %></h1>
+  <% if (self) { %><p class="oh-page-subtitle">This is your account — role and status are locked to prevent lockout.</p><% } %>
+</div>
+
+<div class="oh-card oh-form-card">
+  <form class="oh-form-group" method="post" action="<%= isEdit ? '/users/' + u._id : '/users' %>">
+    <div class="oh-input-group">
+      <label class="oh-label" for="name">Name</label>
+      <input class="oh-input" id="name" name="name" value="<%= u.name || '' %>" required />
+    </div>
+    <div class="oh-input-group">
+      <label class="oh-label" for="email">Email</label>
+      <input class="oh-input" id="email" type="email" name="email" value="<%= u.email || '' %>" required />
+    </div>
+    <div class="oh-input-group">
+      <label class="oh-label" for="password">Password</label>
+      <input class="oh-input" id="password" type="password" name="password" <%= isEdit ? "" : "required" %> placeholder="<%= isEdit ? 'leave blank to keep current' : '' %>" />
+    </div>
+    <div class="oh-input-group">
+      <label class="oh-label" for="role">Role</label>
+      <select class="oh-select" id="role" name="role" <%= self ? "disabled" : "" %> required>
+        <% roles.forEach(function (rn) { %>
+        <option value="<%= rn %>" <%= u.role === rn ? "selected" : "" %>><%= rn.toUpperCase() %></option>
+        <% }); %>
+      </select>
+    </div>
+    <div class="oh-input-group">
+      <label class="oh-label" for="assignedSiteIds">Assigned sites</label>
+      <select class="oh-select" id="assignedSiteIds" name="assignedSiteIds" multiple size="5">
+        <% sites.forEach(function (s) { %>
+        <option value="<%= s._id %>" <%= assigned.indexOf(String(s._id)) >= 0 ? "selected" : "" %>><%= s.name %> (<%= s.code %>)</option>
+        <% }); %>
+      </select>
+      <span class="oh-muted">PM: one or more · PE/Supervisor: exactly one · Management/HR: ignored (all sites).</span>
+    </div>
+    <% if (isEdit && !self) { %>
+    <label class="oh-check"><input type="checkbox" name="active" <%= u.active ? "checked" : "" %> /> Active</label>
+    <% } %>
+    <div class="oh-form-actions">
+      <a class="oh-btn oh-btn--small" href="/users">Cancel</a>
+      <button class="oh-btn oh-btn--secondary" type="submit"><%= isEdit ? "Save" : "Create user" %></button>
+    </div>
+  </form>
+</div>
+
+<%- include('../partials/app-bottom') %>

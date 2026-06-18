@@ -309,6 +309,12 @@ code {
   color: var(--c-text-muted);
   font-size: 0.8rem;
 }
+.oh-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
 .oh-badge--muted {
   background: #eee;
   color: #666;

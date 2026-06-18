@@ -1,0 +1,46 @@
+<%- include('../partials/app-top', { title: title, active: active }) %>
+
+<div class="oh-page-header oh-page-header--row">
+  <div>
+    <h1 class="oh-page-title">Users &amp; Roles</h1>
+    <p class="oh-page-subtitle">Staff accounts (<%= users.length %>). Workers are not users and never log in.</p>
+  </div>
+  <a class="oh-btn oh-btn--secondary" href="/users/new"><span class="material-icons">person_add</span> Add user</a>
+</div>
+
+<div class="oh-card">
+  <% if (users.length) { %>
+  <table class="oh-table">
+    <thead>
+      <tr><th>Name</th><th>Email</th><th>Role</th><th>Sites</th><th>Status</th><th class="oh-col-action"></th></tr>
+    </thead>
+    <tbody>
+      <% users.forEach(function (u) { %>
+      <tr>
+        <td><%= u.name %><%= String(u._id) === selfId ? " (you)" : "" %></td>
+        <td><%= u.email %></td>
+        <td><span class="oh-badge oh-badge--muted"><%= u.role.toUpperCase() %></span></td>
+        <td>
+          <% if (u.role === "management" || u.role === "hr") { %>All sites<% } else if (u.assignedSiteIds && u.assignedSiteIds.length) { %>
+          <%= u.assignedSiteIds.map(function (id) { return siteNameById.get(String(id)) || "?"; }).join(", ") %>
+          <% } else { %><span class="oh-muted">none</span><% } %>
+        </td>
+        <td><span class="oh-badge oh-badge--<%= u.active ? 'success' : 'muted' %>"><%= u.active ? "active" : "inactive" %></span></td>
+        <td class="oh-col-action">
+          <a class="oh-btn oh-btn--small" href="/users/<%= u._id %>/edit">Edit</a>
+          <% if (String(u._id) !== selfId) { %>
+          <form method="post" action="/users/<%= u._id %>/toggle" style="display:inline;margin:0">
+            <button class="oh-btn oh-btn--small" type="submit"><%= u.active ? "Deactivate" : "Activate" %></button>
+          </form>
+          <% } %>
+        </td>
+      </tr>
+      <% }); %>
+    </tbody>
+  </table>
+  <% } else { %>
+  <p class="oh-muted">No users yet.</p>
+  <% } %>
+</div>
+
+<%- include('../partials/app-bottom') %>
