@@ -4,6 +4,7 @@ import type { CurrentUser } from "../auth/types";
 declare module "express-session" {
   interface SessionData {
     userId?: string;
+    flash?: { type: "success" | "danger" | "info" | "warning"; text: string };
   }
 }
 

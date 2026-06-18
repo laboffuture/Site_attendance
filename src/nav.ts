@@ -15,8 +15,8 @@ export const NAV: NavItem[] = [
   { label: "Attendance", href: "/attendance", icon: "schedule", cap: "mark_attendance", ready: false },
   { label: "Overtime", href: "/overtime", icon: "more_time", cap: "view_overtime", ready: false },
   { label: "Workers", href: "/workers", icon: "groups", cap: "enroll_worker", ready: false },
-  { label: "Designations", href: "/designations", icon: "badge", cap: "add_designation", ready: false },
-  { label: "Branches & Sites", href: "/org", icon: "apartment", cap: "view_org", ready: false },
+  { label: "Designations", href: "/designations", icon: "badge", cap: "add_designation", ready: true },
+  { label: "Branches & Sites", href: "/org", icon: "apartment", cap: "view_org", ready: true },
   { label: "Users & Roles", href: "/users", icon: "manage_accounts", cap: "manage_users", ready: false },
   { label: "Reports", href: "/reports", icon: "description", cap: "view_dashboard", ready: false },
 ];

@@ -202,6 +202,117 @@ code {
   border-color: #f7cbce;
   color: #b3261e;
 }
+.oh-alert--success {
+  background: #e1fbe9;
+  border-color: #cbefd3;
+  color: #1f7a44;
+}
+
+/* ---- Selects ---- */
+.oh-select {
+  width: 100%;
+  padding: var(--pad-control);
+  font: inherit;
+  color: var(--c-text);
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  outline: none;
+}
+.oh-select:focus {
+  outline: var(--focus);
+  outline-offset: -1px;
+}
+
+/* ---- Tables ---- */
+.oh-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+}
+.oh-table th,
+.oh-table td {
+  text-align: left;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--c-border-light);
+  font-size: 0.8rem;
+  vertical-align: middle;
+}
+.oh-table th {
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  color: #5e5e5e;
+  background: #fafafa;
+}
+.oh-table tr:last-child td {
+  border-bottom: none;
+}
+.oh-col-action {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+}
+
+/* ---- Inline / stacked forms ---- */
+.oh-stack > * + * {
+  margin-top: 1.15rem;
+}
+.oh-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.oh-section-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+.oh-form-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-end;
+  padding: 1rem;
+  background: #fafafa;
+  border: 1px solid var(--c-border-light);
+}
+.oh-form-inline .oh-input-group {
+  gap: 0.35rem;
+}
+.oh-grow {
+  flex: 1 1 180px;
+}
+.oh-input--code {
+  max-width: 7rem;
+  text-transform: uppercase;
+}
+.oh-page-header--row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.oh-form-card {
+  max-width: 520px;
+}
+.oh-form-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+.oh-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+.oh-muted {
+  color: var(--c-text-muted);
+  font-size: 0.8rem;
+}
+.oh-badge--muted {
+  background: #eee;
+  color: #666;
+}
 
 /* ---- App shell ---- */
 .oh-wrapper {

@@ -1,0 +1,123 @@
+<%- include('../partials/app-top', { title: title, active: active }) %>
+
+<div class="oh-page-header oh-page-header--row">
+  <div>
+    <h1 class="oh-page-title">Branches &amp; Sites</h1>
+    <p class="oh-page-subtitle">Locations where attendance is captured.</p>
+  </div>
+  <% if (!can('manage_org')) { %>
+  <span class="oh-badge oh-badge--muted">View only</span>
+  <% } %>
+</div>
+
+<!-- Branches -->
+<div class="oh-card oh-stack">
+  <div class="oh-section-header">
+    <span class="oh-section-title">Branches</span>
+    <span class="oh-muted"><%= branches.length %> total</span>
+  </div>
+
+  <% if (can('manage_org')) { %>
+  <form class="oh-form-inline" method="post" action="/org/branches">
+    <div class="oh-input-group oh-grow">
+      <label class="oh-label" for="branch-name">New branch</label>
+      <input class="oh-input" id="branch-name" name="name" placeholder="e.g. Madurai" required />
+    </div>
+    <button class="oh-btn oh-btn--secondary" type="submit">Add branch</button>
+  </form>
+  <% } %>
+
+  <% if (branches.length) { %>
+  <table class="oh-table">
+    <thead>
+      <tr><th>Name</th><% if (can('manage_org')) { %><th class="oh-col-action"></th><% } %></tr>
+    </thead>
+    <tbody>
+      <% branches.forEach(function (b) { %>
+      <tr>
+        <td><%= b.name %></td>
+        <% if (can('manage_org')) { %>
+        <td class="oh-col-action">
+          <a class="oh-btn oh-btn--small" href="/org/branches/<%= b._id %>/edit">Edit</a>
+        </td>
+        <% } %>
+      </tr>
+      <% }); %>
+    </tbody>
+  </table>
+  <% } else { %>
+  <p class="oh-muted">No branches yet.</p>
+  <% } %>
+</div>
+
+<!-- Project sites -->
+<div class="oh-card oh-stack">
+  <div class="oh-section-header">
+    <span class="oh-section-title">Project sites</span>
+    <span class="oh-muted"><%= sites.length %> total</span>
+  </div>
+
+  <% if (can('manage_org')) { %>
+  <% if (branches.length) { %>
+  <form class="oh-form-inline" method="post" action="/org/sites">
+    <div class="oh-input-group">
+      <label class="oh-label" for="site-branch">Branch</label>
+      <select class="oh-select" id="site-branch" name="branchId" required>
+        <% branches.forEach(function (b) { %>
+        <option value="<%= b._id %>"><%= b.name %></option>
+        <% }); %>
+      </select>
+    </div>
+    <div class="oh-input-group oh-grow">
+      <label class="oh-label" for="site-name">Site name</label>
+      <input class="oh-input" id="site-name" name="name" placeholder="e.g. Anna Nagar Mall" required />
+    </div>
+    <div class="oh-input-group">
+      <label class="oh-label" for="site-code">Code</label>
+      <input class="oh-input oh-input--code" id="site-code" name="code" placeholder="ANM" required />
+    </div>
+    <div class="oh-input-group">
+      <label class="oh-label" for="site-start">Shift start</label>
+      <input class="oh-input" id="site-start" name="standardStartTime" type="time" value="09:00" required />
+    </div>
+    <div class="oh-input-group">
+      <label class="oh-label" for="site-end">Shift end</label>
+      <input class="oh-input" id="site-end" name="standardEndTime" type="time" value="18:00" required />
+    </div>
+    <button class="oh-btn oh-btn--secondary" type="submit">Add site</button>
+  </form>
+  <% } else { %>
+  <p class="oh-muted">Add a branch first, then you can add sites under it.</p>
+  <% } %>
+  <% } %>
+
+  <% if (sites.length) { %>
+  <table class="oh-table">
+    <thead>
+      <tr>
+        <th>Branch</th><th>Site</th><th>Code</th><th>Shift</th>
+        <% if (can('manage_org')) { %><th class="oh-col-action"></th><% } %>
+      </tr>
+    </thead>
+    <tbody>
+      <% sites.forEach(function (s) { %>
+      <tr>
+        <td><%= branchNameById.get(String(s.branchId)) || "—" %></td>
+        <td><%= s.name %></td>
+        <td><span class="oh-badge oh-badge--muted"><%= s.code %></span></td>
+        <td><%= s.standardStartTime %>–<%= s.standardEndTime %></td>
+        <% if (can('manage_org')) { %>
+        <td class="oh-col-action">
+          <a class="oh-btn oh-btn--small" href="/org/sites/<%= s._id %>/edit">Edit</a>
+        </td>
+        <% } %>
+      </tr>
+      <% }); %>
+    </tbody>
+  </table>
+  <% } else { %>
+  <p class="oh-muted">No project sites yet.</p>
+  <% } %>
+</div>
+
+<%- include('../partials/app-bottom') %>

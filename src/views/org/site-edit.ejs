@@ -1,0 +1,42 @@
+<%- include('../partials/app-top', { title: title, active: active }) %>
+
+<div class="oh-page-header">
+  <h1 class="oh-page-title">Edit site</h1>
+</div>
+
+<div class="oh-card oh-form-card">
+  <form class="oh-form-group" method="post" action="/org/sites/<%= site._id %>">
+    <div class="oh-input-group">
+      <label class="oh-label" for="branchId">Branch</label>
+      <select class="oh-select" id="branchId" name="branchId" required>
+        <% branches.forEach(function (b) { %>
+        <option value="<%= b._id %>" <%= String(b._id) === String(site.branchId) ? "selected" : "" %>><%= b.name %></option>
+        <% }); %>
+      </select>
+    </div>
+    <div class="oh-input-group">
+      <label class="oh-label" for="name">Site name</label>
+      <input class="oh-input" id="name" name="name" value="<%= site.name %>" required />
+    </div>
+    <div class="oh-input-group">
+      <label class="oh-label" for="code">Code</label>
+      <input class="oh-input oh-input--code" id="code" name="code" value="<%= site.code %>" required />
+    </div>
+    <div class="oh-row-2">
+      <div class="oh-input-group">
+        <label class="oh-label" for="start">Shift start</label>
+        <input class="oh-input" id="start" name="standardStartTime" type="time" value="<%= site.standardStartTime %>" required />
+      </div>
+      <div class="oh-input-group">
+        <label class="oh-label" for="end">Shift end</label>
+        <input class="oh-input" id="end" name="standardEndTime" type="time" value="<%= site.standardEndTime %>" required />
+      </div>
+    </div>
+    <div class="oh-form-actions">
+      <a class="oh-btn oh-btn--small" href="/org">Cancel</a>
+      <button class="oh-btn oh-btn--secondary" type="submit">Save</button>
+    </div>
+  </form>
+</div>
+
+<%- include('../partials/app-bottom') %>

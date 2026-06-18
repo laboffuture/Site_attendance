@@ -1,0 +1,40 @@
+<%- include('../partials/app-top', { title: title, active: active }) %>
+
+<div class="oh-page-header">
+  <h1 class="oh-page-title">Designations</h1>
+  <p class="oh-page-subtitle">Worker trades. Any role can add a new one when a new trade joins a site.</p>
+</div>
+
+<div class="oh-card oh-stack">
+  <form class="oh-form-inline" method="post" action="/designations">
+    <div class="oh-input-group oh-grow">
+      <label class="oh-label" for="desig-name">New designation</label>
+      <input class="oh-input" id="desig-name" name="name" placeholder="e.g. Glazier" required />
+    </div>
+    <button class="oh-btn oh-btn--secondary" type="submit">Add designation</button>
+  </form>
+
+  <% if (designations.length) { %>
+  <table class="oh-table">
+    <thead>
+      <tr><th>Name</th><% if (can('manage_users')) { %><th class="oh-col-action"></th><% } %></tr>
+    </thead>
+    <tbody>
+      <% designations.forEach(function (d) { %>
+      <tr>
+        <td><%= d.name %></td>
+        <% if (can('manage_users')) { %>
+        <td class="oh-col-action">
+          <a class="oh-btn oh-btn--small" href="/designations/<%= d._id %>/edit">Edit</a>
+        </td>
+        <% } %>
+      </tr>
+      <% }); %>
+    </tbody>
+  </table>
+  <% } else { %>
+  <p class="oh-muted">No designations yet.</p>
+  <% } %>
+</div>
+
+<%- include('../partials/app-bottom') %>

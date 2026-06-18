@@ -1,0 +1,20 @@
+<%- include('../partials/app-top', { title: title, active: active }) %>
+
+<div class="oh-page-header">
+  <h1 class="oh-page-title">Edit designation</h1>
+</div>
+
+<div class="oh-card oh-form-card">
+  <form class="oh-form-group" method="post" action="/designations/<%= designation._id %>">
+    <div class="oh-input-group">
+      <label class="oh-label" for="name">Designation name</label>
+      <input class="oh-input" id="name" name="name" value="<%= designation.name %>" required />
+    </div>
+    <div class="oh-form-actions">
+      <a class="oh-btn oh-btn--small" href="/designations">Cancel</a>
+      <button class="oh-btn oh-btn--secondary" type="submit">Save</button>
+    </div>
+  </form>
+</div>
+
+<%- include('../partials/app-bottom') %>

@@ -9,3 +9,6 @@
       <div class="oh-main">
         <%- include('topbar') %>
         <main class="oh-content">
+          <% if (flash) { %>
+          <div class="oh-alert oh-alert--<%= flash.type %>"><%= flash.text %></div>
+          <% } %>

@@ -63,7 +63,7 @@ Replicate the Horilla `oh-` library (sharp corners, 80% base font, BEM `oh-` cla
 Build order (✅ = done, verified):
 1. ✅ Scaffold (Express + TS + Mongoose + EJS; login page; 9 models)
 2. ✅ Auth + 5-role permissions (sessions in Mongo, bcrypt, capability matrix, route guards, seed script, app shell with role-scoped sidebar) — verified by `npm run e2e:login`
-3. ⬜ Org CRUD — branches / project sites / designations (the "add location" dropdown flow)
+3. ✅ Org CRUD — branches / project sites (unique codes, shift times) / designations; flash messages; view-only for HR/PM, manage for Management — verified by `npm run e2e:org`
 4. ⬜ Worker enrollment + face capture/encoding
 5. ⬜ Site Station capture + location-lock
 6. ⬜ Attendance logging + standard-hours / OT computation
@@ -71,7 +71,7 @@ Build order (✅ = done, verified):
 8. ⬜ Role-scoped dashboards + reports + PDF/xlsx export
 9. ⬜ Polish + deploy
 
-**Verification commands:** `npm run build` (type-check) · `npm run smoke` (boot, no DB) · `npm run seed` (admin + org data) · `npm run e2e:login` (full auth flow) · `npm run dev` (live at :3000).
+**Verification commands:** `npm run build` (type-check) · `npm run smoke` (boot, no DB) · `npm run seed` (admin + org data) · `npm run e2e:login` (auth flow) · `npm run e2e:org` (org CRUD + permissions) · `npm run dev` (live at :3000).
 
 ## Open items
 - Exact report/output column layout — pending user's reference sheet.

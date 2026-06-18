@@ -11,7 +11,9 @@ import { loadCurrentUser } from "./auth/middleware";
 import { NAV } from "./nav";
 import authRouter from "./routes/auth";
 import dashboardRouter from "./routes/dashboard";
+import designationsRouter from "./routes/designations";
 import indexRouter from "./routes/index";
+import orgRouter from "./routes/org";
 
 /**
  * Builds the Express app. Called after connectDb() so the session store can
@@ -60,6 +62,9 @@ export function createApp(): Express {
     res.locals.currentPath = req.path;
     res.locals.currentUser = null;
     res.locals.can = () => false;
+    // One-time flash message (set by a handler, consumed on next render).
+    res.locals.flash = req.session.flash ?? null;
+    delete req.session.flash;
     next();
   });
   app.use(loadCurrentUser);
@@ -67,6 +72,8 @@ export function createApp(): Express {
   app.use("/", indexRouter);
   app.use("/", authRouter);
   app.use("/", dashboardRouter);
+  app.use("/", orgRouter);
+  app.use("/", designationsRouter);
 
   return app;
 }
