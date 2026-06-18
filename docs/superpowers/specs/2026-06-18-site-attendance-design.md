@@ -70,7 +70,9 @@ Build order (✅ = done, verified):
 7. ✅ OT approval queue — pending/approved/rejected filters; HR/Management approve / adjust hours / reject (records approvedBy/at/notes); PM view-only, Supervisor blocked — verified by `npm run e2e:overtime`
 8. ✅ Role-scoped dashboards + reports + PDF/xlsx export — dashboard stats + Chart.js (attendance trend, OT by site, headcount by designation) + flags panel; /reports filter + branch→site grouping + .xlsx/.pdf download; /flags list + resolve (scoped) — verified by `npm run e2e:reports`
 9a. ✅ Users & Roles management — create/edit/deactivate staff; Management manages all roles, HR manages below-HR only; site rules (PM ≥1, PE/Supervisor =1); self-lockout guard — verified by `npm run e2e:users`
-9b. ⬜ Polish + deploy (prod cookie hardening, README, deploy checklist; missed-clockout sweep is a documented follow-up)
+9b. ✅ Polish — production hardening (trust proxy + secure cookies under NODE_ENV=production), full README with station setup + deploy notes. (missed-clockout sweep remains a documented follow-up.)
+
+**Status: v1 feature-complete.** 8 build steps done; all 7 e2e suites pass (97 checks). Pushed to GitHub (laboffuture/Site_attendance, branch main).
 
 **Verification commands:** `npm run build` (type-check) · `npm run smoke` (boot, no DB) · `npm run seed` (admin + org data) · `npm run e2e:login` (auth) · `npm run e2e:org` (org CRUD + permissions) · `npm run e2e:workers` (enrollment + face + scope) · `npm run e2e:station` (capture + location-lock + OT) · `npm run e2e:overtime` (approval queue) · `npm run e2e:reports` (dashboard + reports + exports + flags) · `npm run e2e:users` (users & roles) · `npm run sync-indexes` (reconcile DB indexes) · `npm run dev` (live at :3000).
 

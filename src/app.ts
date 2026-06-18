@@ -30,6 +30,9 @@ import workersRouter from "./routes/workers";
 export function createApp(): Express {
   const app = express();
 
+  // Behind a TLS-terminating proxy in production so secure cookies work.
+  if (config.isProd) app.set("trust proxy", 1);
+
   app.set("view engine", "ejs");
   app.set("views", path.join(__dirname, "views"));
 
@@ -59,7 +62,12 @@ export function createApp(): Express {
       secret: config.sessionSecret,
       resave: false,
       saveUninitialized: false,
-      cookie: { httpOnly: true, sameSite: "lax", maxAge: 60 * 60 * 24 * 14 * 1000 },
+      cookie: {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: config.isProd, // HTTPS-only cookies in production
+        maxAge: 60 * 60 * 24 * 14 * 1000,
+      },
     }),
   );
 
