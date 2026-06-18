@@ -16,7 +16,8 @@
     "e2e:station": "tsx scripts/e2e_station.ts",
     "e2e:overtime": "tsx scripts/e2e_overtime.ts",
     "e2e:reports": "tsx scripts/e2e_reports.ts",
-    "e2e:users": "tsx scripts/e2e_users.ts"
+    "e2e:users": "tsx scripts/e2e_users.ts",
+    "e2e:hierarchy": "tsx scripts/e2e_hierarchy.ts"
   },
   "dependencies": {
     "@tensorflow/tfjs": "^4.22.0",

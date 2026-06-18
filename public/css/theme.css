@@ -630,6 +630,40 @@ code {
   margin-top: 0.5rem;
 }
 
+/* ---- Hierarchy rollup ---- */
+.oh-table .num {
+  text-align: right;
+  white-space: nowrap;
+}
+.oh-rollup-branch {
+  cursor: pointer;
+  background: #fafafa;
+  font-weight: 600;
+}
+.oh-rollup-branch:hover {
+  background: #f0f0f0;
+}
+.oh-caret {
+  display: inline-block;
+  font-size: 0.6rem;
+  transition: transform 0.12s ease;
+  color: var(--c-text-muted);
+}
+.oh-rollup-branch.collapsed .oh-caret {
+  transform: rotate(-90deg);
+}
+.oh-rollup-sitename {
+  padding-left: 1.7rem;
+}
+.oh-num-warn {
+  color: #8a6d1b;
+  font-weight: 600;
+}
+.oh-num-danger {
+  color: #b3261e;
+  font-weight: 600;
+}
+
 /* ---- Reports ---- */
 .oh-report-site {
   font-weight: 600;

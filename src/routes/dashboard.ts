@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 
 import { requireAuth } from "../auth/middleware";
+import { buildHierarchyRollup } from "../lib/hierarchy";
 import { siteScopeFilter, flagScopeFilter } from "../lib/scope";
 import { siteLocalDate, round2 } from "../lib/time";
 import { AttendanceModel } from "../models/Attendance";
@@ -68,6 +69,10 @@ router.get("/dashboard", requireAuth, async (req: Request, res: Response) => {
     .limit(8)
     .lean();
 
+  // Branch → site hierarchy rollup for senior roles (multi-site view).
+  const senior = u.role === "management" || u.role === "hr" || u.role === "pm";
+  const rollup = senior ? await buildHierarchyRollup(u) : null;
+
   res.render("dashboard", {
     title: "Dashboard · " + res.locals.company,
     active: "/dashboard",
@@ -75,6 +80,7 @@ router.get("/dashboard", requireAuth, async (req: Request, res: Response) => {
     stats: { todayCount, pendingOT, activeWorkers, unresolvedFlags },
     charts: { trend, otBySite, byDesignation },
     flags,
+    rollup,
   });
 });
 
