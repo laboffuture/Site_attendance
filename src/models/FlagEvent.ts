@@ -13,12 +13,14 @@ const flagEventSchema = new Schema(
       ref: "ProjectSite",
       default: null,
     },
+    attemptedSiteName: { type: String, default: null }, // denormalized
     attemptedStationId: {
       type: Schema.Types.ObjectId,
       ref: "SiteStation",
       default: null,
     },
     homeSiteId: { type: Schema.Types.ObjectId, ref: "ProjectSite", default: null },
+    homeSiteName: { type: String, default: null }, // denormalized
     timestamp: { type: Date, default: Date.now },
     resolved: { type: Boolean, default: false },
   },

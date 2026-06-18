@@ -1,38 +1,75 @@
 <%- include('partials/app-top', { title: title, active: active }) %>
+<%
+  function ts(d) { return d ? new Date(d).toLocaleString("en-GB", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" }) : ""; }
+%>
 
 <div class="oh-page-header">
   <h1 class="oh-page-title">Dashboard</h1>
-  <p class="oh-page-subtitle">
-    Welcome, <%= currentUser.name %> · Scope: <%= scopeLabel %>
-  </p>
+  <p class="oh-page-subtitle">Welcome, <%= currentUser.name %> · Scope: <%= scopeLabel %></p>
 </div>
 
 <div class="oh-card-grid">
   <div class="oh-card">
     <div class="oh-card__label">Today's Attendance</div>
-    <div class="oh-card__value">—</div>
-    <div class="oh-card__note">soon</div>
+    <div class="oh-card__value"><%= stats.todayCount %></div>
   </div>
-  <div class="oh-card">
+  <a class="oh-card oh-card--link" href="/overtime?status=pending">
     <div class="oh-card__label">Pending Overtime</div>
-    <div class="oh-card__value">—</div>
-    <div class="oh-card__note">soon</div>
-  </div>
-  <div class="oh-card">
+    <div class="oh-card__value"><%= stats.pendingOT %></div>
+  </a>
+  <a class="oh-card oh-card--link" href="/flags">
     <div class="oh-card__label">Flagged Events</div>
-    <div class="oh-card__value">—</div>
-    <div class="oh-card__note">soon</div>
-  </div>
+    <div class="oh-card__value"><%= stats.unresolvedFlags %></div>
+  </a>
   <div class="oh-card">
     <div class="oh-card__label">Active Workers</div>
-    <div class="oh-card__value">—</div>
-    <div class="oh-card__note">soon</div>
+    <div class="oh-card__value"><%= stats.activeWorkers %></div>
   </div>
 </div>
 
-<div class="oh-card oh-note-card">
-  You're signed in. These panels populate as modules are built — attendance
-  capture, overtime approvals, worker enrollment, and reports.
+<div class="oh-chart-grid">
+  <div class="oh-card">
+    <div class="oh-card__label">Attendance — last 14 days</div>
+    <div class="oh-chart-box"><canvas id="trendChart"></canvas></div>
+  </div>
+  <div class="oh-card">
+    <div class="oh-card__label">Overtime hours by site</div>
+    <div class="oh-chart-box"><canvas id="otChart"></canvas></div>
+  </div>
+  <div class="oh-card">
+    <div class="oh-card__label">Active headcount by designation</div>
+    <div class="oh-chart-box"><canvas id="desigChart"></canvas></div>
+  </div>
 </div>
+
+<div class="oh-card oh-stack">
+  <div class="oh-section-header">
+    <span class="oh-section-title">Recent flagged events</span>
+    <a class="oh-btn oh-btn--small" href="/flags">View all</a>
+  </div>
+  <% if (flags.length) { %>
+  <table class="oh-table">
+    <thead><tr><th>When</th><th>Worker</th><th>Attempted at</th><th>Assigned to</th></tr></thead>
+    <tbody>
+      <% flags.forEach(function (f) { %>
+      <tr>
+        <td><%= ts(f.timestamp) %></td>
+        <td><%= f.workerName || "—" %></td>
+        <td><%= f.attemptedSiteName || "—" %></td>
+        <td><%= f.homeSiteName || "—" %></td>
+      </tr>
+      <% }); %>
+    </tbody>
+  </table>
+  <% } else { %>
+  <p class="oh-muted">No unresolved flags. 🎉</p>
+  <% } %>
+</div>
+
+<script>
+  window.__CHARTS__ = <%- JSON.stringify(charts) %>;
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
+<script src="/static/js/dashboard-charts.js"></script>
 
 <%- include('partials/app-bottom') %>

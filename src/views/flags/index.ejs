@@ -1,0 +1,47 @@
+<%- include('../partials/app-top', { title: title, active: active }) %>
+<%
+  function ts(d) { return d ? new Date(d).toLocaleString("en-GB", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" }) : ""; }
+  var typeLabel = { wrong_site_scan: "Wrong-site scan", missed_clockout: "Missed clock-out" };
+%>
+
+<div class="oh-page-header">
+  <h1 class="oh-page-title">Flagged events</h1>
+  <p class="oh-page-subtitle">Wrong-site scan attempts and other anomalies for your sites.</p>
+</div>
+
+<div class="oh-filter-tabs">
+  <a class="oh-filter-tab <%= !showResolved ? 'oh-filter-tab--active' : '' %>" href="/flags">Unresolved</a>
+  <a class="oh-filter-tab <%= showResolved ? 'oh-filter-tab--active' : '' %>" href="/flags?status=resolved">Resolved</a>
+</div>
+
+<div class="oh-card">
+  <% if (flags.length) { %>
+  <table class="oh-table">
+    <thead>
+      <tr><th>When</th><th>Type</th><th>Worker</th><th>Attempted at</th><th>Assigned to</th><% if (!showResolved) { %><th class="oh-col-action"></th><% } %></tr>
+    </thead>
+    <tbody>
+      <% flags.forEach(function (f) { %>
+      <tr>
+        <td><%= ts(f.timestamp) %></td>
+        <td><span class="oh-badge oh-badge--danger"><%= typeLabel[f.type] || f.type %></span></td>
+        <td><%= f.workerName || "—" %></td>
+        <td><%= f.attemptedSiteName || "—" %></td>
+        <td><%= f.homeSiteName || "—" %></td>
+        <% if (!showResolved) { %>
+        <td class="oh-col-action">
+          <form method="post" action="/flags/<%= f._id %>/resolve" style="margin:0">
+            <button class="oh-btn oh-btn--small" type="submit">Resolve</button>
+          </form>
+        </td>
+        <% } %>
+      </tr>
+      <% }); %>
+    </tbody>
+  </table>
+  <% } else { %>
+  <p class="oh-muted">No <%= showResolved ? "resolved" : "unresolved" %> flags.</p>
+  <% } %>
+</div>
+
+<%- include('../partials/app-bottom') %>

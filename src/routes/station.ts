@@ -104,8 +104,10 @@ router.post("/station/scan", requireStation, async (req: Request, res: Response)
       workerId: worker._id,
       workerName: worker.name,
       attemptedSiteId: station.siteId,
+      attemptedSiteName: station.siteName,
       attemptedStationId: station.id,
       homeSiteId: worker.siteId,
+      homeSiteName: worker.siteName,
     });
     return res.json({
       status: "wrong_site",

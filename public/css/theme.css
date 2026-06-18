@@ -602,6 +602,35 @@ code {
 .oh-note-card {
   color: var(--c-text-muted);
 }
+.oh-card--link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+.oh-card--link:hover {
+  box-shadow: var(--shadow-card);
+}
+
+/* ---- Dashboard charts ---- */
+.oh-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+.oh-chart-box {
+  position: relative;
+  height: 240px;
+  margin-top: 0.5rem;
+}
+
+/* ---- Reports ---- */
+.oh-report-site {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--c-table-text, #5e5e5e);
+  margin: 0.25rem 0 0.4rem;
+}
 
 /* ---- Badges & small buttons ---- */
 .oh-badge {

@@ -18,3 +18,10 @@ export function canUseSite(user: CurrentUser, siteId: string): boolean {
   if (user.role === "management" || user.role === "hr") return true;
   return user.assignedSiteIds.includes(siteId);
 }
+
+/** Like siteScopeFilter but for flag_events, which key the site as
+ *  `attemptedSiteId` (the station's site where the scan happened). */
+export function flagScopeFilter(user: CurrentUser): Record<string, unknown> {
+  if (user.role === "management" || user.role === "hr") return {};
+  return { attemptedSiteId: { $in: user.assignedSiteIds.map((id) => new Types.ObjectId(id)) } };
+}

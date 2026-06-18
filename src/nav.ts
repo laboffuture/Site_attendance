@@ -19,5 +19,6 @@ export const NAV: NavItem[] = [
   { label: "Branches & Sites", href: "/org", icon: "apartment", cap: "view_org", ready: true },
   { label: "Stations", href: "/stations", icon: "desktop_windows", cap: "manage_org", ready: true },
   { label: "Users & Roles", href: "/users", icon: "manage_accounts", cap: "manage_users", ready: false },
-  { label: "Reports", href: "/reports", icon: "description", cap: "view_dashboard", ready: false },
+  { label: "Reports", href: "/reports", icon: "description", cap: "view_dashboard", ready: true },
+  { label: "Flagged", href: "/flags", icon: "flag", cap: "view_dashboard", ready: true },
 ];

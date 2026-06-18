@@ -12,9 +12,11 @@ import { NAV } from "./nav";
 import authRouter from "./routes/auth";
 import dashboardRouter from "./routes/dashboard";
 import designationsRouter from "./routes/designations";
+import flagsRouter from "./routes/flags";
 import indexRouter from "./routes/index";
 import orgRouter from "./routes/org";
 import overtimeRouter from "./routes/overtime";
+import reportsRouter from "./routes/reports";
 import stationRouter from "./routes/station";
 import stationsRouter from "./routes/stations";
 import workersRouter from "./routes/workers";
@@ -83,6 +85,8 @@ export function createApp(): Express {
   app.use("/", stationsRouter);
   app.use("/", stationRouter);
   app.use("/", overtimeRouter);
+  app.use("/", reportsRouter);
+  app.use("/", flagsRouter);
 
   return app;
 }
