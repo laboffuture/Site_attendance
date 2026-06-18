@@ -618,3 +618,55 @@ code {
   padding: 0.4rem 0.8rem;
   font-size: 0.8rem;
 }
+.oh-btn--success {
+  background: var(--c-success);
+  color: #fff;
+}
+.oh-btn--success:hover {
+  background: #1fad61;
+}
+.oh-btn--danger {
+  background: var(--c-danger);
+  color: #fff;
+}
+.oh-btn--danger:hover {
+  background: #ce3330;
+}
+.oh-badge--warning {
+  background: #fff8e1;
+  color: #8a6d1b;
+}
+.oh-badge--danger {
+  background: #fdebeb;
+  color: #b3261e;
+}
+
+/* ---- Overtime queue ---- */
+.oh-input--xs {
+  width: 5rem;
+  padding: 0.35rem 0.5rem;
+}
+.oh-ot-actions {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  margin: 0;
+}
+.oh-filter-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+.oh-filter-tab {
+  padding: 0.35rem 0.8rem;
+  border: 1px solid var(--c-border);
+  color: var(--c-text-muted);
+  text-decoration: none;
+  font-size: 0.8rem;
+  text-transform: capitalize;
+}
+.oh-filter-tab--active {
+  background: var(--c-accent);
+  color: #fff;
+  border-color: var(--c-accent);
+}

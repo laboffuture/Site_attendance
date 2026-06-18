@@ -8,11 +8,13 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "seed": "tsx scripts/seed.ts",
+    "sync-indexes": "tsx scripts/sync_indexes.ts",
     "smoke": "tsx scripts/smoke.ts",
     "e2e:login": "tsx scripts/e2e_login.ts",
     "e2e:org": "tsx scripts/e2e_org.ts",
     "e2e:workers": "tsx scripts/e2e_workers.ts",
-    "e2e:station": "tsx scripts/e2e_station.ts"
+    "e2e:station": "tsx scripts/e2e_station.ts",
+    "e2e:overtime": "tsx scripts/e2e_overtime.ts"
   },
   "dependencies": {
     "@tensorflow/tfjs": "^4.22.0",

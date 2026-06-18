@@ -67,11 +67,11 @@ Build order (✅ = done, verified):
 4. ✅ Worker enrollment — webcam/upload capture, 128-d face encoding, auto empRegNo (TRGBI-####), denormalized names, site-scoped list/edit; faceless photos rejected — verified by `npm run e2e:workers`
 5. ✅ Site Station capture + location-lock — station key sign-in, kiosk scan screen, match-all + location-lock + flag events — verified by `npm run e2e:station`
 6. ✅ Attendance logging + standard-hours / OT computation — In/Out (last-scan-wins, IST), OT = max(0, total − site standard) pending; computed on the Out scan
-7. ⬜ OT approval queue (HR/Management approve / adjust / reject)
+7. ✅ OT approval queue — pending/approved/rejected filters; HR/Management approve / adjust hours / reject (records approvedBy/at/notes); PM view-only, Supervisor blocked — verified by `npm run e2e:overtime`
 8. ⬜ Role-scoped dashboards + reports + PDF/xlsx export
 9. ⬜ Polish + deploy
 
-**Verification commands:** `npm run build` (type-check) · `npm run smoke` (boot, no DB) · `npm run seed` (admin + org data) · `npm run e2e:login` (auth) · `npm run e2e:org` (org CRUD + permissions) · `npm run e2e:workers` (enrollment + face + scope) · `npm run e2e:station` (capture + location-lock + OT) · `npm run dev` (live at :3000).
+**Verification commands:** `npm run build` (type-check) · `npm run smoke` (boot, no DB) · `npm run seed` (admin + org data) · `npm run e2e:login` (auth) · `npm run e2e:org` (org CRUD + permissions) · `npm run e2e:workers` (enrollment + face + scope) · `npm run e2e:station` (capture + location-lock + OT) · `npm run e2e:overtime` (approval queue) · `npm run sync-indexes` (reconcile DB indexes) · `npm run dev` (live at :3000).
 
 ## Open items
 - Exact report/output column layout — pending user's reference sheet.

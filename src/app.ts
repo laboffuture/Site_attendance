@@ -14,6 +14,7 @@ import dashboardRouter from "./routes/dashboard";
 import designationsRouter from "./routes/designations";
 import indexRouter from "./routes/index";
 import orgRouter from "./routes/org";
+import overtimeRouter from "./routes/overtime";
 import stationRouter from "./routes/station";
 import stationsRouter from "./routes/stations";
 import workersRouter from "./routes/workers";
@@ -81,6 +82,7 @@ export function createApp(): Express {
   app.use("/", workersRouter);
   app.use("/", stationsRouter);
   app.use("/", stationRouter);
+  app.use("/", overtimeRouter);
 
   return app;
 }
