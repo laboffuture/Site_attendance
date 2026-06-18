@@ -10,15 +10,20 @@
     "seed": "tsx scripts/seed.ts",
     "smoke": "tsx scripts/smoke.ts",
     "e2e:login": "tsx scripts/e2e_login.ts",
-    "e2e:org": "tsx scripts/e2e_org.ts"
+    "e2e:org": "tsx scripts/e2e_org.ts",
+    "e2e:workers": "tsx scripts/e2e_workers.ts"
   },
   "dependencies": {
+    "@tensorflow/tfjs": "^4.22.0",
+    "@tensorflow/tfjs-backend-wasm": "^4.22.0",
+    "@vladmandic/face-api": "^1.7.15",
     "bcryptjs": "^2.4.3",
     "connect-mongo": "^5.1.0",
     "dotenv": "^16.4.5",
     "ejs": "^3.1.10",
     "express": "^4.21.2",
     "express-session": "^1.18.1",
+    "jpeg-js": "^0.4.4",
     "mongoose": "^8.9.5"
   },
   "devDependencies": {

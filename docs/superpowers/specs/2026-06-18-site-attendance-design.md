@@ -64,17 +64,17 @@ Build order (✅ = done, verified):
 1. ✅ Scaffold (Express + TS + Mongoose + EJS; login page; 9 models)
 2. ✅ Auth + 5-role permissions (sessions in Mongo, bcrypt, capability matrix, route guards, seed script, app shell with role-scoped sidebar) — verified by `npm run e2e:login`
 3. ✅ Org CRUD — branches / project sites (unique codes, shift times) / designations; flash messages; view-only for HR/PM, manage for Management — verified by `npm run e2e:org`
-4. ⬜ Worker enrollment + face capture/encoding
+4. ✅ Worker enrollment — webcam/upload capture, 128-d face encoding, auto empRegNo (TRGBI-####), denormalized names, site-scoped list/edit; faceless photos rejected — verified by `npm run e2e:workers`
 5. ⬜ Site Station capture + location-lock
 6. ⬜ Attendance logging + standard-hours / OT computation
 7. ⬜ OT approval queue
 8. ⬜ Role-scoped dashboards + reports + PDF/xlsx export
 9. ⬜ Polish + deploy
 
-**Verification commands:** `npm run build` (type-check) · `npm run smoke` (boot, no DB) · `npm run seed` (admin + org data) · `npm run e2e:login` (auth flow) · `npm run e2e:org` (org CRUD + permissions) · `npm run dev` (live at :3000).
+**Verification commands:** `npm run build` (type-check) · `npm run smoke` (boot, no DB) · `npm run seed` (admin + org data) · `npm run e2e:login` (auth) · `npm run e2e:org` (org CRUD + permissions) · `npm run e2e:workers` (enrollment + face + scope) · `npm run dev` (live at :3000).
 
 ## Open items
 - Exact report/output column layout — pending user's reference sheet.
 - Brand accent — LOF blue default; confirm if TRGBI has its own color.
-- Face-recognition approach — start with `face-api.js` (TensorFlow.js, pure Node) for server-side matching; if accuracy is insufficient, add a small Python micro-service (InsightFace/DeepFace). Decide at the enrollment module.
+- Face-recognition approach — RESOLVED: `@vladmandic/face-api` **node-wasm build** on the TensorFlow.js **WASM backend** (tfjs-node's native binding does not load on Node 22). Pure JS, no native build, ~0.5s/encode, 128-d descriptors, self-hosted. Engine is behind `src/lib/face.ts` (`encodeFace`/`bestMatch`) so a Python micro-service can replace it later if accuracy demands. Model weights committed under `models/face/`.
 - Biometric data (face encodings) under India's DPDP Act — flag for legal/compliance review (consent capture + retention), not a code decision.

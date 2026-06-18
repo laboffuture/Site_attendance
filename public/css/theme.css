@@ -313,6 +313,45 @@ code {
   background: #eee;
   color: #666;
 }
+.oh-badge--success {
+  background: #e1fbe9;
+  color: #1f7a44;
+}
+
+/* ---- Worker thumbnails & enrollment capture ---- */
+.oh-thumb {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%; /* the one place corners are round, per the design DNA */
+  object-fit: cover;
+  display: inline-block;
+  background: #e8ecf1;
+}
+.oh-form-card--wide {
+  max-width: 720px;
+}
+.oh-webcam-wrap {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.oh-webcam,
+.oh-shot {
+  width: 280px;
+  height: 210px;
+  border: 1px solid var(--c-border);
+  object-fit: cover;
+  background: #000;
+}
+.oh-shot {
+  background: #f0f0f0;
+}
+.oh-capture-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
 
 /* ---- App shell ---- */
 .oh-wrapper {

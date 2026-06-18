@@ -14,6 +14,7 @@ import dashboardRouter from "./routes/dashboard";
 import designationsRouter from "./routes/designations";
 import indexRouter from "./routes/index";
 import orgRouter from "./routes/org";
+import workersRouter from "./routes/workers";
 
 /**
  * Builds the Express app. Called after connectDb() so the session store can
@@ -28,7 +29,8 @@ export function createApp(): Express {
 
   // Static assets need no session/user — mount first to avoid per-asset DB hits.
   app.use("/static", express.static(path.join(__dirname, "..", "public")));
-  app.use(express.urlencoded({ extended: true }));
+  // Larger limit so base64 webcam photos (enrollment) fit in the form body.
+  app.use(express.urlencoded({ extended: true, limit: "8mb" }));
 
   const store = db.dbReady
     ? // Reuse the existing Mongoose connection's MongoClient. Cross-package
@@ -74,6 +76,7 @@ export function createApp(): Express {
   app.use("/", dashboardRouter);
   app.use("/", orgRouter);
   app.use("/", designationsRouter);
+  app.use("/", workersRouter);
 
   return app;
 }
