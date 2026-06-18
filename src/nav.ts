@@ -12,7 +12,7 @@ export interface NavItem {
  *  `ready` flips to true as each module lands. */
 export const NAV: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: "dashboard", cap: "view_dashboard", ready: true },
-  { label: "Attendance", href: "/attendance", icon: "schedule", cap: "mark_attendance", ready: false },
+  { label: "Attendance", href: "/attendance", icon: "schedule", cap: "mark_attendance", ready: true },
   { label: "Overtime", href: "/overtime", icon: "more_time", cap: "view_overtime", ready: true },
   { label: "Workers", href: "/workers", icon: "groups", cap: "enroll_worker", ready: true },
   { label: "Designations", href: "/designations", icon: "badge", cap: "add_designation", ready: true },

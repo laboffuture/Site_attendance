@@ -11,6 +11,23 @@ export function siteLocalDate(d: Date = new Date()): string {
   }).format(d);
 }
 
+/** A site-local (IST) calendar date + "HH:MM" as a Date.
+ *  India is a fixed UTC+05:30 offset (no DST), so this is unambiguous. */
+export function istDateTime(date: string, hm: string): Date {
+  return new Date(`${date}T${hm}:00+05:30`);
+}
+
+/** A Date rendered as IST "HH:MM" (or "" for null). */
+export function istHM(d: Date | null | undefined): string {
+  return d
+    ? new Intl.DateTimeFormat("en-GB", {
+        timeZone: SITE_TZ,
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(d)
+    : "";
+}
+
 /** "HH:MM" → decimal hours (e.g. "09:30" → 9.5). */
 export function hmToHours(hm: string): number {
   const [h, m] = hm.split(":").map(Number);

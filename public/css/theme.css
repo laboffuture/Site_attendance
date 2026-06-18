@@ -715,6 +715,14 @@ code {
   width: 5rem;
   padding: 0.35rem 0.5rem;
 }
+.oh-input--time {
+  width: 7rem;
+  padding: 0.35rem 0.5rem;
+}
+/* Inline attendance form spans the row's cells. */
+tr > .oh-att-row {
+  display: contents;
+}
 .oh-ot-actions {
   display: flex;
   gap: 0.4rem;

@@ -74,7 +74,9 @@ Build order (✅ = done, verified):
 
 10. ✅ Hierarchy rollup on dashboard — expandable Branch → Site table for Management/HR/PM with per-site present-today / active / pending-OT-hours / unresolved-flags, scoped to the user's sites; absent for single-site PE/Supervisor — verified by `npm run e2e:hierarchy`
 
-**Status: v1 feature-complete.** All 9 build steps + the hierarchy rollup done; 8 e2e suites pass. Pushed to GitHub (laboffuture/Site_attendance, branch main). Dashboards are role-scoped (data + menu + the senior-role rollup tree).
+11. ✅ Manual attendance mark/override (spec §3) — `/attendance` daily per-site grid; mark In (present), add Out (computes total + OT → pending), correct times; entries tagged `source:manual` + `markedBy`, flagged in reports and a Source column in exports; scoped by role — verified by `npm run e2e:attendance`
+
+**Status: v1 feature-complete.** All 9 build steps + hierarchy rollup + manual attendance override done; 9 e2e suites pass. Pushed to GitHub (laboffuture/Site_attendance, branch main). The "Attendance" nav item is now live (was the last greyed stub). Dashboards role-scoped (data + menu + senior-role rollup tree).
 
 **Verification commands:** `npm run build` (type-check) · `npm run smoke` (boot, no DB) · `npm run seed` (admin + org data) · `npm run e2e:login` (auth) · `npm run e2e:org` (org CRUD + permissions) · `npm run e2e:workers` (enrollment + face + scope) · `npm run e2e:station` (capture + location-lock + OT) · `npm run e2e:overtime` (approval queue) · `npm run e2e:reports` (dashboard + reports + exports + flags) · `npm run e2e:users` (users & roles) · `npm run sync-indexes` (reconcile DB indexes) · `npm run dev` (live at :3000).
 

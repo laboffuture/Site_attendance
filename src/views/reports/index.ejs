@@ -68,7 +68,10 @@
         <tr>
           <td><%= r.date %></td>
           <td><%= r.empRegNo %></td>
-          <td><%= r.workerName %></td>
+          <td>
+            <%= r.workerName %>
+            <% if (r.source === "manual") { %><span class="oh-badge oh-badge--warning" title="Marked manually">M</span><% } %>
+          </td>
           <td><%= r.designationName %></td>
           <td><%= t(r.inTime) %></td>
           <td><%= t(r.outTime) %></td>

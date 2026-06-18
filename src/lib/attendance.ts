@@ -62,6 +62,7 @@ export async function recordScan(
         branchId: site.branchId,
         branchName,
         inTime: now,
+        source: "scan",
       });
       return {
         action: "in",

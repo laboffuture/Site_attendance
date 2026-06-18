@@ -41,6 +41,11 @@ const attendanceSchema = new Schema(
     totalHours: { type: Number, default: null },
     standardHours: { type: Number, default: null },
     overtime: { type: overtimeSchema, default: () => ({}) },
+
+    // Audit: how this record was created/last changed. Scan = face kiosk;
+    // manual = marked/corrected by a user on the Attendance page.
+    source: { type: String, enum: ["scan", "manual"], default: "scan" },
+    markedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
   },
   { timestamps: true },
 );

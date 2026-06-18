@@ -10,6 +10,7 @@ import * as db from "./db";
 import { loadCurrentUser } from "./auth/middleware";
 import { NAV } from "./nav";
 import authRouter from "./routes/auth";
+import attendanceRouter from "./routes/attendance";
 import dashboardRouter from "./routes/dashboard";
 import designationsRouter from "./routes/designations";
 import flagsRouter from "./routes/flags";
@@ -97,6 +98,7 @@ export function createApp(): Express {
   app.use("/", reportsRouter);
   app.use("/", flagsRouter);
   app.use("/", usersRouter);
+  app.use("/", attendanceRouter);
 
   return app;
 }

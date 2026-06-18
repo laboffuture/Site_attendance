@@ -15,7 +15,8 @@ const COLUMNS: { header: string; key: string; width: number; pdf: number }[] = [
   { header: "Out", key: "outT", width: 8, pdf: 38 },
   { header: "Total (h)", key: "totalHours", width: 10, pdf: 46 },
   { header: "OT (h)", key: "otHours", width: 9, pdf: 38 },
-  { header: "OT Status", key: "otStatus", width: 12, pdf: 58 },
+  { header: "OT Status", key: "otStatus", width: 12, pdf: 54 },
+  { header: "Source", key: "source", width: 9, pdf: 44 },
 ];
 
 function ist(d: unknown): string {
@@ -43,6 +44,7 @@ function flat(r: Row): Record<string, string | number> {
     totalHours: r.totalHours != null ? Number(r.totalHours) : "",
     otHours: r.overtime?.computedHours ?? 0,
     otStatus: r.overtime?.status ?? "none",
+    source: String(r.source ?? "scan"),
   };
 }
 
