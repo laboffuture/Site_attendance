@@ -1,0 +1,80 @@
+# TRGBI Site Attendance & Workforce Management — Design
+
+**Date:** 2026-06-18
+**Status:** Living document. Sections 1–2 approved; building started at user direction. Stack pivoted to **Node + TypeScript (Express)** per user preference. Sections 3–6 validated just-in-time before each module is built.
+**Source spec:** `site-attendance-system-spec.md` (functional source of truth).
+
+---
+
+## Locked decisions
+
+| Area | Decision |
+|---|---|
+| Company name | **TRGBI** (resolves spec §1 ambiguity) |
+| Backend | **Express + TypeScript** (Node 22) |
+| Database | **MongoDB Atlas** (cloud), accessed via **Mongoose** ODM |
+| Frontend | **Server-rendered EJS templates** in the Horilla `oh-` design system; vanilla JS `getUserMedia` for webcam; Chart.js dashboards |
+| Auth | **express-session** cookies (+ connect-mongo store) + bcryptjs hashing + 5-role permission middleware |
+| Face recognition | **Server-side** matching via `face-api.js` (TensorFlow.js); optional Python micro-service if accuracy needs it |
+| Dev workflow | `npm run dev` (tsx watch, hot reload) |
+| Dashboards | **All five roles** get a dashboard, scoped by role. OT approval stays **HR/Management only** |
+| Locations | Branches & sites are **DB-driven**, added via a UI dropdown as the company expands |
+| Report export | **Download** as PDF and `.xlsx` (no Google API integration) |
+| Report column layout | **Pending** — user will supply the exact reference sheet |
+
+---
+
+## 1. Architecture
+
+One central Express app on a cloud server → MongoDB Atlas. All clients are browsers; nothing to install.
+
+Two browser surfaces, one app:
+- **Site Station** — fixed site laptop. Capture + enrollment screens. Authenticated as a *station identity* bound to one site.
+- **Role dashboard** — Management/HR (all sites), PM (their sites), PE & Supervisor (own site).
+
+**Station ↔ site binding (location-lock foundation):** Each `site_stations` record carries a hashed station key mapped to one `projectSiteId`. The laptop signs in once with that key → long-lived station session → the capture screen always knows "I am Station-X → Site-Y." On scan: face match → compare matched worker's `siteId` to the station's `siteId`. Mismatch → reject, log no time, raise a `flag_event`. Enrollment at a station auto-assigns the new worker to that station's site.
+
+## 2. Data model (MongoDB / Mongoose)
+
+Four document-model moves vs. the spec's relational sketch:
+1. **Embed overtime into the attendance record** (1:1) → removes the `overtime_approvals` table.
+2. **Embed a PM's site list** as `assignedSiteIds` on the user → removes the `pm_site_assignments` join table.
+3. **Denormalize** worker/designation/site/branch *names* onto each attendance record → fast grouped reports without joins/populate.
+4. **Wrong-site scans are `flag_events`**, not a flag on attendance (a rejected scan logs no time, so there's no attendance row to flag).
+
+Collections: `branches`, `designations`, `project_sites` (embeds optional per-designation shift overrides), `site_stations`, `users` (`assignedSiteIds`: `[]`=all, `[N]`=PM, `[1]`=PE/Supervisor), `workers` (128-float `faceEncoding`, `photoUrl`), `attendance` (embedded `overtime`, denormalized names), `flag_events`, `counters` (atomic `empRegNo` → `TRGBI-0001`).
+
+**Scope rule:** `assignedSiteIds` on the user gates every dashboard query — `[]` → all sites, else `siteId ∈ assignedSiteIds`.
+
+**Key indexes:** `attendance` {siteId,date}, {workerId,date} unique, {branchId,date}, {"overtime.status"}; `workers` unique empRegNo + {siteId,status}; `users` unique email; `counters` unique key.
+
+## 3. Capture + face-match + location-lock flow  — _TBD, validate before build_
+Daily In/Out logic, server-side encoding/compare, threshold, reject+flag path, missed-clockout detection.
+
+## 4. Overtime computation & approval  — _TBD, validate before build_
+Compute on Out; standard hours from site (+ optional per-designation override); pending→approved/adjusted/rejected by HR/Management; only approved counts in final report.
+
+## 5. Dashboards & reporting  — _TBD, validate before build_
+Role-scoped views; **grouping by branch → site → supervisor**; OT status always visible (pending/approved/rejected); flagged events; filters (branch/site/date/designation/worker); PDF + xlsx export. Exact column layout pending user's reference sheet.
+
+## 6. Design-system integration & build order  — _in progress_
+Replicate the Horilla `oh-` library (sharp corners, 80% base font, BEM `oh-` classes) via EJS templates + a `theme.css` token set. Accent currently LOF blue `#1C4D8C` (single variable, swappable to a TRGBI brand color if provided).
+
+Build order (✅ = done, verified):
+1. ✅ Scaffold (Express + TS + Mongoose + EJS; login page; 9 models)
+2. ✅ Auth + 5-role permissions (sessions in Mongo, bcrypt, capability matrix, route guards, seed script, app shell with role-scoped sidebar) — verified by `npm run e2e:login`
+3. ⬜ Org CRUD — branches / project sites / designations (the "add location" dropdown flow)
+4. ⬜ Worker enrollment + face capture/encoding
+5. ⬜ Site Station capture + location-lock
+6. ⬜ Attendance logging + standard-hours / OT computation
+7. ⬜ OT approval queue
+8. ⬜ Role-scoped dashboards + reports + PDF/xlsx export
+9. ⬜ Polish + deploy
+
+**Verification commands:** `npm run build` (type-check) · `npm run smoke` (boot, no DB) · `npm run seed` (admin + org data) · `npm run e2e:login` (full auth flow) · `npm run dev` (live at :3000).
+
+## Open items
+- Exact report/output column layout — pending user's reference sheet.
+- Brand accent — LOF blue default; confirm if TRGBI has its own color.
+- Face-recognition approach — start with `face-api.js` (TensorFlow.js, pure Node) for server-side matching; if accuracy is insufficient, add a small Python micro-service (InsightFace/DeepFace). Decide at the enrollment module.
+- Biometric data (face encodings) under India's DPDP Act — flag for legal/compliance review (consent capture + retention), not a code decision.

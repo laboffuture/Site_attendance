@@ -1,0 +1,38 @@
+<%- include('partials/app-top', { title: title, active: active }) %>
+
+<div class="oh-page-header">
+  <h1 class="oh-page-title">Dashboard</h1>
+  <p class="oh-page-subtitle">
+    Welcome, <%= currentUser.name %> · Scope: <%= scopeLabel %>
+  </p>
+</div>
+
+<div class="oh-card-grid">
+  <div class="oh-card">
+    <div class="oh-card__label">Today's Attendance</div>
+    <div class="oh-card__value">—</div>
+    <div class="oh-card__note">soon</div>
+  </div>
+  <div class="oh-card">
+    <div class="oh-card__label">Pending Overtime</div>
+    <div class="oh-card__value">—</div>
+    <div class="oh-card__note">soon</div>
+  </div>
+  <div class="oh-card">
+    <div class="oh-card__label">Flagged Events</div>
+    <div class="oh-card__value">—</div>
+    <div class="oh-card__note">soon</div>
+  </div>
+  <div class="oh-card">
+    <div class="oh-card__label">Active Workers</div>
+    <div class="oh-card__value">—</div>
+    <div class="oh-card__note">soon</div>
+  </div>
+</div>
+
+<div class="oh-card oh-note-card">
+  You're signed in. These panels populate as modules are built — attendance
+  capture, overtime approvals, worker enrollment, and reports.
+</div>
+
+<%- include('partials/app-bottom') %>

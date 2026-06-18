@@ -1,0 +1,23 @@
+<aside class="oh-sidebar">
+  <div class="oh-sidebar__header">
+    <div class="oh-sidebar__logo"><%= company.charAt(0).toUpperCase() %></div>
+    <span class="oh-sidebar__company"><%= company %></span>
+  </div>
+  <nav class="oh-sidebar__menu">
+    <% nav.forEach(function (item) { %> <% if (can(item.cap)) { %> <% if (item.ready) { %>
+    <a
+      class="oh-sidebar__link <%= active === item.href ? 'oh-sidebar__link--active' : '' %>"
+      href="<%= item.href %>"
+    >
+      <span class="material-icons"><%= item.icon %></span>
+      <span><%= item.label %></span>
+    </a>
+    <% } else { %>
+    <span class="oh-sidebar__link oh-sidebar__link--disabled">
+      <span class="material-icons"><%= item.icon %></span>
+      <span><%= item.label %></span>
+      <span class="oh-sidebar__soon">soon</span>
+    </span>
+    <% } %> <% } %> <% }); %>
+  </nav>
+</aside>

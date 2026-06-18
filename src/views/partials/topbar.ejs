@@ -1,0 +1,10 @@
+<header class="oh-topbar">
+  <div class="oh-topbar__title"><%= company %> Attendance</div>
+  <div class="oh-topbar__user">
+    <span class="oh-badge oh-badge--secondary"><%= currentUser.role.toUpperCase() %></span>
+    <span class="oh-topbar__name"><%= currentUser.name %></span>
+    <form method="post" action="/logout" class="oh-topbar__logout">
+      <button class="oh-btn oh-btn--small" type="submit">Logout</button>
+    </form>
+  </div>
+</header>
