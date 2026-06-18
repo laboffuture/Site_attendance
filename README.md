@@ -37,8 +37,9 @@ The server boots even if the database is unreachable (the login page still rende
 | `npm run build` | Type-check & compile to `dist/` |
 | `npm start` | Run the compiled server (`dist/server.js`) |
 | `npm run seed` | Create the first admin + seed org reference data |
+| `npm run sweep` | Raise `missed_clockout` flags for any open (In-only) attendance records — also runs automatically nightly |
 | `npm run sync-indexes` | Reconcile MongoDB indexes with the schemas |
-| `npm run e2e:login \| org \| workers \| station \| overtime \| reports \| users` | End-to-end test suites |
+| `npm run e2e:login \| org \| workers \| station \| overtime \| reports \| users \| hierarchy \| attendance \| missed` | End-to-end test suites |
 
 All suites are runnable against a local MongoDB; together they cover auth, permissions, org CRUD, enrollment + face encoding, capture + location-lock + OT, the approval queue, dashboards/reports/exports, and user management.
 
@@ -50,5 +51,5 @@ All suites are runnable against a local MongoDB; together they cover auth, permi
 
 ## Notes & follow-ups
 - **Report columns** use sensible defaults (Branch, Project, Emp Reg No, Name, Designation, Date, In, Out, Total, OT, OT Status); adjust in `src/lib/exporters.ts` to match a final reference sheet.
-- **Missed clock-outs**: the `FlagEvent` type exists; a scheduled end-of-day sweep to raise them is a planned follow-up.
+- **Missed clock-outs**: a nightly in-process sweep (default **23:00 IST**, set `SWEEP_TIME`) raises a `missed_clockout` flag for any record left open (In scanned, no Out); it never invents an out-time — HR corrects it on the Attendance page. Runnable on demand via `npm run sweep`.
 - **Biometrics**: face encodings are sensitive personal data under India's DPDP Act — confirm consent capture and retention policy before go-live (compliance review, not a code task).

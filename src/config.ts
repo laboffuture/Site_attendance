@@ -12,4 +12,6 @@ export const config = {
   dbName: process.env.DB_NAME || "trgbi_attendance",
   sessionSecret: process.env.SESSION_SECRET || "change-me-to-a-long-random-string",
   companyName: process.env.COMPANY_NAME || "TRGBI",
+  // Daily missed-clock-out sweep fires at this IST "HH:MM".
+  sweepTime: process.env.SWEEP_TIME || "23:00",
 };
