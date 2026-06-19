@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&family=Inter:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined">
+<style>
+  *{box-sizing:border-box;}
+  body{margin:0;background:#e7e5df;font-family:'Poppins',sans-serif;}
+  .scrollarea::-webkit-scrollbar{width:0;height:0;}
+  .material-icons-outlined{font-feature-settings:'liga';}
+</style>
+</helmet>
+
+<div style="min-width:100%;min-height:100vh;width:max-content;box-sizing:border-box;padding:40px;background:#e7e5df;display:flex;gap:40px;align-items:flex-start;">
+
+  <!-- SCREEN INDEX -->
+  <div style="flex:none;width:220px;position:sticky;top:40px;">
+    <div style="font-family:'Poppins';font-weight:600;font-size:13px;letter-spacing:.04em;color:#1c1c1c;margin-bottom:4px;">TRGBI · Site Attendance</div>
+    <div style="font-family:'Inter';font-size:11px;color:#737373;margin-bottom:18px;">Mobile UI Kit · tap to jump</div>
+    <sc-for list="{{ indexGroups }}" as="grp" hint-placeholder-count="4">
+      <div style="margin-bottom:16px;">
+        <div style="font-family:'Inter';font-weight:700;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#94a0b3;margin-bottom:7px;">{{ grp.label }}</div>
+        <sc-for list="{{ grp.items }}" as="it" hint-placeholder-count="5">
+          <div onClick="{{ it.go }}" style="font-family:'Poppins';font-weight:400;font-size:12.5px;color:{{ it.color }};padding:5px 9px;cursor:pointer;border-left:2px solid {{ it.bar }};background:{{ it.bg }};margin-bottom:2px;display:flex;align-items:center;gap:7px;">
+            <span style="font-family:'Inter';font-weight:700;font-size:10px;color:#94a0b3;width:18px;">{{ it.num }}</span>{{ it.name }}
+          </div>
+        </sc-for>
+      </div>
+    </sc-for>
+  </div>
+
+  <!-- PHONE STAGE -->
+  <div style="flex:none;display:flex;flex-direction:column;align-items:center;gap:14px;position:sticky;top:40px;">
+    <div style="width:399px;height:836px;background:#0c0c0c;border-radius:52px;padding:12px;box-shadow:0 24px 60px rgba(0,0,0,.28);position:relative;">
+      <div style="width:375px;height:812px;border-radius:42px;overflow:hidden;background:{{ screenBg }};position:relative;display:flex;flex-direction:column;">
+
+        <!-- STATUS BAR -->
+        <div style="height:44px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 26px 0 30px;background:{{ statusBg }};z-index:5;">
+          <span style="font-family:'Inter';font-weight:700;font-size:14px;color:{{ statusFg }};letter-spacing:.02em;">9:41</span>
+          <div style="display:flex;align-items:center;gap:6px;color:{{ statusFg }};">
+            <span class="material-icons-outlined" style="font-size:17px;">signal_cellular_alt</span>
+            <span class="material-icons-outlined" style="font-size:17px;">wifi</span>
+            <span class="material-icons-outlined" style="font-size:19px;">battery_full</span>
+          </div>
+        </div>
+
+        <!-- APP BAR -->
+        <sc-if value="{{ appChrome }}" hint-placeholder-val="{{ true }}">
+          <div style="height:56px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:#ffffff;border-bottom:1px solid #cdd5df;z-index:4;">
+            <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+              <sc-if value="{{ showBack }}" hint-placeholder-val="{{ false }}">
+                <span onClick="{{ goBack }}" class="material-icons-outlined" style="font-size:22px;color:#5f6368;cursor:pointer;">arrow_back</span>
+              </sc-if>
+              <span style="font-family:'Poppins';font-weight:600;font-size:16px;color:#1c1c1c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ title }}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;flex:none;">
+              <span style="font-family:'Inter';font-size:11.5px;color:#737373;">Priya R.</span>
+              <span class="material-icons-outlined" style="font-size:21px;color:#5f6368;cursor:pointer;">logout</span>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- SCROLL CONTENT -->
+        <div class="scrollarea" style="flex:1;overflow-y:auto;overflow-x:hidden;position:relative;">
+
+<!-- ===================== LOGIN ===================== -->
+<sc-if value="{{ isLogin }}" hint-placeholder-val="{{ false }}">
+  <div style="min-height:100%;background:#f9f9f9;padding:28px 20px;display:flex;flex-direction:column;justify-content:center;">
+    <div style="background:#fff;border:1px solid #e8ecf1;box-shadow:rgba(0,0,0,0.1) 0 1px 3px,rgba(0,0,0,0.06) 0 1px 2px;padding:34px 26px;">
+      <div style="font-family:'Poppins';font-weight:600;font-size:18px;letter-spacing:.06em;color:#212121;text-align:center;">TRGBI</div>
+      <div style="font-family:'Inter';font-size:10px;letter-spacing:.18em;color:#94a0b3;text-align:center;margin-top:2px;text-transform:uppercase;">Site Attendance</div>
+      <div style="font-family:'Poppins';font-weight:600;font-size:17px;color:#1c1c1c;margin-top:26px;">Sign in</div>
+      <div style="font-family:'Inter';font-size:12.5px;color:#737373;margin-top:4px;margin-bottom:20px;">Enter your staff credentials to continue.</div>
+      <div style="background:#ebf3fd;border:1px solid #cfe0f7;padding:10px 12px;display:flex;gap:9px;align-items:flex-start;margin-bottom:18px;">
+        <span class="material-icons-outlined" style="font-size:18px;color:#1d4ed8;">info</span>
+        <span style="font-family:'Inter';font-size:12px;color:#1d4ed8;line-height:1.4;">Use the email provided by your project manager.</span>
+      </div>
+      <label style="font-family:'Poppins';font-weight:600;font-size:13px;color:#1c1c1c;margin-bottom:6px;display:block;">Email</label>
+      <input value="priya@trgbi.in" readonly style="width:100%;padding:11px 13px;border:1px solid #cdd5df;font-family:'Inter';font-size:14px;color:#1c1c1c;background:#fff;outline:none;margin-bottom:16px;" />
+      <label style="font-family:'Poppins';font-weight:600;font-size:13px;color:#1c1c1c;margin-bottom:6px;display:block;">Password</label>
+      <div style="position:relative;margin-bottom:22px;">
+        <input type="{{ pwType }}" value="supersecret" readonly style="width:100%;padding:11px 58px 11px 13px;border:1px solid #cdd5df;font-family:'Inter';font-size:14px;color:#1c1c1c;background:#fff;outline:none;" />
+        <span onClick="{{ togglePw }}" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-family:'Inter';font-weight:700;font-size:10px;letter-spacing:.05em;color:#44484f;background:#e8ecf1;padding:5px 8px;cursor:pointer;">{{ pwLabel }}</span>
+      </div>
+      <button style="width:100%;padding:13px;background:#1c4d8c;color:#fff;border:none;font-family:'Poppins';font-weight:600;font-size:14px;cursor:pointer;">Sign in</button>
+    </div>
+  </div>
+</sc-if>
+
+<!-- ===================== STATION SIGN-IN ===================== -->
+<sc-if value="{{ isStationLogin }}" hint-placeholder-val="{{ false }}">
+  <div style="min-height:100%;background:#f9f9f9;padding:28px 20px;display:flex;flex-direction:column;justify-content:center;">
+    <div style="background:#fff;border:1px solid #e8ecf1;box-shadow:rgba(0,0,0,0.1) 0 1px 3px,rgba(0,0,0,0.06) 0 1px 2px;padding:34px 26px;">
+      <div style="font-family:'Poppins';font-weight:600;font-size:18px;letter-spacing:.06em;color:#212121;text-align:center;">TRGBI</div>
+      <div style="font-family:'Inter';font-size:10px;letter-spacing:.18em;color:#94a0b3;text-align:center;margin-top:2px;text-transform:uppercase;">Station Setup</div>
+      <div style="font-family:'Poppins';font-weight:600;font-size:17px;color:#1c1c1c;margin-top:26px;">Connect this station</div>
+      <div style="font-family:'Inter';font-size:12.5px;color:#737373;margin-top:4px;margin-bottom:20px;">Paste the one-time station key issued by an administrator.</div>
+      <div style="background:#fdebeb;border:1px solid #f4c9c9;padding:10px 12px;display:flex;gap:9px;align-items:flex-start;margin-bottom:18px;">
+        <span class="material-icons-outlined" style="font-size:18px;color:#b3261e;">error_outline</span>
+        <span style="font-family:'Inter';font-size:12px;color:#b3261e;line-height:1.4;">Invalid or already-used key. Request a new one.</span>
+      </div>
+      <label style="font-family:'Poppins';font-weight:600;font-size:13px;color:#1c1c1c;margin-bottom:6px;display:block;">Station key</label>
+      <input value="STN-VBW-7F3A-9K21-X8" readonly style="width:100%;padding:11px 13px;border:1px solid #cdd5df;font-family:'Courier New',monospace;font-size:13px;letter-spacing:.04em;color:#1c1c1c;background:#fff;outline:none;text-transform:uppercase;margin-bottom:22px;" />
+      <button style="width:100%;padding:13px;background:#1c4d8c;color:#fff;border:none;font-family:'Poppins';font-weight:600;font-size:14px;cursor:pointer;">Connect station</button>
+    </div>
+  </div>
+</sc-if>
+
+<!-- ===================== KIOSK CAPTURE ===================== -->
+<sc-if value="{{ isKiosk }}" hint-placeholder-val="{{ false }}">
+  <div style="min-height:100%;background:#212121;display:flex;flex-direction:column;">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;padding:18px 20px 14px;border-bottom:1px solid rgba(255,255,255,.08);">
+      <div style="font-family:'Poppins';font-weight:600;font-size:20px;color:#fff;line-height:1;">VBW — T.Nagar</div>
+      <div style="font-family:'Inter';font-size:11px;color:rgba(255,255,255,.5);">VBW Gate Kiosk</div>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:22px 18px;gap:18px;">
+      <video data-cam autoplay muted playsinline style="width:100%;max-width:90vw;height:300px;object-fit:cover;border:1px solid rgba(255,255,255,.18);background:#000;transform:scaleX(-1);"></video>
+      <button style="padding:15px 0;width:100%;background:#1c4d8c;color:#fff;border:none;font-family:'Poppins';font-weight:600;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;"><span class="material-icons-outlined" style="font-size:24px;">center_focus_strong</span>Scan face</button>
+      <div style="width:100%;background:#21c06b;padding:16px 18px;display:flex;align-items:center;gap:12px;">
+        <span class="material-icons-outlined" style="font-size:26px;color:#fff;">check_circle</span>
+        <div>
+          <div style="font-family:'Poppins';font-weight:600;font-size:16px;color:#fff;">Ramesh — IN at 09:02</div>
+          <div style="font-family:'Inter';font-size:11.5px;color:rgba(255,255,255,.85);margin-top:1px;">VBW-0142 · Carpenter · welcome</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<!-- ===================== DASHBOARD ===================== -->
+<sc-if value="{{ isDashboard }}" hint-placeholder-val="{{ true }}">
+  <div style="min-height:100%;background:#f9f9f9;padding:16px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+      <sc-for list="{{ statCards }}" as="c" hint-placeholder-count="4">
+        <div style="background:#fff;border:1px solid #e8ecf1;box-shadow:rgba(0,0,0,0.1) 0 1px 3px,rgba(0,0,0,0.06) 0 1px 2px;padding:14px;">
+          <div style="font-family:'Inter';font-weight:700;font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;color:#94a0b3;">{{ c.label }}</div>
+          <div style="font-family:'Inter';font-weight:700;font-size:26px;color:{{ c.tone }};margin-top:6px;line-height:1;">{{ c.value }}</div>
+          <div style="font-family:'Inter';font-size:11px;color:#737373;margin-top:5px;">{{ c.note }}</div>
+        </div>
+      </sc-for>
+    </div>
+
+    <!-- line chart -->
+    <div style="background:#fff;border:1px solid #e8ecf1;box-shadow:rgba(0,0,0,0.1) 0 1px 3px,rgba(0,0,0,0.06) 0 1px 2px;padding:14px;margin-bottom:14px;">
+      <div style="font-family:'Poppins';font-weight:600;font-size:13px;color:#1c1c1c;margin-bottom:12px;">Attendance trend · 7 days</div>
+      <svg viewBox="0 0 320 110" style="width:100%;height:auto;display:block;">
+        <line x1="0" y1="100" x2="320" y2="100" stroke="#e8ecf1" stroke-width="1"/>
+        <line x1="0" y1="60" x2="320" y2="60" stroke="#f1f3f6" stroke-width="1"/>
+        <line x1="0" y1="20" x2="320" y2="20" stroke="#f1f3f6" stroke-width="1"/>
+        <polyline points="6,62 58,48 110,54 162,34 214,40 266,26 314,30" fill="none" stroke="#1c4d8c" stroke-width="2.5"/>
+        <polygon points="6,62 58,48 110,54 162,34 214,40 266,26 314,30 314,100 6,100" fill="#1c4d8c" opacity="0.07"/>
+        <circle cx="314" cy="30" r="3.5" fill="#1c4d8c"/>
+      </svg>
+      <div style="display:flex;justify-content:space-between;font-family:'Inter';font-size:9px;color:#94a0b3;margin-top:6px;"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
+    </div>
+
+    <!-- bar + doughnut -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+      <div style="background:#fff;border:1px solid #e8ecf1;box-shadow:rgba(0,0,0,0.1) 0 1px 3px,rgba(0,0,0,0.06) 0 1px 2px;padding:14px;">
+        <div style="font-family:'Poppins';font-weight:600;font-size:12px;color:#1c1c1c;margin-bottom:10px;">OT by site (h)</div>
+        <svg viewBox="0 0 130 90" style="width:100%;height:auto;display:block;">
+          <rect x="6" y="34" width="20" height="50" fill="#1c4d8c"/>
+          <rect x="36" y="50" width="20" height="34" fill="#2e97db"/>
+          <rect x="66" y="22" width="20" height="62" fill="#163d70"/>
+          <rect x="96" y="58" width="20" height="26" fill="#2e97db"/>
+          <line x1="0" y1="84" x2="130" y2="84" stroke="#cdd5df" stroke-width="1"/>
+        </svg>
+        <div style="display:flex;justify-content:space-between;font-family:'Inter';font-size:8.5px;color:#94a0b3;margin-top:5px;"><span>VBW</span><span>PVM</span><span>SRP</span><span>NVT</span></div>
+      </div>
+      <div style="background:#fff;border:1px solid #e8ecf1;box-shadow:rgba(0,0,0,0.1) 0 1px 3px,rgba(0,0,0,0.06) 0 1px 2px;padding:14px;">
+        <div style="font-family:'Poppins';font-weight:600;font-size:12px;color:#1c1c1c;margin-bottom:6px;">Headcount</div>
+        <svg viewBox="0 0 80 80" style="width:78px;height:78px;display:block;margin:0 auto;">
+          <circle cx="40" cy="40" r="30" fill="none" stroke="#e8ecf1" stroke-width="14"/>
+          <circle cx="40" cy="40" r="30" fill="none" stroke="#1c4d8c" stroke-width="14" stroke-dasharray="84 188" transform="rotate(-90 40 40)"/>
+          <circle cx="40" cy="40" r="30" fill="none" stroke="#2e97db" stroke-width="14" stroke-dasharray="56 188" stroke-dashoffset="-84" transform="rotate(-90 40 40)"/>
+          <circle cx="40" cy="40" r="30" fill="none" stroke="#94a0b3" stroke-width="14" stroke-dasharray="48 188" stroke-dashoffset="-140" transform="rotate(-90 40 40)"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- rollup -->
+    <div style="background:#fff;border:1px solid #e8ecf1;box-shadow:rgba(0,0,0,0.1) 0 1px 3px,rgba(0,0,0,0.06) 0 1px 2px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid #e8ecf1;">
+        <span style="font-family:'Poppins';font-weight:600;font-size:13px;color:#1c1c1c;">Branch → Site rollup</span>
+        <span style="font-family:'Inter';font-size:10px;color:#94a0b3;">present / active</span>
+      </div>
+      <sc-for list="{{ rollup }}" as="b" hint-placeholder-count="2">
+        <div>
+          <div onClick="{{ b.toggle }}" style="display:flex;align-items:center;gap:8px;padding:12px 14px;background:#fafafa;cursor:pointer;border-bottom:1px solid #f1f3f6;">
+            <span class="material-icons-outlined" style="font-size:20px;color:#5f6368;">{{ b.caret }}</span>
+            <span style="font-family:'Poppins';font-weight:600;font-size:13px;color:#1c1c1c;flex:1;">{{ b.name }}</span>
+            <span style="font-family:'Inter';font-weight:700;font-size:12px;color:#1c1c1c;">{{ b.present }}/{{ b.active }}</span>
+          </div>
+          <sc-if value="{{ b.open }}" hint-placeholder-val="{{ true }}">
+            <div>
+              <sc-for list="{{ b.sites }}" as="st" hint-placeholder-count="3">
+                <div style="display:flex;align-items:center;padding:10px 14px 10px 38px;border-bottom:1px solid #f1f3f6;">
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-family:'Poppins';font-weight:400;font-size:12.5px;color:#1c1c1c;">{{ st.name }}</div>
+                    <div style="font-family:'Inter';font-size:10px;color:#737373;margin-top:2px;">OT <span style="color:#8a6d1b;font-weight:700;">{{ st.ot }}h</span> · flags <span style="color:#b3261e;font-weight:700;">{{ st.flags }}</span></div>
+                  </div>
+                  <span style="font-family:'Inter';font-weight:700;font-size:12px;color:#1c1c1c;">{{ st.present }}/{{ st.active }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+        </div>
+      </sc-for>
+    </div>
+    <div style="height:8px;"></div>
+  </div>
+</sc-if>
+
+<!-- ===================== ATTENDANCE ===================== -->
+<sc-if value="{{ isAttendance }}" hint-placeholder-val="{{ false }}">
+  <div style="min-height:100%;background:#f9f9f9;">
+    <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:#fff;border-bottom:1px solid #e8ecf1;position:sticky;top:0;z-index:2;">
+      <div style="flex:1;display:flex;align-items:center;gap:7px;border:1px solid #cdd5df;padding:8px 10px;background:#fafafa;">
+        <span class="material-icons-outlined" style="font-size:18px;color:#5f6368;">place</span>
+        <span style="font-family:'Inter';font-size:12.5px;color:#1c1c1c;">VBW — T.Nagar</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:7px;border:1px solid #cdd5df;padding:8px 10px;background:#fafafa;">
+        <span class="material-icons-outlined" style="font-size:18px;color:#5f6368;">event</span>
+        <span style="font-family:'Inter';font-size:12.5px;color:#1c1c1c;">18 Jun</span>
+      </div>
+      <div style="width:38px;height:38px;display:flex;align-items:center;justify-content:center;border:1px solid #cdd5df;background:#fff;cursor:pointer;"><span class="material-icons-outlined" style="font-size:20px;color:#5f6368;">tune</span></div>
+    </div>
+    <div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px;">
+      <sc-for list="{{ roster }}" as="w" hint-placeholder-count="5">
+        <div style="background:#fff;border:1px solid #e8ecf1;box-shadow:rgba(0,0,0,0.1) 0 1px 3px,rgba(0,0,0,0.06) 0 1px 2px;padding:13px;">
+          <div style="display:flex;align-items:center;gap:11px;">
+            <div style="width:38px;height:38px;border-radius:50%;background:#e8ecf1;display:flex;align-items:center;justify-content:center;font-family:'Inter';font-weight:700;font-size:13px;color:#5f6368;flex:none;">{{ w.avatar }}</div>
+            <div style="flex:1;min-width:0;">
+              <div style="display:flex;align-items:center;gap:7px;">
+                <span style="font-family:'Poppins';font-weight:600;font-size:14px;color:#1c1c1c;">{{ w.name }}</span>
+                <sc-if value="{{ w.edited }}" hint-placeholder-val="{{ false }}"><span style="font-family:'Inter';font-weight:700;font-size:8px;letter-spacing:.04em;color:#8a6d1b;background:#fff8e1;padding:2px 5px;">EDITED</span></sc-if>
+              </div>
+              <div style="font-family:'Inter';font-size:11px;color:#737373;margin-top:1px;">{{ w.emp }} · {{ w.desig }}</div>
+            </div>
+            <span style="font-family:'Inter';font-weight:700;font-size:9px;letter-spacing:.05em;color:{{ w.statusFg }};background:{{ w.statusBg }};padding:4px 7px;">{{ w.statusLabel }}</span>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:12px;">
+            <div style="flex:1;border:1px solid #cdd5df;padding:7px 10px;background:#fafafa;"><div style="font-family:'Inter';font-weight:700;font-size:8px;letter-spacing:.06em;color:#94a0b3;text-transform:uppercase;">In</div><div style="font-family:'Inter';font-weight:700;font-size:14px;color:#1c1c1c;">{{ w.inT }}</div></div>
+            <div style="flex:1;border:1px solid #cdd5df;padding:7px 10px;background:#fafafa;"><div style="font-family:'Inter';font-weight:700;font-size:8px;letter-spacing:.06em;color:#94a0b3;text-transform:uppercase;">Out</div><div style="font-family:'Inter';font-weight:700;font-size:14px;color:#1c1c1c;">{{ w.outT }}</div></div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:11px;">
+            <sc-if value="{{ w.showMarkIn }}" hint-placeholder-val="{{ false }}"><button style="flex:1;padding:9px;background:#1c4d8c;color:#fff;border:none;font-family:'Poppins';font-weight:600;font-size:12px;cursor:pointer;">Mark In</button></sc-if>
+            <sc-if value="{{ w.showOut }}" hint-placeholder-val="{{ false }}"><button style="flex:1;padding:9px;background:#1c4d8c;color:#fff;border:none;font-family:'Poppins';font-weight:600;font-size:12px;cursor:pointer;">Add Out</button></sc-if>
+            <button style="flex:1;padding:9px;background:#e8ecf1;color:#44484f;border:none;font-family:'Poppins';font-weight:600;font-size:12px;cursor:pointer;">Correct</button>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</sc-if>
+
+<!-- ===================== OVERTIME ===================== -->
+<sc-if value="{{ isOvertime }}" hint-placeholder-val="{{ false }}">
+  <div style="min-height:100%;background:#f9f9f9;">
+    <div style="display:flex;gap:8px;padding:12px 16px;background:#fff;border-bottom:1px solid #e8ecf1;position:sticky;top:0;z-index:2;">
+      <sc-for list="{{ otTabs }}" as="t" hint-placeholder-count="3">
+        <button onClick="{{ t.go }}" style="flex:1;padding:8px;background:{{ t.bg }};color:{{ t.fg }};border:1px solid {{ t.bdr }};font-family:'Poppins';font-weight:600;font-size:12px;cursor:pointer;">{{ t.label }}</button>
+      </sc-for>
+    </div>
+    <div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px;">
+      <sc-for list="{{ otList }}" as="o" hint-placeholder-count="3">
+        <div style="background:#fff;border:1px solid #e8ecf1;box-shadow:rgba(0,0,0,0.1) 0 1px 3px,rgba(0,0,0,0.06) 0 1px 2px;padding:13px;">
+          <div style="display:flex;align-items:center;gap:11px;">
+            <div style="width:36px;height:36px;border-radius:50%;background:#e8ecf1;display:flex;align-items:center;justify-content:center;font-family:'Inter';font-weight:700;font-size:12px;color:#5f6368;flex:none;">{{ o.avatar }}</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-family:'Poppins';font-weight:600;font-size:14px;color:#1c1c1c;">{{ o.name }}</div>
+              <div style="font-family:'Inter';font-size:11px;color:#737373;margin-top:1px;">{{ o.site }} · {{ o.date }}</div>
+            </div>
+            <span style="font-family:'Inter';font-weight:700;font-size:9px;letter-spacing:.05em;color:{{ o.fg }};background:{{ o.bg }};padding:4px 7px;">{{ o.label }}</span>
+          </div>
+          <div style="display:flex;align-items:flex-end;gap:10px;margin-top:12px;">
+            <div style="flex:1;"><div style="font-family:'Inter';font-weight:700;font-size:8px;letter-spacing:.06em;color:#94a0b3;text-transform:uppercase;margin-bottom:4px;">OT hours</div><input value="{{ o.hrs }}" readonly style="width:100%;padding:8px 10px;border:1px solid #cdd5df;font-family:'Inter';font-weight:700;font-size:14px;color:#1c1c1c;background:#fff;outline:none;" /></div>
+          </div>
+          <sc-if value="{{ o.actionable }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;gap:8px;margin-top:11px;">
+              <button style="flex:1;padding:9px;background:#21c06b;color:#fff;border:none;font-family:'Poppins';font-weight:600;font-size:12px;cursor:pointer;">Approve</button>
+              <button style="flex:1;padding:9px;background:#e8ecf1;color:#44484f;border:none;font-family:'Poppins';font-weight:600;font-size:12px;cursor:pointer;">Adjust</button>
+              <button style="flex:1;padding:9px;background:#ff3b38;color:#fff;border:none;font-family:'Poppins';font-weight:600;font-size:12px;cursor:pointer;">Reject</button>
+            </div>
+          </sc-if>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</sc-if>
+
+<!-- ===================== WORKERS LIST ===================== -->
+<sc-if value="{{ isWorkers }}" hint-placeholder-val="{{ false }}">
+  <div style="min-height:100%;background:#f9f9f9;position:relative;">
+    <div style="display:flex;align-items:center;gap:9px;padding:12px 16px;background:#fff;border-bottom:1px solid #e8ecf1;position:sticky;top:0;z-index:2;">
+      <div style="flex:1;display:flex;align-items:center;gap:8px;border:1px solid #cdd5df;padding:8px 10px;background:#fafafa;">
+        <span class="material-icons-outlined" style="font-size:18px;color:#94a0b3;">search</span>
+        <span style="font-family:'Inter';font-size:12.5px;color:#94a0b3;">Search name or reg no…</span>
+      </div>
+      <div style="width:38px;height:38px;display:flex;align-items:center;justify-content:center;border:1px solid #cdd5df;background:#fff;cursor:pointer;"><span class="material-icons-outlined" style="font-size:20px;color:#5f6368;">filter_list</span></div>
+    </div>
+    <div style="padding:14px 16px 84px;display:flex;flex-direction:column;gap:10px;">
+      <sc-for list="{{ workersList }}" as="w" hint-placeholder-count="6">
+        <div onClick="{{ w.go }}" style="background:#fff;border:1px solid #e8ecf1;box-shadow:rgba(0,0,0,0.1) 0 1px 3px,rgba(0,0,0,0.06) 0 1px 2px;padding:12px;display:flex;align-items:center;gap:11px;cursor:pointer;">
+          <div style="width:36px;height:36px;border-radius:50%;background:#e8ecf1;display:flex;align-items:center;justify-content:center;font-family:'Inter';font-weight:700;font-size:12px;color:#5f6368;flex:none;">{{ w.avatar }}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-family:'Poppins';font-weight:600;font-size:14px;color:#1c1c1c;">{{ w.name }}</div>
+            <div style="font-family:'Inter';font-size:11px;color:#737373;margin-top:1px;">{{ w.emp }} · {{ w.desig }} · {{ w.site }}</div>
+          </div>
+          <span style="font-family:'Inter';font-weight:700;font-size:8.5px;letter-spacing:.05em;color:{{ w.badgeFg }};background:{{ w.badgeBg }};padding:4px 6px;">{{ w.badgeLabel }}</span>
+        </div>
+      </sc-for>
+    </div>
+    <div onClick="{{ goEnroll }}" style="position:absolute;left:16px;right:16px;bottom:14px;padding:13px;background:#1c4d8c;color:#fff;text-align:center;font-family:'Poppins';font-weight:600;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:rgba(0,0,0,0.18) 0 3px 10px;"><span class="material-icons-outlined" style="font-size:20px;">person_add</span>Enroll worker</div>
+  </div>
+</sc-if>
+
+<!-- ===================== WORKER ENROLL ===================== -->
+<sc-if value="{{ isEnroll }}" hint-placeholder-val="{{ false }}">
+  <div style="min-height:100%;background:#f9f9f9;padding:16px;">
+    <div style="background:#fff;border:1px solid #e8ecf1;box-shadow:rgba(0,0,0,0.1) 0 1px 3px,rgba(0,0,0,0.06) 0 1px 2px;padding:18px;">
+      <label style="font-family:'Poppins';font-weight:600;font-size:13px;color:#1c1c1c;margin-bottom:6px;display:block;">Full name</label>
+      <input placeholder="e.g. Ramesh Kumar" style="width:100%;padding:11px 13px;border:1px solid #cdd5df;font-family:'Inter';font-size:14px;color:#1c1c1c;background:#fff;outline:none;margin-bottom:16px;" />
+      <label style="font-family:'Poppins';font-weight:600;font-size:13px;color:#1c1c1c;margin-bottom:6px;display:block;">Designation</label>
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <div style="flex:1;display:flex;align-items:center;justify-content:space-between;border:1px solid #cdd5df;padding:11px 13px;background:#fff;"><span style="font-family:'Inter';font-size:14px;color:#1c1c1c;">Carpenter</span><span class="material-icons-outlined" style="font-size:20px;color:#5f6368;">expand_more</span></div>
+        <div style="width:42px;display:flex;align-items:center;justify-content:center;border:1px solid #1c4d8c;background:#fff;cursor:pointer;"><span class="material-icons-outlined" style="font-size:20px;color:#1c4d8c;">add</span></div>
+      </div>
+      <label style="font-family:'Poppins';font-weight:600;font-size:13px;color:#1c1c1c;margin-bottom:6px;display:block;">Site</label>
+      <div style="display:flex;align-items:center;justify-content:space-between;border:1px solid #cdd5df;padding:11px 13px;background:#fff;margin-bottom:18px;"><span style="font-family:'Inter';font-size:14px;color:#1c1c1c;">VBW — T.Nagar</span><span class="material-icons-outlined" style="font-size:20px;color:#5f6368;">expand_more</span></div>
+
+      <label style="font-family:'Poppins';font-weight:600;font-size:13px;color:#1c1c1c;margin-bottom:8px;display:block;">Face capture</label>
+      <div style="display:flex;gap:10px;margin-bottom:8px;">
+        <div style="flex:1;"><div style="font-family:'Inter';font-weight:700;font-size:8px;letter-spacing:.06em;color:#94a0b3;text-transform:uppercase;margin-bottom:4px;">Live</div><video data-cam autoplay muted playsinline style="width:100%;height:120px;object-fit:cover;border:1px solid #cdd5df;background:#000;transform:scaleX(-1);"></video></div>
+        <div style="flex:1;"><div style="font-family:'Inter';font-weight:700;font-size:8px;letter-spacing:.06em;color:#94a0b3;text-transform:uppercase;margin-bottom:4px;">Captured</div><div style="width:100%;height:120px;border:1px solid #cdd5df;background:#f1f3f6;display:flex;align-items:center;justify-content:center;"><span class="material-icons-outlined" style="font-size:30px;color:#94a0b3;">image</span></div></div>
+      </div>
+      <div style="font-family:'Inter';font-size:11px;color:#737373;margin-bottom:12px;">If the camera is unavailable, upload a clear front-facing photo.</div>
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <button style="flex:1;padding:10px;background:#1c4d8c;color:#fff;border:none;font-family:'Poppins';font-weight:600;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;"><span class="material-icons-outlined" style="font-size:18px;">photo_camera</span>Capture</button>
+        <button style="flex:1;padding:10px;background:#e8ecf1;color:#44484f;border:none;font-family:'Poppins';font-weight:600;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;"><span class="material-icons-outlined" style="font-size:18px;">upload</span>Upload</button>
+      </div>
+      <div style="background:#fdebeb;border:1px solid #f4c9c9;padding:9px 11px;display:flex;gap:8px;align-items:flex-start;margin-bottom:16px;">
+        <span class="material-icons-outlined" style="font-size:17px;color:#b3261e;">report</span>
+        <span style="font-family:'Inter';font-size:11.5px;color:#b3261e;line-height:1.4;">No face detected — use a clearer, well-lit photo.</span>
+      </div>
+      <button style="width:100%;padding:13px;background:#94a0b3;color:#fff;border:none;font-family:'Poppins';font-weight:600;font-size:14px;cursor:not-allowed;">Save worker</button>
+      <div style="font-family:'Inter';font-size:10.5px;color:#94a0b3;text-align:center;margin-top:7px;">Disabled until a valid photo is captured.</div>
+    </div>
+  </div>
+</sc-if>
+
+<!-- ===================== WORKER EDIT ===================== -->
+<sc-if value="{{ isEditWorker }}" hint-placeholder-val="{{ false }}">
+  <div style="min-height:100%;background:#f9f9f9;padding:16px;">
+    <div style="background:#fff;border:1px solid #e8ecf1;box-shadow:rgba(0,0,0,0.1) 0 1px 3px,rgba(0,0,0,0.06) 0 1px 2px;padding:18px;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px;">
+        <div style="width:54px;height:54px;border-radius:50%;background:#e8ecf1;display:flex;align-items:center;justify-content:center;font-family:'Inter';font-weight:700;font-size:18px;color:#5f6368;">RK</div>
+        <div><div style="font-family:'Poppins';font-weight:600;font-size:16px;color:#1c1c1c;">Ramesh Kumar</div><div style="font-family:'Courier New',monospace;font-size:12px;color:#737373;">VBW-0142</div></div>
+      </div>
+      <label style="font-family:'Poppins';font-weight:600;font-size:13px;color:#1c1c1c;margin-bottom:6px;display:block;">Full name</label>
+      <input value="Ramesh Kumar" readonly style="width:100%;padding:11px 13px;border:1px solid #cdd5df;font-family:'Inter';font-size:14px;color:#1c1c1c;background:#fff;outline:none;margin-bottom:16px;" />
+      <label style="font-family:'Poppins';font-weight:600;font-size:13px;color:#1c1c1c;margin-bottom:6px;display:block;">Designation</label>
+      <div style="display:flex;align-items:center;justify-content:space-between;border:1px solid #cdd5df;padding:11px 13px;background:#fff;margin-bottom:16px;"><span style="font-family:'Inter';font-size:14px;color:#1c1c1c;">Carpenter</span><span class="material-icons-outlined" style="font-size:20px;color:#5f6368;">expand_more</span></div>
+      <label style="font-family:'Poppins';font-weight:600;font-size:13px;color:#1c1c1c;margin-bottom:6px;display:block;">Site</label>
+      <div style="display:flex;align-items:center;justify-content:space-between;border:1px solid #cdd5df;padding:11px 13px;background:#fff;margin-bottom:18px;"><span style="font-family:'Inter';font-size:14px;color:#1c1c1c;">VBW — T.Nagar</span><span class="material-icons-outlined" style="font-size:20px;color:#5f6368;">expand_more</span></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-top:1px solid #e8ecf1;border-bottom:1px solid #e8ecf1;margin-bottom:18px;">
+        <span style="font-family:'Poppins';font-weight:600;font-size:13px;color:#1c1c1c;">Active worker</span>
+        <div style="width:44px;height:24px;background:#21c06b;position:relative;cursor:pointer;"><div style="width:18px;height:18px;background:#fff;position:absolute;top:3px;right:3px;"></div></div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button style="flex:1;padding:12px;background:#e8ecf1;color:#44484f;border:none;font-family:'Poppins';font-weight:600;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;"><span class="material-icons-outlined" style="font-size:18px;">photo_camera</span>Re-capture</button>
+        <button style="flex:1;padding:12px;background:#1c4d8c;color:#fff;border:none;font-family:'Poppins';font-weight:600;font-size:13px;cursor:pointer;">Save changes</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<!-- ===================== DESIGNATIONS ===================== -->
+<sc-if value="{{ isDesignations }}" hint-placeholder-val="{{ false }}">
+  <div style="min-height:100%;background:#f9f9f9;padding:16px;">
+    <div style="background:#fafafa;border:1px solid #e8ecf1;padding:14px;margin-bottom:14px;">
+      <label style="font-family:'Poppins';font-weight:600;font-size:13px;color:#1c1c1c;margin-bottom:6px;display:block;">Add designation</label>
+      <div style="display:flex;gap:8px;">
+        <input placeholder="e.g. Welder" style="flex:1;padding:10px 12px;border:1px solid #cdd5df;font-family:'Inter';font-size:14px;color:#1c1c1c;background:#fff;outline:none;" />
+        <button style="padding:0 18px;background:#1c4d8c;color:#fff;border:none;font-family:'Poppins';font-weight:600;font-size:13px;cursor:pointer;">Add</button>
+      </div>
+    </div>
+    <div style="background:#fff;border:1px solid #e8ecf1;box-shadow:rgba(0,0,0,0.1) 0 1px 3px,rgba(0,0,0,0.06) 0 1px 2px;">
+      <sc-for list="{{ designationsList }}" as="d" hint-placeholder-count="6">
+        <div style="display:flex;align-items:center;padding:13px 14px;border-bottom:1px solid #f1f3f6;">
+          <span style="font-family:'Poppins';font-weight:400;font-size:14px;color:#1c1c1c;flex:1;">{{ d.name }}</span>
+          <span style="font-family:'Inter';font-size:11px;color:#737373;margin-right:14px;">{{ d.count }} workers</span>
+          <span class="material-icons-outlined" style="font-size:19px;color:#5f6368;cursor:pointer;">edit</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</sc-if>
+
+<!-- ===================== BRANCHES & SITES ===================== -->
+<sc-if value="{{ isBranches }}" hint-placeholder-val="{{ false }}">
+  <div style="min-height:100%;background:#f9f9f9;padding:16px;">
+    <div style="background:#fff;border:1px solid #e8ecf1;box-shadow:rgba(0,0,0,0.1) 0 1px 3px,rgba(0,0,0,0.06) 0 1px 2px;margin-bottom:14px;">
+      <div style="display:flex;align-items:center;gap:9px;padding:12px 14px;background:#fafafa;border-bottom:1px solid #e8ecf1;">
+        <span class="material-icons-outlined" style="font-size:20px;color:#5f6368;">apartment</span>
+        <span style="font-family:'Poppins';font-weight:600;font-size:14px;color:#1c1c1c;">Velachery Branch</span>
+      </div>
+      <div style="display:flex;align-items:center;padding:12px 14px;border-bottom:1px solid #f1f3f6;">
+        <div style="flex:1;"><div style="font-family:'Poppins';font-weight:600;font-size:13px;color:#1c1c1c;">VBW — T.Nagar</div><div style="font-family:'Inter';font-size:11px;color:#737373;margin-top:2px;">Code VBW · shift 09:00 – 18:00</div></div>
+        <span class="material-icons-outlined" style="font-size:19px;color:#5f6368;cursor:pointer;">edit</span>
+      </div>
+      <div style="display:flex;align-items:center;padding:12px 14px;">
+        <div style="flex:1;"><div style="font-family:'Poppins';font-weight:600;font-size:13px;color:#1c1c1c;">PVM — Vadapalani</div><div style="font-family:'Inter';font-size:11px;color:#737373;margin-top:2px;">Code PVM · shift 08:30 – 17:30</div></div>
+        <span class="material-icons-outlined" style="font-size:19px;color:#5f6368;cursor:pointer;">edit</span>
+      </div>
+    </div>
+    <!-- site edit form card -->
+    <div style="background:#fff;border:1px solid #e8ecf1;box-shadow:rgba(0,0,0,0.1) 0 1px 3px,rgba(0,0,0,0.06) 0 1px 2px;padding:16px;">
+      <div style="font-family:'Poppins';font-weight:600;font-size:14px;color:#1c1c1c;margin-bottom:14px;">Edit site · VBW — T.Nagar</div>
+      <label style="font-family:'Poppins';font-weight:600;font-size:13px;color:#1c1c1c;margin-bottom:6px;display:block;">Site name</label>
+      <input value="VBW — T.Nagar" readonly style="width:100%;padding:10px 12px;border:1px solid #cdd5df;font-family:'Inter';font-size:14px;color:#1c1c1c;background:#fff;outline:none;margin-bottom:14px;" />
+      <div style="display:flex;gap:10px;margin-bottom:14px;">
+        <div style="flex:1;"><label style="font-family:'Poppins';font-weight:600;font-size:13px;color:#1c1c1c;margin-bottom:6px;display:block;">Shift start</label><input value="09:00" readonly style="width:100%;padding:10px 12px;border:1px solid #cdd5df;font-family:'Inter';font-weight:700;font-size:14px;color:#1c1c1c;background:#fff;outline:none;" /></div>
+        <div style="flex:1;"><label style="font-family:'Poppins';font-weight:600;font-size:13px;color:#1c1c1c;margin-bottom:6px;display:block;">Shift end</label><input value="18:00" readonly style="width:100%;padding:10px 12px;border:1px solid #cdd5df;font-family:'Inter';font-weight:700;font-size:14px;color:#1c1c1c;background:#fff;outline:none;" /></div>
+      </div>
+      <div style="font-family:'Inter';font-size:11px;color:#737373;margin-bottom:14px;">Optional per-designation shift overrides can be added below.</div>
+      <button style="width:100%;padding:12px;background:#1c4d8c;color:#fff;border:none;font-family:'Poppins';font-weight:600;font-size:14px;cursor:pointer;">Save site</button>
+    </div>
+  </div>
+</sc-if>
+
+<!-- ===================== STATIONS ===================== -->
+<sc-if value="{{ isStations }}" hint-placeholder-val="{{ false }}">
+  <div style="min-height:100%;background:#f9f9f9;padding:16px;">
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;">
+      <sc-for list="{{ stationsList }}" as="st" hint-placeholder-count="3">
+        <div style="background:#fff;border:1px solid #e8ecf1;box-shadow:rgba(0,0,0,0.1) 0 1px 3px,rgba(0,0,0,0.06) 0 1px 2px;padding:13px;display:flex;align-items:center;gap:11px;">
+          <span class="material-icons-outlined" style="font-size:24px;color:#5f6368;">desktop_windows</span>
+          <div style="flex:1;min-width:0;">
+            <div style="font-family:'Poppins';font-weight:600;font-size:14px;color:#1c1c1c;">{{ st.name }}</div>
+            <div style="font-family:'Inter';font-size:11px;color:#737373;margin-top:1px;">{{ st.site }} · seen {{ st.seen }}</div>
+          </div>
+          <span style="font-family:'Inter';font-weight:700;font-size:8.5px;letter-spacing:.05em;color:{{ st.badgeFg }};background:{{ st.badgeBg }};padding:4px 6px;">{{ st.badgeLabel }}</span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="background:#fff;border:1px solid #e8ecf1;box-shadow:rgba(0,0,0,0.1) 0 1px 3px,rgba(0,0,0,0.06) 0 1px 2px;padding:16px;">
+      <div style="font-family:'Poppins';font-weight:600;font-size:14px;color:#1c1c1c;margin-bottom:14px;">Register station</div>
+      <label style="font-family:'Poppins';font-weight:600;font-size:13px;color:#1c1c1c;margin-bottom:6px;display:block;">Station name</label>
+      <input placeholder="e.g. KGM Side Gate" style="width:100%;padding:10px 12px;border:1px solid #cdd5df;font-family:'Inter';font-size:14px;color:#1c1c1c;background:#fff;outline:none;margin-bottom:14px;" />
+      <label style="font-family:'Poppins';font-weight:600;font-size:13px;color:#1c1c1c;margin-bottom:6px;display:block;">Site</label>
+      <div style="display:flex;align-items:center;justify-content:space-between;border:1px solid #cdd5df;padding:10px 12px;background:#fff;margin-bottom:18px;"><span style="font-family:'Inter';font-size:14px;color:#1c1c1c;">KGM — Velachery</span><span class="material-icons-outlined" style="font-size:20px;color:#5f6368;">expand_more</span></div>
+      <button onClick="{{ goStationCreated }}" style="width:100%;padding:12px;background:#1c4d8c;color:#fff;border:none;font-family:'Poppins';font-weight:600;font-size:14px;cursor:pointer;">Register station</button>
+    </div>
+  </div>
+</sc-if>
+
+<!-- ===================== STATION CREATED ===================== -->
+<sc-if value="{{ isStationCreated }}" hint-placeholder-val="{{ false }}">
+  <div style="min-height:100%;background:#f9f9f9;padding:20px 16px;display:flex;flex-direction:column;justify-content:center;">
+    <div style="background:#fff;border:1px solid #e8ecf1;box-shadow:rgba(0,0,0,0.1) 0 1px 3px,rgba(0,0,0,0.06) 0 1px 2px;padding:24px 20px;text-align:center;">
+      <div style="width:54px;height:54px;border-radius:50%;background:#e1fbe9;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;"><span class="material-icons-outlined" style="font-size:30px;color:#1f7a44;">check</span></div>
+      <div style="font-family:'Poppins';font-weight:600;font-size:17px;color:#1c1c1c;">Station registered</div>
+      <div style="font-family:'Inter';font-size:12.5px;color:#737373;margin-top:5px;margin-bottom:20px;">Enter this key on the kiosk device to connect it.</div>
+      <div style="text-align:left;font-family:'Inter';font-weight:700;font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:#94a0b3;margin-bottom:6px;">One-time station key</div>
+      <div style="background:#1f1f1f;padding:14px;display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+        <span style="flex:1;font-family:'Courier New',monospace;font-size:13px;color:#fff;word-break:break-all;text-align:left;letter-spacing:.03em;">STN-KGM-9X2D-7F3A-Q14B-8M</span>
+        <span class="material-icons-outlined" style="font-size:20px;color:#9aa0a6;cursor:pointer;">content_copy</span>
+      </div>
+      <div style="background:#fff8e1;border:1px solid #f0e2b5;padding:9px 11px;display:flex;gap:8px;align-items:flex-start;text-align:left;">
+        <span class="material-icons-outlined" style="font-size:17px;color:#8a6d1b;">warning_amber</span>
+        <span style="font-family:'Inter';font-size:11.5px;color:#8a6d1b;line-height:1.4;">Shown only once. Copy it now — it cannot be retrieved later.</span>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<!-- ===================== USERS & ROLES ===================== -->
+<sc-if value="{{ isUsers }}" hint-placeholder-val="{{ false }}">
+  <div style="min-height:100%;background:#f9f9f9;padding:16px;">
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;">
+      <sc-for list="{{ usersList }}" as="u" hint-placeholder-count="4">
+        <div style="background:#fff;border:1px solid #e8ecf1;box-shadow:rgba(0,0,0,0.1) 0 1px 3px,rgba(0,0,0,0.06) 0 1px 2px;padding:13px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <span style="font-family:'Poppins';font-weight:600;font-size:14px;color:#1c1c1c;">{{ u.name }}</span>
+            <span style="font-family:'Inter';font-weight:700;font-size:8.5px;letter-spacing:.05em;color:{{ u.roleFg }};background:{{ u.roleBg }};padding:4px 6px;">{{ u.role }}</span>
+          </div>
+          <div style="font-family:'Inter';font-size:11.5px;color:#737373;margin-top:3px;">{{ u.email }}</div>
+          <div style="font-family:'Inter';font-size:11px;color:#94a0b3;margin-top:4px;display:flex;align-items:center;gap:5px;"><span class="material-icons-outlined" style="font-size:14px;">place</span>{{ u.sites }}</div>
+        </div>
+      </sc-for>
+    </div>
+    <div style="background:#fff;border:1px solid #e8ecf1;box-shadow:rgba(0,0,0,0.1) 0 1px 3px,rgba(0,0,0,0.06) 0 1px 2px;padding:16px;">
+      <div style="font-family:'Poppins';font-weight:600;font-size:14px;color:#1c1c1c;margin-bottom:14px;">Add user</div>
+      <label style="font-family:'Poppins';font-weight:600;font-size:13px;color:#1c1c1c;margin-bottom:6px;display:block;">Name</label>
+      <input placeholder="Full name" style="width:100%;padding:10px 12px;border:1px solid #cdd5df;font-family:'Inter';font-size:14px;color:#1c1c1c;background:#fff;outline:none;margin-bottom:14px;" />
+      <label style="font-family:'Poppins';font-weight:600;font-size:13px;color:#1c1c1c;margin-bottom:6px;display:block;">Email</label>
+      <input placeholder="name@trgbi.in" style="width:100%;padding:10px 12px;border:1px solid #cdd5df;font-family:'Inter';font-size:14px;color:#1c1c1c;background:#fff;outline:none;margin-bottom:14px;" />
+      <div style="display:flex;gap:10px;margin-bottom:14px;">
+        <div style="flex:1;"><label style="font-family:'Poppins';font-weight:600;font-size:13px;color:#1c1c1c;margin-bottom:6px;display:block;">Role</label><div style="display:flex;align-items:center;justify-content:space-between;border:1px solid #cdd5df;padding:10px 12px;background:#fff;"><span style="font-family:'Inter';font-size:14px;color:#1c1c1c;">PM</span><span class="material-icons-outlined" style="font-size:20px;color:#5f6368;">expand_more</span></div></div>
+        <div style="flex:1;"><label style="font-family:'Poppins';font-weight:600;font-size:13px;color:#1c1c1c;margin-bottom:6px;display:block;">Password</label><input value="••••••" readonly style="width:100%;padding:10px 12px;border:1px solid #cdd5df;font-family:'Inter';font-size:14px;color:#1c1c1c;background:#fff;outline:none;" /></div>
+      </div>
+      <label style="font-family:'Poppins';font-weight:600;font-size:13px;color:#1c1c1c;margin-bottom:6px;display:block;">Assigned sites</label>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">
+        <span style="font-family:'Inter';font-size:11.5px;color:#1d4ed8;background:#ebf3fd;border:1px solid #cfe0f7;padding:5px 9px;">VBW — T.Nagar ✕</span>
+        <span style="font-family:'Inter';font-size:11.5px;color:#1d4ed8;background:#ebf3fd;border:1px solid #cfe0f7;padding:5px 9px;">PVM — Vadapalani ✕</span>
+        <span style="font-family:'Inter';font-size:11.5px;color:#5f6368;border:1px dashed #cdd5df;padding:5px 9px;">+ add site</span>
+      </div>
+      <div style="background:#ebf3fd;border:1px solid #cfe0f7;padding:9px 11px;display:flex;gap:8px;align-items:flex-start;margin-bottom:14px;">
+        <span class="material-icons-outlined" style="font-size:17px;color:#1d4ed8;">info</span>
+        <span style="font-family:'Inter';font-size:11px;color:#1d4ed8;line-height:1.4;">PM needs ≥1 site · PE and Supervisor are limited to exactly 1 site.</span>
+      </div>
+      <button style="width:100%;padding:12px;background:#1c4d8c;color:#fff;border:none;font-family:'Poppins';font-weight:600;font-size:14px;cursor:pointer;">Add user</button>
+    </div>
+  </div>
+</sc-if>
+
+<!-- ===================== REPORTS ===================== -->
+<sc-if value="{{ isReports }}" hint-placeholder-val="{{ false }}">
+  <div style="min-height:100%;background:#f9f9f9;">
+    <!-- filter sheet -->
+    <div style="background:#fafafa;border-bottom:1px solid #e8ecf1;padding:14px 16px;">
+      <div style="font-family:'Inter';font-weight:700;font-size:9px;letter-spacing:.07em;text-transform:uppercase;color:#94a0b3;margin-bottom:10px;">Filters</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;border:1px solid #cdd5df;padding:9px 11px;background:#fff;"><span style="font-family:'Inter';font-size:12.5px;color:#1c1c1c;">All branches</span><span class="material-icons-outlined" style="font-size:18px;color:#5f6368;">expand_more</span></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;border:1px solid #cdd5df;padding:9px 11px;background:#fff;"><span style="font-family:'Inter';font-size:12.5px;color:#1c1c1c;">All sites</span><span class="material-icons-outlined" style="font-size:18px;color:#5f6368;">expand_more</span></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;border:1px solid #cdd5df;padding:9px 11px;background:#fff;"><span style="font-family:'Inter';font-size:12.5px;color:#1c1c1c;">1–18 Jun</span><span class="material-icons-outlined" style="font-size:18px;color:#5f6368;">event</span></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;border:1px solid #cdd5df;padding:9px 11px;background:#fff;"><span style="font-family:'Inter';font-size:12.5px;color:#1c1c1c;">All roles</span><span class="material-icons-outlined" style="font-size:18px;color:#5f6368;">expand_more</span></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button style="flex:1;padding:10px;background:#212121;color:#fff;border:none;font-family:'Poppins';font-weight:600;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;"><span class="material-icons-outlined" style="font-size:17px;">picture_as_pdf</span>Download PDF</button>
+        <button style="flex:1;padding:10px;background:#21c06b;color:#fff;border:none;font-family:'Poppins';font-weight:600;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;"><span class="material-icons-outlined" style="font-size:17px;">grid_on</span>Download Excel</button>
+      </div>
+    </div>
+    <div style="padding:14px 16px;">
+      <sc-for list="{{ reportGroups }}" as="g" hint-placeholder-count="2">
+        <div style="margin-bottom:18px;">
+          <div style="font-family:'Poppins';font-weight:600;font-size:13px;color:#1c4d8c;padding:6px 0;border-bottom:2px solid #1c4d8c;margin-bottom:10px;">{{ g.site }}</div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <sc-for list="{{ g.rows }}" as="r" hint-placeholder-count="2">
+              <div style="background:#fff;border:1px solid #e8ecf1;box-shadow:rgba(0,0,0,0.1) 0 1px 3px,rgba(0,0,0,0.06) 0 1px 2px;padding:12px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                  <div><div style="font-family:'Poppins';font-weight:600;font-size:13.5px;color:#1c1c1c;">{{ r.name }}</div><div style="font-family:'Courier New',monospace;font-size:10.5px;color:#737373;">{{ r.emp }} · {{ r.desig }}</div></div>
+                  <span style="font-family:'Inter';font-size:11px;color:#737373;">{{ r.date }}</span>
+                </div>
+                <div style="display:flex;border-top:1px solid #f1f3f6;padding-top:8px;">
+                  <div style="flex:1;"><div style="font-family:'Inter';font-weight:700;font-size:8px;color:#94a0b3;text-transform:uppercase;letter-spacing:.05em;">In</div><div style="font-family:'Inter';font-weight:700;font-size:13px;color:#1c1c1c;">{{ r.inT }}</div></div>
+                  <div style="flex:1;"><div style="font-family:'Inter';font-weight:700;font-size:8px;color:#94a0b3;text-transform:uppercase;letter-spacing:.05em;">Out</div><div style="font-family:'Inter';font-weight:700;font-size:13px;color:#1c1c1c;">{{ r.outT }}</div></div>
+                  <div style="flex:1;"><div style="font-family:'Inter';font-weight:700;font-size:8px;color:#94a0b3;text-transform:uppercase;letter-spacing:.05em;">Total</div><div style="font-family:'Inter';font-weight:700;font-size:13px;color:#1c1c1c;">{{ r.total }}</div></div>
+                  <div style="flex:1;"><div style="font-family:'Inter';font-weight:700;font-size:8px;color:#94a0b3;text-transform:uppercase;letter-spacing:.05em;">OT</div><div style="font-family:'Inter';font-weight:700;font-size:13px;color:#8a6d1b;">{{ r.ot }}</div></div>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+                  <span style="font-family:'Inter';font-size:10px;color:#737373;">OT {{ r.otStatus }}</span>
+                  <span style="font-family:'Inter';font-size:10px;color:#737373;">· Source {{ r.src }}</span>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</sc-if>
+
+<!-- ===================== FLAGGED EVENTS ===================== -->
+<sc-if value="{{ isFlags }}" hint-placeholder-val="{{ false }}">
+  <div style="min-height:100%;background:#f9f9f9;">
+    <div style="display:flex;gap:8px;padding:12px 16px;background:#fff;border-bottom:1px solid #e8ecf1;position:sticky;top:0;z-index:2;">
+      <sc-for list="{{ flagTabs }}" as="t" hint-placeholder-count="2">
+        <button onClick="{{ t.go }}" style="flex:1;padding:8px;background:{{ t.bg }};color:{{ t.fg }};border:1px solid {{ t.bdr }};font-family:'Poppins';font-weight:600;font-size:12px;cursor:pointer;">{{ t.label }}</button>
+      </sc-for>
+    </div>
+    <div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px;">
+      <sc-for list="{{ flagsList }}" as="f" hint-placeholder-count="3">
+        <div style="background:#fff;border:1px solid #e8ecf1;box-shadow:rgba(0,0,0,0.1) 0 1px 3px,rgba(0,0,0,0.06) 0 1px 2px;padding:13px;">
+          <div style="display:flex;align-items:center;gap:9px;margin-bottom:8px;">
+            <span class="material-icons-outlined" style="font-size:20px;color:#b3261e;">flag</span>
+            <span style="font-family:'Inter';font-weight:700;font-size:9px;letter-spacing:.05em;color:#b3261e;background:#fdebeb;padding:4px 7px;text-transform:uppercase;">{{ f.type }}</span>
+          </div>
+          <div style="font-family:'Poppins';font-weight:600;font-size:14px;color:#1c1c1c;">{{ f.worker }}</div>
+          <div style="font-family:'Inter';font-size:11.5px;color:#737373;margin-top:2px;">{{ f.site }}</div>
+          <div style="font-family:'Inter';font-size:11px;color:#94a0b3;margin-top:2px;">{{ f.when }}</div>
+          <sc-if value="{{ f.resolved }}" hint-placeholder-val="{{ false }}"><div style="margin-top:10px;font-family:'Inter';font-weight:700;font-size:9px;letter-spacing:.05em;color:#1f7a44;background:#e1fbe9;padding:5px 8px;display:inline-block;text-transform:uppercase;">Resolved</div></sc-if>
+          <sc-if value="{{ f.unresolved }}" hint-placeholder-val="{{ true }}"><button style="margin-top:11px;width:100%;padding:9px;background:#21c06b;color:#fff;border:none;font-family:'Poppins';font-weight:600;font-size:12px;cursor:pointer;">Resolve</button></sc-if>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</sc-if>
+
+<!-- ===================== ERROR / 403 ===================== -->
+<sc-if value="{{ isError }}" hint-placeholder-val="{{ false }}">
+  <div style="min-height:100%;background:#f9f9f9;padding:24px 20px;display:flex;flex-direction:column;justify-content:center;">
+    <div style="background:#fff;border:1px solid #e8ecf1;box-shadow:rgba(0,0,0,0.1) 0 1px 3px,rgba(0,0,0,0.06) 0 1px 2px;padding:34px 24px;text-align:center;">
+      <div style="font-family:'Inter';font-weight:700;font-size:48px;color:#212121;line-height:1;">403</div>
+      <div style="font-family:'Poppins';font-weight:600;font-size:17px;color:#1c1c1c;margin-top:14px;">Access denied</div>
+      <div style="font-family:'Inter';font-size:12.5px;color:#737373;margin-top:6px;line-height:1.5;">Your role doesn't have permission to view this page. Contact a Management user if you believe this is an error.</div>
+      <button style="margin-top:22px;padding:11px 28px;background:#1c4d8c;color:#fff;border:none;font-family:'Poppins';font-weight:600;font-size:13px;cursor:pointer;">Back to dashboard</button>
+    </div>
+  </div>
+</sc-if>
+
+<!-- ===================== COMPONENT SHEET ===================== -->
+<sc-if value="{{ isComponents }}" hint-placeholder-val="{{ false }}">
+  <div style="min-height:100%;background:#f9f9f9;">
+    <div style="padding:14px 16px;background:#212121;">
+      <div style="font-family:'Poppins';font-weight:600;font-size:16px;color:#fff;">Component Sheet</div>
+      <div style="font-family:'Inter';font-size:11px;color:rgba(255,255,255,.55);margin-top:2px;">TRGBI · sharp-corner DNA · Poppins / Inter / Courier</div>
+    </div>
+    <div style="padding:16px;display:flex;flex-direction:column;gap:20px;">
+
+      <!-- Buttons -->
+      <div>
+        <div style="font-family:'Inter';font-weight:700;font-size:9px;letter-spacing:.07em;text-transform:uppercase;color:#94a0b3;margin-bottom:9px;">Buttons</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+          <button style="padding:9px 16px;background:#e8ecf1;color:#44484f;border:none;font-family:'Poppins';font-weight:600;font-size:12px;">Default</button>
+          <button style="padding:9px 16px;background:#1c4d8c;color:#fff;border:none;font-family:'Poppins';font-weight:600;font-size:12px;">Secondary</button>
+          <button style="padding:9px 16px;background:#21c06b;color:#fff;border:none;font-family:'Poppins';font-weight:600;font-size:12px;">Success</button>
+          <button style="padding:9px 16px;background:#ff3b38;color:#fff;border:none;font-family:'Poppins';font-weight:600;font-size:12px;">Danger</button>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;align-items:center;">
+          <button style="padding:6px 11px;background:#1c4d8c;color:#fff;border:none;font-family:'Poppins';font-weight:600;font-size:11px;">Small</button>
+          <button style="padding:9px 16px;background:#163d70;color:#fff;border:none;font-family:'Poppins';font-weight:600;font-size:12px;">Pressed</button>
+          <button style="padding:9px 16px;background:#94a0b3;color:#fff;border:none;font-family:'Poppins';font-weight:600;font-size:12px;cursor:not-allowed;">Disabled</button>
+          <button style="padding:9px 16px;background:#1c4d8c;color:#fff;border:none;font-family:'Poppins';font-weight:600;font-size:12px;box-shadow:rgba(0,0,0,0.1) 0 1px 3px,rgba(0,0,0,0.06) 0 1px 2px;">Shadow</button>
+        </div>
+        <button style="width:100%;padding:11px;background:#1c4d8c;color:#fff;border:none;font-family:'Poppins';font-weight:600;font-size:13px;margin-top:8px;">Full-width</button>
+      </div>
+
+      <!-- Inputs -->
+      <div>
+        <div style="font-family:'Inter';font-weight:700;font-size:9px;letter-spacing:.07em;text-transform:uppercase;color:#94a0b3;margin-bottom:9px;">Inputs</div>
+        <div style="display:flex;flex-direction:column;gap:9px;">
+          <input placeholder="Text input · placeholder" style="width:100%;padding:10px 12px;border:1px solid #cdd5df;font-family:'Inter';font-size:13px;color:#1c1c1c;background:#fff;outline:none;" />
+          <input value="Focused input" readonly style="width:100%;padding:10px 12px;border:1px solid #cdd5df;outline:2px solid #212121;outline-offset:-2px;font-family:'Inter';font-size:13px;color:#1c1c1c;background:#fff;" />
+          <div style="display:flex;align-items:center;justify-content:space-between;border:1px solid #cdd5df;padding:10px 12px;background:#fff;"><span style="font-family:'Inter';font-size:13px;color:#1c1c1c;">Select</span><span class="material-icons-outlined" style="font-size:19px;color:#5f6368;">expand_more</span></div>
+          <div style="position:relative;"><input value="password" readonly style="width:100%;padding:10px 56px 10px 12px;border:1px solid #cdd5df;font-family:'Inter';font-size:13px;color:#1c1c1c;background:#fff;outline:none;" /><span style="position:absolute;right:7px;top:50%;transform:translateY(-50%);font-family:'Inter';font-weight:700;font-size:9px;color:#44484f;background:#e8ecf1;padding:4px 7px;">SHOW</span></div>
+          <div style="display:flex;gap:9px;">
+            <input value="CODE-X1" readonly style="width:110px;padding:10px 12px;border:1px solid #cdd5df;font-family:'Courier New',monospace;font-size:13px;text-transform:uppercase;color:#1c1c1c;background:#fff;outline:none;" />
+            <input value="1.5" readonly style="width:64px;padding:10px;border:1px solid #cdd5df;font-family:'Inter';font-weight:700;font-size:13px;color:#1c1c1c;background:#fff;outline:none;" />
+            <input value="09:00" readonly style="width:84px;padding:10px;border:1px solid #cdd5df;font-family:'Inter';font-weight:700;font-size:13px;color:#1c1c1c;background:#fff;outline:none;" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Badges -->
+      <div>
+        <div style="font-family:'Inter';font-weight:700;font-size:9px;letter-spacing:.07em;text-transform:uppercase;color:#94a0b3;margin-bottom:9px;">Badges</div>
+        <div style="display:flex;flex-wrap:wrap;gap:7px;">
+          <span style="font-family:'Inter';font-weight:700;font-size:9px;letter-spacing:.05em;color:#1d4ed8;background:#ebf3fd;padding:4px 7px;">SECONDARY</span>
+          <span style="font-family:'Inter';font-weight:700;font-size:9px;letter-spacing:.05em;color:#737373;background:#f1f3f6;padding:4px 7px;">MUTED</span>
+          <span style="font-family:'Inter';font-weight:700;font-size:9px;letter-spacing:.05em;color:#1f7a44;background:#e1fbe9;padding:4px 7px;">SUCCESS</span>
+          <span style="font-family:'Inter';font-weight:700;font-size:9px;letter-spacing:.05em;color:#8a6d1b;background:#fff8e1;padding:4px 7px;">WARNING</span>
+          <span style="font-family:'Inter';font-weight:700;font-size:9px;letter-spacing:.05em;color:#b3261e;background:#fdebeb;padding:4px 7px;">DANGER</span>
+        </div>
+      </div>
+
+      <!-- Alerts -->
+      <div>
+        <div style="font-family:'Inter';font-weight:700;font-size:9px;letter-spacing:.07em;text-transform:uppercase;color:#94a0b3;margin-bottom:9px;">Alerts</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="background:#ebf3fd;border:1px solid #cfe0f7;padding:9px 11px;display:flex;gap:8px;align-items:center;"><span class="material-icons-outlined" style="font-size:17px;color:#1d4ed8;">info</span><span style="font-family:'Inter';font-size:12px;color:#1d4ed8;">Info — informational message.</span></div>
+          <div style="background:#e1fbe9;border:1px solid #bfead0;padding:9px 11px;display:flex;gap:8px;align-items:center;"><span class="material-icons-outlined" style="font-size:17px;color:#1f7a44;">check_circle</span><span style="font-family:'Inter';font-size:12px;color:#1f7a44;">Success — saved.</span></div>
+          <div style="background:#fff8e1;border:1px solid #f0e2b5;padding:9px 11px;display:flex;gap:8px;align-items:center;"><span class="material-icons-outlined" style="font-size:17px;color:#8a6d1b;">warning_amber</span><span style="font-family:'Inter';font-size:12px;color:#8a6d1b;">Warning — review this.</span></div>
+          <div style="background:#fdebeb;border:1px solid #f4c9c9;padding:9px 11px;display:flex;gap:8px;align-items:center;"><span class="material-icons-outlined" style="font-size:17px;color:#b3261e;">error_outline</span><span style="font-family:'Inter';font-size:12px;color:#b3261e;">Danger — something failed.</span></div>
+        </div>
+      </div>
+
+      <!-- Filter tabs -->
+      <div>
+        <div style="font-family:'Inter';font-weight:700;font-size:9px;letter-spacing:.07em;text-transform:uppercase;color:#94a0b3;margin-bottom:9px;">Filter tabs</div>
+        <div style="display:flex;gap:8px;">
+          <button style="flex:1;padding:8px;background:#1c4d8c;color:#fff;border:1px solid #1c4d8c;font-family:'Poppins';font-weight:600;font-size:12px;">Active</button>
+          <button style="flex:1;padding:8px;background:#fff;color:#44484f;border:1px solid #cdd5df;font-family:'Poppins';font-weight:600;font-size:12px;">Inactive</button>
+          <button style="flex:1;padding:8px;background:#fff;color:#44484f;border:1px solid #cdd5df;font-family:'Poppins';font-weight:600;font-size:12px;">Inactive</button>
+        </div>
+      </div>
+
+      <!-- Avatars + Result banner -->
+      <div>
+        <div style="font-family:'Inter';font-weight:700;font-size:9px;letter-spacing:.07em;text-transform:uppercase;color:#94a0b3;margin-bottom:9px;">Avatar · Result banners</div>
+        <div style="display:flex;gap:8px;margin-bottom:10px;">
+          <div style="width:36px;height:36px;border-radius:50%;background:#e8ecf1;display:flex;align-items:center;justify-content:center;font-family:'Inter';font-weight:700;font-size:12px;color:#5f6368;">RK</div>
+          <div style="width:36px;height:36px;border-radius:50%;background:#e8ecf1;display:flex;align-items:center;justify-content:center;"><span class="material-icons-outlined" style="font-size:22px;color:#94a0b3;">person</span></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:7px;">
+          <div style="background:rgba(0,0,0,.06);border:1px solid #cdd5df;padding:11px 13px;font-family:'Poppins';font-weight:600;font-size:12.5px;color:#737373;">Idle — point your face at the camera</div>
+          <div style="background:#21c06b;padding:11px 13px;font-family:'Poppins';font-weight:600;font-size:12.5px;color:#fff;">✓ Ramesh — IN at 09:02</div>
+          <div style="background:#2e97db;padding:11px 13px;font-family:'Poppins';font-weight:600;font-size:12.5px;color:#fff;">✓ Ramesh — OUT 18:40 · Total 9.6h · OT 0.6h (pending)</div>
+          <div style="background:#f5b438;padding:11px 13px;font-family:'Poppins';font-weight:600;font-size:12.5px;color:#1c1c1c;">✗ assigned to PVM, not VBW. Scan rejected &amp; flagged</div>
+          <div style="background:#ff3b38;padding:11px 13px;font-family:'Poppins';font-weight:600;font-size:12.5px;color:#fff;">Face not recognized — try again</div>
+        </div>
+      </div>
+
+      <!-- Keybox -->
+      <div>
+        <div style="font-family:'Inter';font-weight:700;font-size:9px;letter-spacing:.07em;text-transform:uppercase;color:#94a0b3;margin-bottom:9px;">Keybox (dark mono)</div>
+        <div style="background:#1f1f1f;padding:13px;display:flex;align-items:center;gap:10px;"><span style="flex:1;font-family:'Courier New',monospace;font-size:13px;color:#fff;word-break:break-all;">STN-VBW-7F3A-9K21-X8M2</span><span class="material-icons-outlined" style="font-size:19px;color:#9aa0a6;">content_copy</span></div>
+      </div>
+
+      <!-- Cards -->
+      <div>
+        <div style="font-family:'Inter';font-weight:700;font-size:9px;letter-spacing:.07em;text-transform:uppercase;color:#94a0b3;margin-bottom:9px;">Cards</div>
+        <div style="display:flex;gap:9px;">
+          <div style="flex:1;background:#fff;border:1px solid #e8ecf1;box-shadow:rgba(0,0,0,0.1) 0 1px 3px,rgba(0,0,0,0.06) 0 1px 2px;padding:12px;"><div style="font-family:'Inter';font-weight:700;font-size:8.5px;letter-spacing:.06em;text-transform:uppercase;color:#94a0b3;">Stat</div><div style="font-family:'Inter';font-weight:700;font-size:22px;color:#1c1c1c;margin-top:4px;">182</div></div>
+          <div style="flex:1;background:#fafafa;border:1px solid #e8ecf1;padding:12px;"><div style="font-family:'Poppins';font-weight:600;font-size:12px;color:#1c1c1c;">Note card</div><div style="font-family:'Inter';font-size:11px;color:#737373;margin-top:3px;">Muted #fafafa background.</div></div>
+        </div>
+      </div>
+
+      <div style="height:8px;"></div>
+    </div>
+  </div>
+</sc-if>
+
+
+        </div>
+
+        <!-- BOTTOM NAV -->
+        <sc-if value="{{ appChrome }}" hint-placeholder-val="{{ true }}">
+          <div style="height:60px;flex:none;display:flex;background:#212121;border-top:1px solid #000;z-index:4;">
+            <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="4">
+              <div onClick="{{ t.go }}" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;border-top:3px solid {{ t.indicator }};position:relative;">
+                <span class="material-icons-outlined" style="font-size:23px;color:{{ t.color }};">{{ t.icon }}</span>
+                <span style="font-family:'Poppins';font-weight:400;font-size:10px;color:{{ t.color }};">{{ t.label }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <!-- HOME INDICATOR (kiosk/auth) -->
+        <sc-if value="{{ showHomeBar }}" hint-placeholder-val="{{ false }}">
+          <div style="height:22px;flex:none;display:flex;align-items:center;justify-content:center;background:{{ statusBg }};">
+            <div style="width:130px;height:5px;border-radius:3px;background:{{ homeBarColor }};"></div>
+          </div>
+        </sc-if>
+
+        <!-- MORE DRAWER -->
+        <sc-if value="{{ drawerOpen }}" hint-placeholder-val="{{ false }}">
+          <div onClick="{{ closeDrawer }}" style="position:absolute;inset:0;background:rgba(0,0,0,.45);z-index:20;display:flex;flex-direction:column;justify-content:flex-end;">
+            <div onClick="{{ stop }}" style="background:#fff;border-radius:0;max-height:82%;display:flex;flex-direction:column;">
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid #e8ecf1;">
+                <span style="font-family:'Poppins';font-weight:600;font-size:15px;color:#1c1c1c;">More</span>
+                <span onClick="{{ closeDrawer }}" class="material-icons-outlined" style="font-size:22px;color:#5f6368;cursor:pointer;">close</span>
+              </div>
+              <div class="scrollarea" style="overflow-y:auto;padding:6px 0;">
+                <sc-for list="{{ moreItems }}" as="m" hint-placeholder-count="7">
+                  <div onClick="{{ m.go }}" style="display:flex;align-items:center;gap:14px;padding:14px 18px;cursor:pointer;border-bottom:1px solid #f1f3f6;">
+                    <span class="material-icons-outlined" style="font-size:22px;color:#5f6368;">{{ m.icon }}</span>
+                    <span style="font-family:'Poppins';font-weight:400;font-size:14px;color:#1c1c1c;flex:1;">{{ m.label }}</span>
+                    <sc-if value="{{ m.gated }}" hint-placeholder-val="{{ false }}">
+                      <span style="font-family:'Inter';font-weight:700;font-size:9px;letter-spacing:.05em;text-transform:uppercase;color:#737373;background:#f1f3f6;padding:3px 6px;">{{ m.gated }}</span>
+                    </sc-if>
+                    <span class="material-icons-outlined" style="font-size:18px;color:#94a0b3;">chevron_right</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+      </div>
+    </div>
+    <div style="font-family:'Inter';font-size:11px;color:#737373;">Route: <span style="font-family:'Courier New',monospace;color:#1c4d8c;">{{ route }}</span></div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:700,&quot;height&quot;:920},&quot;otViewOnly&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  state = { screen:'dashboard', drawerOpen:false, prev:'dashboard', otTab:'pending', flagTab:'unresolved', showPw:false, branchOpen:{b1:true,b2:false} };
+
+  go(n){ this.setState(s=>({ prev: s.screen, screen:n, drawerOpen:false })); }
+  goBack(){ this.setState(s=>({ screen: s.prev || 'dashboard' })); }
+
+  componentDidMount(){ this._syncCam(); }
+  componentDidUpdate(){ this._syncCam(); }
+  _syncCam(){
+    const vids = document.querySelectorAll('video[data-cam]');
+    if(vids.length){
+      if(!this._stream){
+        if(this._req) return; this._req = true;
+        navigator.mediaDevices?.getUserMedia({video:{facingMode:'user'},audio:false})
+          .then(st=>{ this._stream = st; document.querySelectorAll('video[data-cam]').forEach(v=>{ v.srcObject = st; v.play().catch(()=>{}); }); })
+          .catch(()=>{ this._req=false; });
+      } else {
+        vids.forEach(v=>{ if(v.srcObject!==this._stream){ v.srcObject=this._stream; v.play().catch(()=>{}); } });
+      }
+    }
+  }
+  componentWillUnmount(){ this._stream?.getTracks().forEach(t=>t.stop()); }
+
+  renderVals(){
+    const s = this.state.screen;
+    const is = (x)=> s===x;
+    const C = { text:'#1c1c1c', accent:'#1c4d8c', muted:'#737373' };
+
+    // screen index groups
+    const mk = (num,name,key)=>({ num, name, key,
+      go:()=>this.go(key),
+      color: s===key ? '#1c4d8c' : '#1c1c1c',
+      bar: s===key ? '#1c4d8c' : 'transparent',
+      bg: s===key ? '#eef3fa' : 'transparent' });
+    const indexGroups = [
+      { label:'Auth & Kiosk', items:[ mk('01','Login','login'), mk('02','Station Sign-in','stationlogin'), mk('03','Kiosk Capture','kiosk') ] },
+      { label:'Main App', items:[ mk('04','Dashboard','dashboard'), mk('05','Attendance','attendance'), mk('06','Overtime','overtime') ] },
+      { label:'Workers', items:[ mk('07','Workers list','workers'), mk('08','Worker Enroll','enroll'), mk('09','Worker Edit','editworker'), mk('10','Designations','designations') ] },
+      { label:'Org & Admin', items:[ mk('11','Branches & Sites','branches'), mk('12','Stations','stations'), mk('13','Station Created','stationcreated'), mk('14','Users & Roles','users') ] },
+      { label:'Insights', items:[ mk('15','Reports','reports'), mk('16','Flagged events','flags'), mk('17','Error / 403','error') ] },
+      { label:'Reference', items:[ mk('C','Component Sheet','components') ] },
+    ];
+
+    const appScreens = ['dashboard','attendance','overtime','workers','enroll','editworker','designations','branches','stations','stationcreated','users','reports','flags'];
+    const appChrome = appScreens.includes(s);
+    const dark = is('kiosk');
+    const authLight = is('login')||is('stationlogin')||is('error')||is('components');
+
+    const titles = { dashboard:'Dashboard', attendance:'Attendance', overtime:'Overtime', workers:'Workers', enroll:'Enroll Worker', editworker:'Edit Worker', designations:'Designations', branches:'Branches & Sites', stations:'Stations', stationcreated:'Station Registered', users:'Users & Roles', reports:'Reports', flags:'Flagged Events' };
+    const routes = { login:'/login', stationlogin:'/station/login', kiosk:'/station', dashboard:'/dashboard', attendance:'/attendance', overtime:'/overtime', workers:'/workers', enroll:'/workers/new', editworker:'/workers/edit', designations:'/designations', branches:'/branches', stations:'/stations', stationcreated:'/stations/created', users:'/users', reports:'/reports', flags:'/flags', error:'/403', components:'/_components' };
+
+    // ---------- SAMPLE DATA ----------
+    const statCards = [
+      { label:'Present Today', value:'182', note:'of 214 active', tone:'#1c1c1c' },
+      { label:'On Site Now', value:'147', note:'across 6 sites', tone:'#1c1c1c' },
+      { label:'Pending OT', value:'38.4h', note:'awaiting approval', tone:'#8a6d1b' },
+      { label:'Open Flags', value:'5', note:'unresolved', tone:'#b3261e' },
+    ];
+    const rollup = [
+      { id:'b1', name:'Velachery Branch', present:'112', active:'128', ot:'24.6', flags:'3',
+        sites:[
+          { name:'VBW — T.Nagar', present:'58', active:'64', ot:'12.4', flags:'2' },
+          { name:'PVM — Vadapalani', present:'41', active:'46', ot:'9.2', flags:'1' },
+          { name:'KGM — Velachery', present:'13', active:'18', ot:'3.0', flags:'0' },
+        ] },
+      { id:'b2', name:'OMR Branch', present:'70', active:'86', ot:'13.8', flags:'2',
+        sites:[
+          { name:'SRP — Sholinganallur', present:'44', active:'52', ot:'8.6', flags:'2' },
+          { name:'NVT — Navalur', present:'26', active:'34', ot:'5.2', flags:'0' },
+        ] },
+    ].map(b=>({ ...b, open:!!this.state.branchOpen[b.id], toggle:()=>this.setState(st=>({branchOpen:{...st.branchOpen,[b.id]:!st.branchOpen[b.id]}})), caret:this.state.branchOpen[b.id]?'expand_more':'chevron_right' }));
+
+    const roster = [
+      { name:'Ramesh Kumar', emp:'VBW-0142', desig:'Carpenter', inT:'09:02', outT:'—', status:'in', edited:false },
+      { name:'Suresh Babu', emp:'VBW-0118', desig:'Mason', inT:'08:54', outT:'18:12', status:'out', edited:false },
+      { name:'Murugan S', emp:'VBW-0203', desig:'Electrician', inT:'09:15', outT:'—', status:'in', edited:true },
+      { name:'Karthik R', emp:'VBW-0167', desig:'Steel Fixer', inT:'—', outT:'—', status:'absent', edited:false },
+      { name:'Anand V', emp:'VBW-0099', desig:'Helper', inT:'08:48', outT:'17:55', status:'out', edited:false },
+    ].map(w=>({ ...w,
+      statusBg: w.status==='in' ? '#e1fbe9' : w.status==='out' ? '#ebf3fd' : '#fdebeb',
+      statusFg: w.status==='in' ? '#1f7a44' : w.status==='out' ? '#1d4ed8' : '#b3261e',
+      statusLabel: w.status==='in' ? 'IN' : w.status==='out' ? 'OUT' : 'ABSENT',
+      avatar: w.name.split(' ').map(x=>x[0]).join('').slice(0,2),
+      showOut: w.status==='in', showMarkIn: w.status==='absent' }));
+
+    const otAll = [
+      { name:'Ramesh Kumar', emp:'VBW-0142', site:'VBW — T.Nagar', date:'18 Jun', hrs:'1.2', status:'pending' },
+      { name:'Suresh Babu', emp:'VBW-0118', site:'VBW — T.Nagar', date:'18 Jun', hrs:'0.6', status:'pending' },
+      { name:'Lakshmi Narayanan', emp:'PVM-0051', site:'PVM — Vadapalani', date:'18 Jun', hrs:'2.0', status:'pending' },
+      { name:'Vijay Murthy', emp:'PVM-0088', site:'PVM — Vadapalani', date:'17 Jun', hrs:'1.5', status:'approved' },
+      { name:'Anand V', emp:'VBW-0099', site:'VBW — T.Nagar', date:'17 Jun', hrs:'0.8', status:'approved' },
+      { name:'Prakash D', emp:'SRP-0014', site:'SRP — Sholinganallur', date:'16 Jun', hrs:'3.2', status:'rejected' },
+    ];
+    const otStatusMap = { pending:{bg:'#fff8e1',fg:'#8a6d1b',label:'PENDING'}, approved:{bg:'#e1fbe9',fg:'#1f7a44',label:'APPROVED'}, rejected:{bg:'#fdebeb',fg:'#b3261e',label:'REJECTED'} };
+    const otActionable = (this.props.otViewOnly ?? false) ? false : (this.state.otTab==='pending');
+    const otList = otAll.filter(o=>o.status===this.state.otTab).map(o=>({ ...o, ...otStatusMap[o.status], avatar:o.name.split(' ').map(x=>x[0]).join('').slice(0,2), actionable:otActionable }));
+    const otTabs = ['pending','approved','rejected'].map(t=>({ key:t, label:t[0].toUpperCase()+t.slice(1),
+      go:()=>this.setState({otTab:t}),
+      bg: this.state.otTab===t ? '#1c4d8c' : '#ffffff',
+      fg: this.state.otTab===t ? '#ffffff' : '#44484f',
+      bdr: this.state.otTab===t ? '#1c4d8c' : '#cdd5df' }));
+
+    const workersList = [
+      { name:'Ramesh Kumar', emp:'VBW-0142', desig:'Carpenter', site:'VBW — T.Nagar', active:true },
+      { name:'Suresh Babu', emp:'VBW-0118', desig:'Mason', site:'VBW — T.Nagar', active:true },
+      { name:'Murugan S', emp:'VBW-0203', desig:'Electrician', site:'VBW — T.Nagar', active:true },
+      { name:'Lakshmi Narayanan', emp:'PVM-0051', desig:'Painter', site:'PVM — Vadapalani', active:true },
+      { name:'Vijay Murthy', emp:'PVM-0088', desig:'Steel Fixer', site:'PVM — Vadapalani', active:false },
+      { name:'Prakash D', emp:'SRP-0014', desig:'Helper', site:'SRP — Sholinganallur', active:true },
+    ].map(w=>({ ...w, avatar:w.name.split(' ').map(x=>x[0]).join('').slice(0,2),
+      badgeBg: w.active?'#e1fbe9':'#f1f3f6', badgeFg: w.active?'#1f7a44':'#737373', badgeLabel: w.active?'ACTIVE':'INACTIVE',
+      go:()=>this.go('editworker') }));
+
+    const designationsList = [
+      { name:'Carpenter', count:'46' }, { name:'Mason', count:'52' }, { name:'Electrician', count:'23' },
+      { name:'Steel Fixer', count:'31' }, { name:'Painter', count:'18' }, { name:'Helper', count:'44' },
+    ];
+
+    const stationsList = [
+      { name:'VBW Gate Kiosk', site:'VBW — T.Nagar', seen:'2 min ago', active:true },
+      { name:'PVM Main Entrance', site:'PVM — Vadapalani', seen:'just now', active:true },
+      { name:'SRP Tower Lobby', site:'SRP — Sholinganallur', seen:'3 hrs ago', active:false },
+    ].map(st=>({ ...st, badgeBg: st.active?'#e1fbe9':'#fdebeb', badgeFg: st.active?'#1f7a44':'#b3261e', badgeLabel: st.active?'ONLINE':'OFFLINE' }));
+
+    const usersList = [
+      { name:'Priya Raghavan', email:'priya@trgbi.in', role:'Management', roleBg:'#ebf3fd', roleFg:'#1d4ed8', sites:'All sites' },
+      { name:'Karthik Mohan', email:'karthik.m@trgbi.in', role:'HR', roleBg:'#e1fbe9', roleFg:'#1f7a44', sites:'All sites' },
+      { name:'Deepak Sharma', email:'deepak@trgbi.in', role:'PM', roleBg:'#fff8e1', roleFg:'#8a6d1b', sites:'VBW, PVM' },
+      { name:'Senthil Kumar', email:'senthil@trgbi.in', role:'Supervisor', roleBg:'#f1f3f6', roleFg:'#44484f', sites:'VBW — T.Nagar' },
+    ];
+
+    const flagsAll = [
+      { type:'Wrong-site scan', worker:'Ramesh Kumar', site:'scanned at PVM, assigned VBW', when:'18 Jun · 09:12', resolved:false },
+      { type:'Missed clock-out', worker:'Murugan S', site:'VBW — T.Nagar', when:'17 Jun · no OUT', resolved:false },
+      { type:'Face not recognized', worker:'Unknown', site:'PVM — Vadapalani', when:'17 Jun · 08:40', resolved:false },
+      { type:'Wrong-site scan', worker:'Anand V', site:'resolved by HR', when:'15 Jun · 09:30', resolved:true },
+    ];
+    const flagsList = flagsAll.filter(f=> this.state.flagTab==='unresolved' ? !f.resolved : f.resolved).map(f=>({ ...f, unresolved:!f.resolved }));
+    const flagTabs = ['unresolved','resolved'].map(t=>({ key:t, label:t[0].toUpperCase()+t.slice(1),
+      go:()=>this.setState({flagTab:t}),
+      bg: this.state.flagTab===t ? '#1c4d8c' : '#ffffff',
+      fg: this.state.flagTab===t ? '#ffffff' : '#44484f',
+      bdr: this.state.flagTab===t ? '#1c4d8c' : '#cdd5df' }));
+
+    const reportGroups = [
+      { site:'VBW — T.Nagar', rows:[
+        { emp:'VBW-0142', name:'Ramesh Kumar', desig:'Carpenter', date:'18 Jun', inT:'09:02', outT:'18:36', total:'9.6h', ot:'0.6h', otStatus:'Pending', src:'Face' },
+        { emp:'VBW-0118', name:'Suresh Babu', desig:'Mason', date:'18 Jun', inT:'08:54', outT:'18:12', total:'9.3h', ot:'—', otStatus:'—', src:'Face' },
+      ]},
+      { site:'PVM — Vadapalani', rows:[
+        { emp:'PVM-0051', name:'Lakshmi N.', desig:'Painter', date:'18 Jun', inT:'08:40', outT:'19:00', total:'10.3h', ot:'2.0h', otStatus:'Approved', src:'Manual' },
+      ]},
+    ];
+
+    const subScreens = ['enroll','editworker','stationcreated'];
+    const showBack = subScreens.includes(s);
+
+    const activeOf = (key)=>{
+      if(is('dashboard')) return key==='dashboard';
+      if(is('attendance')) return key==='attendance';
+      if(is('overtime')) return key==='overtime';
+      return key==='more';
+    };
+    const tab = (icon,label,key,onGo)=>({ icon, label, go:onGo,
+      color: activeOf(key) ? '#ffffff' : '#9aa0a6',
+      indicator: activeOf(key) ? '#1c4d8c' : 'transparent' });
+    const tabs = [
+      tab('dashboard','Dashboard','dashboard',()=>this.go('dashboard')),
+      tab('schedule','Attendance','attendance',()=>this.go('attendance')),
+      tab('more_time','Overtime','overtime',()=>this.go('overtime')),
+      tab('menu','More','more',()=>this.setState({drawerOpen:true})),
+    ];
+
+    const moreItems = [
+      { icon:'groups', label:'Workers', go:()=>this.go('workers'), gated:'' },
+      { icon:'badge', label:'Designations', go:()=>this.go('designations'), gated:'' },
+      { icon:'apartment', label:'Branches & Sites', go:()=>this.go('branches'), gated:'' },
+      { icon:'desktop_windows', label:'Stations', go:()=>this.go('stations'), gated:'HR+' },
+      { icon:'manage_accounts', label:'Users & Roles', go:()=>this.go('users'), gated:'Mgmt' },
+      { icon:'description', label:'Reports', go:()=>this.go('reports'), gated:'' },
+      { icon:'flag', label:'Flagged', go:()=>this.go('flags'), gated:'' },
+    ];
+
+    return {
+      screen:s,
+      indexGroups, appChrome, tabs, moreItems,
+      route: routes[s] || '/',
+      title: titles[s] || '',
+      showBack, goBack:()=>this.goBack(),
+      drawerOpen: this.state.drawerOpen,
+      closeDrawer:()=>this.setState({drawerOpen:false}),
+      stop:(e)=>{ e.stopPropagation(); },
+      screenBg: dark ? '#212121' : '#f9f9f9',
+      statusBg: dark ? '#212121' : '#ffffff',
+      statusFg: dark ? '#ffffff' : '#1c1c1c',
+      showHomeBar: dark || is('login') || is('stationlogin') || is('error'),
+      homeBarColor: dark ? 'rgba(255,255,255,.5)' : '#1c1c1c',
+      // screen flags
+      isLogin:is('login'), isStationLogin:is('stationlogin'), isKiosk:is('kiosk'),
+      isDashboard:is('dashboard'), isAttendance:is('attendance'), isOvertime:is('overtime'),
+      isWorkers:is('workers'), isEnroll:is('enroll'), isEditWorker:is('editworker'),
+      isDesignations:is('designations'), isBranches:is('branches'), isStations:is('stations'),
+      isStationCreated:is('stationcreated'), isUsers:is('users'), isReports:is('reports'),
+      isFlags:is('flags'), isError:is('error'), isComponents:is('components'),
+      // data
+      statCards, rollup, roster, otList, otTabs, otTab:this.state.otTab,
+      workersList, designationsList, stationsList, usersList,
+      flagsList, flagTabs, flagTab:this.state.flagTab, reportGroups,
+      showPw:this.state.showPw, togglePw:()=>this.setState(st=>({showPw:!st.showPw})),
+      pwType:this.state.showPw?'text':'password', pwLabel:this.state.showPw?'HIDE':'SHOW',
+      goEnroll:()=>this.go('enroll'),
+      goStationCreated:()=>this.go('stationcreated'),
+    };
+  }
+}
+</script>
+</body>
+</html>
