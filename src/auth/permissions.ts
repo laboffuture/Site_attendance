@@ -31,7 +31,11 @@ export type Capability =
   | "approve_overtime"
   | "view_org"
   | "manage_org"
-  | "manage_users";
+  | "manage_users"
+  | "view_requests"
+  | "create_request"
+  | "recommend_request"
+  | "decide_request";
 
 const ALL: Role[] = [...ROLES];
 
@@ -45,6 +49,12 @@ export const CAPABILITY_ROLES: Record<Capability, Role[]> = {
   view_org: ["super_admin", "management", "hr", "pm", "supervisor"], // supervisor = read-only, own sites
   manage_org: ["super_admin", "management"],
   manage_users: ["super_admin", "management", "hr"],
+  // Requests subsystem (scheduled OT + offload). Flow: create → PM recommends
+  // → admin decides. Recommend is mandatory before an admin can approve.
+  view_requests: ["super_admin", "management", "hr", "pm", "supervisor"],
+  create_request: ["super_admin", "management", "hr", "pm", "supervisor"],
+  recommend_request: ["pm", "super_admin"], // super_admin can recommend to avoid deadlock
+  decide_request: ["super_admin", "management", "hr"], // the admin approval group
 };
 
 export function can(role: Role, capability: Capability): boolean {

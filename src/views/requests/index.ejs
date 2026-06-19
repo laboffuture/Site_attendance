@@ -1,0 +1,74 @@
+<%- include('../partials/app-top', { title: title, active: active }) %>
+<%
+  function ts(d) { return d ? new Date(d).toLocaleString("en-GB", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" }) : ""; }
+  var statusBadge = { pending: "warning", recommended: "info", approved: "success", rejected: "danger" };
+  var typeLabel = { scheduled_ot: "Scheduled OT", offload: "Offload" };
+  var tabs = [["pending","Pending"],["recommended","Recommended"],["decided","Decided"],["all","All"]];
+%>
+
+<div class="oh-page-header oh-page-header--row">
+  <div>
+    <h1 class="oh-page-title">Requests</h1>
+    <p class="oh-page-subtitle">Scheduled overtime &amp; offload suggestions. PM recommends → admin approves. Requests can't be withdrawn.</p>
+  </div>
+  <div class="oh-form-actions oh-only-desktop">
+    <a class="oh-btn oh-btn--secondary" href="/requests/new?type=scheduled_ot">Request OT</a>
+    <a class="oh-btn oh-btn--small" href="/requests/new?type=offload">Suggest offload</a>
+  </div>
+</div>
+
+<div class="oh-filter-tabs">
+  <% tabs.forEach(function (t) { %>
+  <a class="oh-filter-tab <%= tab === t[0] ? 'oh-filter-tab--active' : '' %>" href="/requests?tab=<%= t[0] %>"><%= t[1] %></a>
+  <% }); %>
+</div>
+
+<% if (!requests.length) { %>
+<div class="oh-card"><p class="oh-muted">No <%= tab === "all" ? "" : tab %> requests.</p></div>
+<% } else { %>
+
+<!-- mobile cards -->
+<div class="oh-only-mobile oh-m-list">
+  <% requests.forEach(function (r) { %>
+  <div class="oh-m-card">
+    <div class="oh-m-row" style="justify-content:space-between;">
+      <span class="oh-m-badge oh-badge--muted"><%= typeLabel[r.type] || r.type %></span>
+      <span class="oh-m-badge oh-badge--<%= statusBadge[r.status] %>"><%= r.status %></span>
+    </div>
+    <div class="oh-m-name" style="margin-top:0.4rem;"><%= r.workerName %> <span class="oh-muted">(<%= r.empRegNo %>)</span></div>
+    <div class="oh-m-sub"><%= r.siteName %></div>
+    <% if (r.type === "scheduled_ot") { %><div class="oh-m-sub"><%= r.date %> · <%= r.fromTime %>–<%= r.toTime %> (<%= r.hours %>h)</div><% } %>
+    <% if (r.requesterRemarks) { %><div class="oh-m-sub">“<%= r.requesterRemarks %>” — <%= r.requestedByName %></div><% } %>
+    <%- include('actions', { r: r, canRecommend: canRecommend, canDecide: canDecide }) %>
+  </div>
+  <% }); %>
+</div>
+
+<!-- desktop table -->
+<div class="oh-card oh-only-desktop">
+  <table class="oh-table">
+    <thead>
+      <tr><th>Type</th><th>Worker</th><th>Site</th><th>Details</th><th>Requested by</th><th>Status</th><th class="oh-col-action">Action</th></tr>
+    </thead>
+    <tbody>
+      <% requests.forEach(function (r) { %>
+      <tr>
+        <td><span class="oh-badge oh-badge--muted"><%= typeLabel[r.type] || r.type %></span></td>
+        <td><%= r.workerName %><br /><span class="oh-muted"><%= r.empRegNo %></span></td>
+        <td><%= r.siteName %></td>
+        <td>
+          <% if (r.type === "scheduled_ot") { %><%= r.date %> · <%= r.fromTime %>–<%= r.toTime %> (<%= r.hours %>h)<% } else { %>—<% } %>
+          <% if (r.requesterRemarks) { %><br /><span class="oh-muted">“<%= r.requesterRemarks %>”</span><% } %>
+          <% if (r.recommendedByName) { %><br /><span class="oh-muted">rec. by <%= r.recommendedByName %></span><% } %>
+        </td>
+        <td><%= r.requestedByName %><br /><span class="oh-muted"><%= ts(r.requestedAt) %></span></td>
+        <td><span class="oh-badge oh-badge--<%= statusBadge[r.status] %>"><%= r.status %></span></td>
+        <td class="oh-col-action"><%- include('actions', { r: r, canRecommend: canRecommend, canDecide: canDecide }) %></td>
+      </tr>
+      <% }); %>
+    </tbody>
+  </table>
+</div>
+<% } %>
+
+<%- include('../partials/app-bottom') %>

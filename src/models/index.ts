@@ -7,3 +7,4 @@ export * from "./Worker";
 export * from "./Attendance";
 export * from "./FlagEvent";
 export * from "./Counter";
+export * from "./Request";
