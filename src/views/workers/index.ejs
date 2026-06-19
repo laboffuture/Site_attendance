@@ -5,12 +5,37 @@
     <h1 class="oh-page-title">Workers</h1>
     <p class="oh-page-subtitle">Enrolled daily-wage workers (<%= workers.length %>).</p>
   </div>
-  <a class="oh-btn oh-btn--secondary" href="/workers/new">
+  <a class="oh-btn oh-btn--secondary oh-only-desktop" href="/workers/new">
     <span class="material-icons">person_add</span> Enroll worker
   </a>
 </div>
 
-<div class="oh-card">
+<!-- mobile: worker cards + floating enroll -->
+<div class="oh-only-mobile">
+  <% if (workers.length) { %>
+  <div class="oh-m-section">
+    <div class="oh-m-list">
+      <% workers.forEach(function (w) { %>
+      <a class="oh-m-card oh-m-row oh-m-link" href="/workers/<%= w._id %>/edit">
+        <span class="oh-m-avatar">
+          <% if (w.photoUrl) { %><img src="<%= w.photoUrl %>" alt="" /><% } else { %><%= w.name.split(' ').map(function (x) { return x[0]; }).join('').slice(0, 2).toUpperCase() %><% } %>
+        </span>
+        <span class="oh-m-grow">
+          <span class="oh-m-name"><%= w.name %></span>
+          <span class="oh-m-sub"><%= w.empRegNo %> · <%= w.designationName %> · <%= w.siteName %></span>
+        </span>
+        <span class="oh-m-badge oh-badge--<%= w.status === 'active' ? 'success' : 'muted' %>"><%= w.status %></span>
+      </a>
+      <% }); %>
+    </div>
+  </div>
+  <% } else { %>
+  <div class="oh-m-section"><p class="oh-muted">No workers enrolled yet.</p></div>
+  <% } %>
+  <a class="oh-m-fab" href="/workers/new"><span class="material-icons">person_add</span> Enroll worker</a>
+</div>
+
+<div class="oh-card oh-only-desktop">
   <% if (workers.length) { %>
   <table class="oh-table">
     <thead>
