@@ -167,6 +167,15 @@ async function main(): Promise<void> {
   assert("soft_delete remark appended with the reason",
     !!deleted && deleted.remarks.some((r) => r.type === "soft_delete" && r.text === "Left the project"));
 
+  // ---- #28: editing a deleted worker via the main Save form is rejected ----
+  const editDeleted = await admin.post(`/workers/${w!._id}`).type("form").send({
+    name: "Hacked Name", siteId: String(vbw._id), designationId: String(carpenter._id), status: "active",
+  });
+  assert("edit-save on a deleted worker redirects (rejected)", editDeleted.status === 302);
+  const stillDeleted = await WorkerModel.findById(w!._id);
+  assert("deleted worker unchanged after edit attempt",
+    stillDeleted?.status === "deleted" && stillDeleted?.name !== "Hacked Name" && !!stillDeleted?.deletedAt);
+
   // ---- #28: deleted worker hidden from the active roster, shown under Archived ----
   const activeList = await admin.get("/workers");
   assert("deleted worker hidden from active tab", !activeList.text.includes(w!.empRegNo));
