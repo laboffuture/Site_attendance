@@ -2,6 +2,8 @@
 <%
   function t(d) { return d ? new Date(d).toLocaleTimeString("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" }) : "—"; }
   var badgeFor = { pending: "warning", approved: "success", rejected: "danger", none: "muted" };
+  // OT text color: pending/unapproved = red, approved = green (per spec).
+  function otClass(s) { return s === "approved" ? "oh-ot-approved" : (s === "pending" ? "oh-ot-pending" : ""); }
 %>
 
 <div class="oh-page-header oh-page-header--row">
@@ -61,7 +63,7 @@
     <div class="oh-report-site"><%= s.siteName %> · <%= s.rows.length %> record(s)</div>
     <!-- mobile: record cards -->
     <div class="oh-only-mobile oh-m-list">
-      <% s.rows.forEach(function (r) { %>
+      <% s.rows.forEach(function (r) { var h = hoursBreakdown(r); %>
       <div class="oh-m-card">
         <div class="oh-m-row" style="justify-content:space-between;align-items:flex-start;">
           <span class="oh-m-grow">
@@ -71,13 +73,13 @@
           <span class="oh-m-sub"><%= r.date %></span>
         </div>
         <div class="oh-m-boxes" style="margin-top:0.6rem;">
-          <div class="oh-m-box"><div class="oh-m-box__k">In</div><div class="oh-m-box__v"><%= t(r.inTime) %></div></div>
-          <div class="oh-m-box"><div class="oh-m-box__k">Out</div><div class="oh-m-box__v"><%= t(r.outTime) %></div></div>
-          <div class="oh-m-box"><div class="oh-m-box__k">Total</div><div class="oh-m-box__v"><%= r.totalHours != null ? r.totalHours + "h" : "—" %></div></div>
-          <div class="oh-m-box"><div class="oh-m-box__k">OT</div><div class="oh-m-box__v"><%= (r.overtime && r.overtime.computedHours) || 0 %>h</div></div>
+          <div class="oh-m-box"><div class="oh-m-box__k">Standard</div><div class="oh-m-box__v"><%= h.worked != null ? h.standard + "h" : "—" %></div></div>
+          <div class="oh-m-box"><div class="oh-m-box__k">OT</div><div class="oh-m-box__v <%= otClass(h.otStatus) %>"><%= h.otComputed > 0 ? h.otComputed + "h" : "—" %></div></div>
+          <div class="oh-m-box"><div class="oh-m-box__k">Total</div><div class="oh-m-box__v"><%= h.payableTotal != null ? h.payableTotal + "h" : "—" %></div></div>
         </div>
         <div style="margin-top:0.5rem;display:flex;align-items:center;gap:8px;">
-          <span class="oh-m-badge oh-badge--<%= badgeFor[(r.overtime && r.overtime.status) || 'none'] %>"><%= (r.overtime && r.overtime.status) || "none" %></span>
+          <span class="oh-m-badge oh-badge--<%= badgeFor[h.otStatus] %>"><%= h.otStatus %></span>
+          <% if (h.otStatus === "pending" && h.otComputed > 0) { %><span class="oh-m-sub oh-ot-pending">+<%= h.otComputed %>h pending</span><% } %>
           <% var g = r.inGeo; if (g && g.available && g.lat != null) { %>
           <a class="oh-m-sub" href="https://maps.google.com/?q=<%= g.lat %>,<%= g.lng %>" target="_blank" rel="noopener">📍<%= g.distanceMeters != null ? " " + g.distanceMeters + "m" : "" %></a>
           <% } %>
@@ -88,10 +90,10 @@
 
     <table class="oh-table oh-only-desktop">
       <thead>
-        <tr><th>Date</th><th>Reg No</th><th>Name</th><th>Designation</th><th>In</th><th>Out</th><th>Total</th><th>OT</th><th>Status</th><th>Location</th></tr>
+        <tr><th>Date</th><th>Reg No</th><th>Name</th><th>Designation</th><th>Standard</th><th>OT</th><th>Total</th><th>Status</th><th>Location</th></tr>
       </thead>
       <tbody>
-        <% s.rows.forEach(function (r) { %>
+        <% s.rows.forEach(function (r) { var h = hoursBreakdown(r); %>
         <tr>
           <td><%= r.date %></td>
           <td><%= r.empRegNo %></td>
@@ -100,11 +102,14 @@
             <% if (r.source === "manual") { %><span class="oh-badge oh-badge--warning" title="Marked manually">M</span><% } %>
           </td>
           <td><%= r.designationName %></td>
-          <td><%= t(r.inTime) %></td>
-          <td><%= t(r.outTime) %></td>
-          <td><%= r.totalHours != null ? r.totalHours + "h" : "—" %></td>
-          <td><%= (r.overtime && r.overtime.computedHours) || 0 %>h</td>
-          <td><span class="oh-badge oh-badge--<%= badgeFor[(r.overtime && r.overtime.status) || 'none'] %>"><%= (r.overtime && r.overtime.status) || "none" %></span></td>
+          <td><%= h.worked != null ? h.standard + "h" : "—" %></td>
+          <td>
+            <% if (h.otComputed > 0) { %>
+            <span class="<%= otClass(h.otStatus) %>"><%= h.otComputed %>h</span>
+            <% } else { %>—<% } %>
+          </td>
+          <td><strong><%= h.payableTotal != null ? h.payableTotal + "h" : "—" %></strong><% if (h.otStatus === "pending" && h.otComputed > 0) { %><br /><span class="oh-muted oh-ot-pending">+<%= h.otComputed %>h pending</span><% } %></td>
+          <td><span class="oh-badge oh-badge--<%= badgeFor[h.otStatus] %>"><%= h.otStatus %></span></td>
           <td>
             <% var g = r.inGeo; %>
             <% if (g && g.available && g.lat != null) { %>

@@ -55,11 +55,20 @@ async function main(): Promise<void> {
       siteId: vbw!._id, siteName: vbw!.name, branchId: vbw!.branchId, branchName: "Chennai",
       inTime: new Date(`${today}T03:30:00Z`), outTime: new Date(`${today}T14:30:00Z`),
       totalHours: 11, standardHours: 9,
-      overtime: { computedHours: ot, status },
+      overtime: { computedHours: ot, status, approvedHours: status === "approved" ? ot : null },
     });
   }
   await mkAttendance("a", "pending", 2);
   await mkAttendance("b", "approved", 1.5);
+
+  // hoursBreakdown logic: pending OT does NOT count in the payable total;
+  // approved OT does. (worked 11, standard 9 → standard cap 9.)
+  const { hoursBreakdown } = await import("../src/lib/report");
+  const pend = hoursBreakdown({ totalHours: 11, standardHours: 9, overtime: { computedHours: 2, status: "pending" } });
+  assert("pending: standard capped at 9", pend.standard === 9);
+  assert("pending: total excludes pending OT (=9)", pend.payableTotal === 9);
+  const appr = hoursBreakdown({ totalHours: 11, standardHours: 9, overtime: { computedHours: 1.5, status: "approved", approvedHours: 1.5 } });
+  assert("approved: total includes approved OT (=10.5)", appr.payableTotal === 10.5);
 
   const flagVbw = await FlagEventModel.create({
     type: "wrong_site_scan", workerName: `QA Flag ${S}`,

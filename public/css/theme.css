@@ -719,6 +719,14 @@ code {
 }
 
 /* ---- Reports ---- */
+.oh-ot-pending {
+  color: #b3261e; /* red until approved */
+  font-weight: 600;
+}
+.oh-ot-approved {
+  color: #1f7a44; /* green once approved */
+  font-weight: 600;
+}
 .oh-report-site {
   font-weight: 600;
   font-size: 0.85rem;
