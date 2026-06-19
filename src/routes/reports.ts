@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 
 import { requireCapability } from "../auth/middleware";
 import { buildXlsxBuffer, streamPdf } from "../lib/exporters";
-import { parseReportFilters, buildAttendanceQuery, groupByBranchSite } from "../lib/report";
+import { parseReportFilters, buildAttendanceQuery, groupByBranchSite, hoursBreakdown } from "../lib/report";
 import { AttendanceModel } from "../models/Attendance";
 import { BranchModel } from "../models/Branch";
 import { DesignationModel } from "../models/Designation";
@@ -47,6 +47,7 @@ router.get("/reports", requireCapability("view_dashboard"), async (req: Request,
     branches,
     sites,
     designations,
+    hoursBreakdown,
     query: req.originalUrl.includes("?") ? req.originalUrl.slice(req.originalUrl.indexOf("?")) : "",
   });
 });
