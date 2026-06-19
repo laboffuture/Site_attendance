@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { Types } from "mongoose";
 
 import { requireCapability } from "../auth/middleware";
+import { seesAllSites, roleLabel } from "../auth/permissions";
 import type { CurrentUser } from "../auth/types";
 import { hashPassword } from "../auth/password";
 import { isDuplicateKeyError } from "../lib/validate";
@@ -14,10 +15,12 @@ function flash(req: Request, type: "success" | "danger", text: string): void {
   req.session.flash = { type, text };
 }
 
-/** Roles the actor may assign/manage. Management: all; HR: below HR only. */
+/** Roles the actor may assign/manage. Super Admin: all; Management: everyone
+ *  except Super Admin; HR: below HR only (PM, Supervisor). */
 function assignableRoles(actor: CurrentUser): Role[] {
-  if (actor.role === "management") return [...ROLES];
-  if (actor.role === "hr") return ["pm", "pe", "supervisor"];
+  if (actor.role === "super_admin") return [...ROLES];
+  if (actor.role === "management") return ["management", "hr", "pm", "supervisor"];
+  if (actor.role === "hr") return ["pm", "supervisor"];
   return [];
 }
 function canManageRole(actor: CurrentUser, role: string): boolean {
@@ -31,13 +34,11 @@ function parseSiteIds(body: Record<string, unknown>): string[] {
 }
 
 /** Validates role↔site rules. Returns an error string or null.
- *  PM and Supervisor may cover one OR more sites; PE is tied to exactly one. */
+ *  Top admins (Super Admin/Management/HR) cover all sites (none stored);
+ *  PM and Supervisor must have at least one site. */
 function validateSites(role: Role, siteIds: string[]): string | null {
-  if (role === "management" || role === "hr") return null; // all sites → none stored
-  if (role === "pm" || role === "supervisor") {
-    return siteIds.length >= 1 ? null : `Select at least one site for a ${role.toUpperCase()}.`;
-  }
-  return siteIds.length === 1 ? null : "Select exactly one site for a PE.";
+  if (seesAllSites(role)) return null;
+  return siteIds.length >= 1 ? null : `Select at least one site for a ${roleLabel(role)}.`;
 }
 
 async function siteList() {
@@ -48,7 +49,7 @@ async function siteList() {
 router.get("/users", requireCapability("manage_users"), async (req: Request, res: Response) => {
   const roleFilter = assignableRoles(req.currentUser!);
   // Management sees everyone; HR sees only the roles it can manage.
-  const query = req.currentUser!.role === "management" ? {} : { role: { $in: roleFilter } };
+  const query = req.currentUser!.role === "super_admin" ? {} : { role: { $in: roleFilter } };
   const [users, sites] = await Promise.all([
     UserModel.find(query).sort({ role: 1, name: 1 }).lean(),
     siteList(),
@@ -96,7 +97,7 @@ router.post("/users", requireCapability("manage_users"), async (req: Request, re
     flash(req, "danger", siteErr);
     return res.redirect("/users/new");
   }
-  const assignedSiteIds = role === "management" || role === "hr" ? [] : siteIds.map((s) => new Types.ObjectId(s));
+  const assignedSiteIds = seesAllSites(role) ? [] : siteIds.map((s) => new Types.ObjectId(s));
   try {
     await UserModel.create({ name, email, passwordHash: await hashPassword(password), role, assignedSiteIds, active: true });
     flash(req, "success", `User ${name} created.`);
@@ -156,7 +157,7 @@ router.post("/users/:id", requireCapability("manage_users"), async (req: Request
   user.name = name;
   user.email = email;
   user.role = role;
-  user.assignedSiteIds = role === "management" || role === "hr" ? [] : (siteIds.map((s) => new Types.ObjectId(s)) as never);
+  user.assignedSiteIds = seesAllSites(role) ? [] : (siteIds.map((s) => new Types.ObjectId(s)) as never);
   if (!isSelf && typeof req.body.active !== "undefined") user.active = req.body.active === "on" || req.body.active === "true";
   const newPassword = String(req.body.password ?? "");
   if (newPassword) user.passwordHash = await hashPassword(newPassword);

@@ -13,14 +13,14 @@
   <% if (users.length) { %>
   <div class="oh-m-section oh-m-list">
     <% users.forEach(function (u) {
-      var sites = (u.role === "management" || u.role === "hr") ? "All sites"
+      var sites = (u.role === "super_admin" || u.role === "management" || u.role === "hr") ? "All sites"
         : (u.assignedSiteIds && u.assignedSiteIds.length
           ? u.assignedSiteIds.map(function (id) { return siteNameById.get(String(id)) || "?"; }).join(", ") : "none");
     %>
     <div class="oh-m-card">
       <div class="oh-m-row" style="justify-content:space-between;">
         <span class="oh-m-name"><%= u.name %><%= String(u._id) === selfId ? " (you)" : "" %></span>
-        <span class="oh-m-badge oh-badge--muted"><%= u.role.toUpperCase() %></span>
+        <span class="oh-m-badge oh-badge--muted"><%= roleLabel(u.role) %></span>
       </div>
       <div class="oh-m-sub"><%= u.email %></div>
       <div class="oh-m-sub" style="display:flex;align-items:center;gap:5px;"><span class="material-icons" style="font-size:14px;">place</span><%= sites %></div>
@@ -53,9 +53,9 @@
       <tr>
         <td><%= u.name %><%= String(u._id) === selfId ? " (you)" : "" %></td>
         <td><%= u.email %></td>
-        <td><span class="oh-badge oh-badge--muted"><%= u.role.toUpperCase() %></span></td>
+        <td><span class="oh-badge oh-badge--muted"><%= roleLabel(u.role) %></span></td>
         <td>
-          <% if (u.role === "management" || u.role === "hr") { %>All sites<% } else if (u.assignedSiteIds && u.assignedSiteIds.length) { %>
+          <% if (u.role === "super_admin" || u.role === "management" || u.role === "hr") { %>All sites<% } else if (u.assignedSiteIds && u.assignedSiteIds.length) { %>
           <%= u.assignedSiteIds.map(function (id) { return siteNameById.get(String(id)) || "?"; }).join(", ") %>
           <% } else { %><span class="oh-muted">none</span><% } %>
         </td>

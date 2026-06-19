@@ -1,6 +1,7 @@
 import { Types } from "mongoose";
 
 import type { CurrentUser } from "../auth/types";
+import { seesAllSites } from "../auth/permissions";
 import { AttendanceModel } from "../models/Attendance";
 import { BranchModel } from "../models/Branch";
 import { FlagEventModel } from "../models/FlagEvent";
@@ -30,7 +31,7 @@ export interface BranchRollup {
  * with four small grouped aggregations rather than per-site queries.
  */
 export async function buildHierarchyRollup(user: CurrentUser): Promise<BranchRollup[]> {
-  const all = user.role === "management" || user.role === "hr";
+  const all = seesAllSites(user.role);
   const siteFilter = all
     ? {}
     : { _id: { $in: user.assignedSiteIds.map((id) => new Types.ObjectId(id)) } };

@@ -13,6 +13,7 @@
     "seed": "tsx scripts/seed.ts",
     "sweep": "tsx scripts/sweep.ts",
     "sync-indexes": "tsx scripts/sync_indexes.ts",
+    "migrate-roles": "tsx scripts/migrate_roles.ts",
     "demo-prep": "tsx scripts/demo_prep.ts",
     "smoke": "tsx scripts/smoke.ts",
     "e2e:login": "tsx scripts/e2e_login.ts",
