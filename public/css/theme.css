@@ -743,6 +743,23 @@ code {
 }
 
 /* ---- Reports ---- */
+.oh-req-actions {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.oh-req-actions form {
+  margin: 0;
+}
+.oh-tabs-switch {
+  display: flex;
+  gap: 0.5rem;
+}
+.oh-badge--info {
+  background: #ebf3fd;
+  color: #1d4ed8;
+}
 .oh-ot-pending {
   color: #b3261e; /* red until approved */
   font-weight: 600;

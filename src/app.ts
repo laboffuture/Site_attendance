@@ -19,6 +19,7 @@ import indexRouter from "./routes/index";
 import orgRouter from "./routes/org";
 import overtimeRouter from "./routes/overtime";
 import reportsRouter from "./routes/reports";
+import requestsRouter from "./routes/requests";
 import stationRouter from "./routes/station";
 import usersRouter from "./routes/users";
 import stationsRouter from "./routes/stations";
@@ -102,6 +103,7 @@ export function createApp(): Express {
   app.use("/", reportsRouter);
   app.use("/", flagsRouter);
   app.use("/", usersRouter);
+  app.use("/", requestsRouter);
   app.use("/", attendanceRouter);
 
   return app;
