@@ -20,7 +20,39 @@
   <% }); %>
 </div>
 
-<div class="oh-card">
+<!-- mobile: OT cards -->
+<div class="oh-only-mobile oh-m-section">
+  <% if (records.length) { %>
+  <div class="oh-m-list">
+    <% records.forEach(function (r) { %>
+    <div class="oh-m-card">
+      <div class="oh-m-row">
+        <span class="oh-m-avatar"><%= r.workerName.split(' ').map(function (x) { return x[0]; }).join('').slice(0, 2).toUpperCase() %></span>
+        <span class="oh-m-grow">
+          <span class="oh-m-name"><%= r.workerName %></span>
+          <span class="oh-m-sub"><%= r.siteName %> · <%= r.date %></span>
+        </span>
+        <span class="oh-m-badge oh-badge--<%= badgeFor[r.overtime.status] %>"><%= r.overtime.status %></span>
+      </div>
+      <div class="oh-m-sub" style="margin-top:0.5rem;">
+        <%= t(r.inTime) %>–<%= t(r.outTime) %> · Total <%= r.totalHours != null ? r.totalHours + "h" : "—" %> · OT <%= r.overtime.computedHours %>h<% if (r.overtime.status === "approved" && r.overtime.approvedHours != null && r.overtime.approvedHours !== r.overtime.computedHours) { %> → <%= r.overtime.approvedHours %>h<% } %>
+      </div>
+      <% if (canApprove && r.overtime.status === "pending") { %>
+      <form method="post" class="oh-ot-actions" style="margin-top:0.6rem;">
+        <input class="oh-input oh-input--xs" type="number" step="0.25" min="0" name="approvedHours" value="<%= r.overtime.computedHours %>" title="Approved hours" />
+        <button class="oh-btn oh-btn--small oh-btn--success" formaction="/overtime/<%= r._id %>/approve">Approve</button>
+        <button class="oh-btn oh-btn--small oh-btn--danger" formaction="/overtime/<%= r._id %>/reject">Reject</button>
+      </form>
+      <% } %>
+    </div>
+    <% }); %>
+  </div>
+  <% } else { %>
+  <p class="oh-muted">No <%= filter === "all" ? "" : filter %> overtime records.</p>
+  <% } %>
+</div>
+
+<div class="oh-card oh-only-desktop">
   <% if (records.length) { %>
   <table class="oh-table">
     <thead>

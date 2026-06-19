@@ -5,10 +5,44 @@
     <h1 class="oh-page-title">Users &amp; Roles</h1>
     <p class="oh-page-subtitle">Staff accounts (<%= users.length %>). Workers are not users and never log in.</p>
   </div>
-  <a class="oh-btn oh-btn--secondary" href="/users/new"><span class="material-icons">person_add</span> Add user</a>
+  <a class="oh-btn oh-btn--secondary oh-only-desktop" href="/users/new"><span class="material-icons">person_add</span> Add user</a>
 </div>
 
-<div class="oh-card">
+<!-- mobile: user cards -->
+<div class="oh-only-mobile">
+  <% if (users.length) { %>
+  <div class="oh-m-section oh-m-list">
+    <% users.forEach(function (u) {
+      var sites = (u.role === "management" || u.role === "hr") ? "All sites"
+        : (u.assignedSiteIds && u.assignedSiteIds.length
+          ? u.assignedSiteIds.map(function (id) { return siteNameById.get(String(id)) || "?"; }).join(", ") : "none");
+    %>
+    <div class="oh-m-card">
+      <div class="oh-m-row" style="justify-content:space-between;">
+        <span class="oh-m-name"><%= u.name %><%= String(u._id) === selfId ? " (you)" : "" %></span>
+        <span class="oh-m-badge oh-badge--muted"><%= u.role.toUpperCase() %></span>
+      </div>
+      <div class="oh-m-sub"><%= u.email %></div>
+      <div class="oh-m-sub" style="display:flex;align-items:center;gap:5px;"><span class="material-icons" style="font-size:14px;">place</span><%= sites %></div>
+      <div class="oh-m-actions" style="margin-top:0.7rem;">
+        <a class="oh-btn oh-btn--small" href="/users/<%= u._id %>/edit">Edit</a>
+        <% if (String(u._id) !== selfId) { %>
+        <form method="post" action="/users/<%= u._id %>/toggle">
+          <button class="oh-btn oh-btn--small w-100" type="submit"><%= u.active ? "Deactivate" : "Activate" %></button>
+        </form>
+        <% } %>
+        <span class="oh-m-badge oh-badge--<%= u.active ? 'success' : 'muted' %>" style="align-self:center;"><%= u.active ? "active" : "inactive" %></span>
+      </div>
+    </div>
+    <% }); %>
+  </div>
+  <a class="oh-m-fab" href="/users/new"><span class="material-icons">person_add</span> Add user</a>
+  <% } else { %>
+  <div class="oh-m-section"><p class="oh-muted">No users yet.</p></div>
+  <% } %>
+</div>
+
+<div class="oh-card oh-only-desktop">
   <% if (users.length) { %>
   <table class="oh-table">
     <thead>
