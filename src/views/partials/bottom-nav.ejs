@@ -5,6 +5,9 @@
     return (p === href || (href !== "/" && p.indexOf(href) === 0)) ? "oh-tab--active" : "";
   }
   var primaryHrefs = ["/dashboard", "/attendance", "/overtime"];
+  // Informational role hint shown on a drawer item (matches the prototype's
+  // "Mgmt"/"HR+" tags; reflects this app's actual gating).
+  var hints = { "/stations": "Mgmt", "/users": "Mgmt/HR" };
 %>
 <nav class="oh-bottom-nav">
   <a class="oh-tab <%= tabActive('/dashboard') %>" href="/dashboard">
@@ -27,17 +30,27 @@
 
 <div class="oh-drawer" id="oh-drawer">
   <div class="oh-drawer__backdrop" id="oh-drawer-close"></div>
-  <div class="oh-drawer__panel">
-    <div class="oh-drawer__head">More</div>
-    <% nav.forEach(function (item) { %>
-      <% if (item.ready && can(item.cap) && primaryHrefs.indexOf(item.href) === -1) { %>
-      <a class="oh-drawer__link <%= tabActive(item.href) %>" href="<%= item.href %>">
-        <span class="material-icons"><%= item.icon %></span><span><%= item.label %></span>
-      </a>
-      <% } %>
-    <% }); %>
-    <form method="post" action="/logout" class="oh-drawer__logout">
-      <button class="oh-btn oh-btn--small w-100" type="submit">Logout</button>
-    </form>
+  <div class="oh-drawer__sheet">
+    <div class="oh-drawer__head">
+      <span>More</span>
+      <button type="button" class="oh-drawer__x" id="oh-drawer-x" aria-label="Close">
+        <span class="material-icons">close</span>
+      </button>
+    </div>
+    <div class="oh-drawer__list">
+      <% nav.forEach(function (item) { %>
+        <% if (item.ready && can(item.cap) && primaryHrefs.indexOf(item.href) === -1) { %>
+        <a class="oh-drawer__link <%= tabActive(item.href) %>" href="<%= item.href %>">
+          <span class="material-icons oh-drawer__icon"><%= item.icon %></span>
+          <span class="oh-drawer__label"><%= item.label %></span>
+          <% if (hints[item.href]) { %><span class="oh-drawer__hint"><%= hints[item.href] %></span><% } %>
+          <span class="material-icons oh-drawer__chev">chevron_right</span>
+        </a>
+        <% } %>
+      <% }); %>
+      <form method="post" action="/logout" class="oh-drawer__logout">
+        <button class="oh-btn oh-btn--small w-100" type="submit">Logout</button>
+      </form>
+    </div>
   </div>
 </div>

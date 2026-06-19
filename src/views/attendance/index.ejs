@@ -33,7 +33,42 @@
   </div>
 
   <% if (rows.length) { %>
-  <table class="oh-table">
+  <!-- mobile: roster cards -->
+  <div class="oh-only-mobile oh-m-list">
+    <% rows.forEach(function (r) {
+      var st = r.outHM ? ["OUT", "secondary"] : (r.inHM ? ["IN", "success"] : ["ABSENT", "danger"]);
+    %>
+    <form class="oh-m-card" method="post" action="/attendance/mark">
+      <input type="hidden" name="workerId" value="<%= r.workerId %>" />
+      <input type="hidden" name="date" value="<%= date %>" />
+      <div class="oh-m-row">
+        <span class="oh-m-avatar"><%= r.name.split(' ').map(function (x) { return x[0]; }).join('').slice(0, 2).toUpperCase() %></span>
+        <span class="oh-m-grow">
+          <span class="oh-m-name">
+            <%= r.name %>
+            <% if (r.source === "manual") { %><span class="oh-m-badge oh-badge--warning">M</span><% } %>
+          </span>
+          <span class="oh-m-sub"><%= r.empRegNo %> · <%= r.designationName %></span>
+        </span>
+        <span class="oh-m-badge oh-badge--<%= st[1] %>"><%= st[0] %></span>
+      </div>
+      <div class="oh-m-boxes">
+        <label class="oh-m-box"><span class="oh-m-box__k">In</span><input type="time" name="inTime" value="<%= r.inHM %>" /></label>
+        <label class="oh-m-box"><span class="oh-m-box__k">Out</span><input type="time" name="outTime" value="<%= r.outHM %>" /></label>
+      </div>
+      <% if (r.totalHours != null || r.otHours > 0) { %>
+      <div class="oh-m-sub" style="margin-top:0.5rem;">
+        Total <%= r.totalHours != null ? r.totalHours + "h" : "—" %><% if (r.otHours > 0) { %> · OT <%= r.otHours %>h (<%= r.otStatus %>)<% } %>
+      </div>
+      <% } %>
+      <div class="oh-m-actions">
+        <button class="oh-btn oh-btn--small oh-btn--secondary" type="submit">Save</button>
+      </div>
+    </form>
+    <% }); %>
+  </div>
+
+  <table class="oh-table oh-only-desktop">
     <thead>
       <tr><th>Reg No</th><th>Name</th><th>In</th><th>Out</th><th>Total</th><th>OT</th><th>Src</th><th class="oh-col-action">Save</th></tr>
     </thead>
