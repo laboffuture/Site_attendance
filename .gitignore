@@ -15,6 +15,9 @@ public/uploads/
 *.log
 npm-debug.log*
 
+# Scratch / temp
+*.tmp
+
 # Editors / OS
 .vscode/
 .idea/

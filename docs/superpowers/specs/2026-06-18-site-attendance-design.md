@@ -76,12 +76,16 @@ Build order (✅ = done, verified):
 
 11. ✅ Manual attendance mark/override (spec §3) — `/attendance` daily per-site grid; mark In (present), add Out (computes total + OT → pending), correct times; entries tagged `source:manual` + `markedBy`, flagged in reports and a Source column in exports; scoped by role — verified by `npm run e2e:attendance`
 
-**Status: v1 feature-complete.** All 9 build steps + hierarchy rollup + manual attendance override done; 9 e2e suites pass. Pushed to GitHub (laboffuture/Site_attendance, branch main). The "Attendance" nav item is now live (was the last greyed stub). Dashboards role-scoped (data + menu + senior-role rollup tree).
+12. ✅ Nightly missed-clock-out sweep (merged via PR #2, reviewed + verified 2026-06-19) — `src/lib/missedClockout.ts` raises one flag-only `missed_clockout` per open (In, no Out) record, idempotent via a partial unique index on `{type, attendanceId}`; `src/lib/scheduler.ts` fires daily at `SWEEP_TIME` (default 23:00 IST) via unref'd setTimeout; on demand via `npm run sweep` — verified by `npm run e2e:missed` + `scripts/test_scheduler.ts`.
+13. ✅ Mobile build plan (docs only, merged via PR #1) — `mobile/` team build & hosting plan for a future mobile app. Plus an exported interactive prototype under `Interactive prototype questions/`.
+
+**Status: v1 feature-complete (+ missed-clock-out sweep merged).** 10 e2e suites pass. Synced with GitHub (laboffuture/Site_attendance, main @ 23112cc). Every sidebar item is a live page. Dashboards role-scoped (data + menu + senior-role rollup tree).
 
 **Verification commands:** `npm run build` (type-check) · `npm run smoke` (boot, no DB) · `npm run seed` (admin + org data) · `npm run e2e:login` (auth) · `npm run e2e:org` (org CRUD + permissions) · `npm run e2e:workers` (enrollment + face + scope) · `npm run e2e:station` (capture + location-lock + OT) · `npm run e2e:overtime` (approval queue) · `npm run e2e:reports` (dashboard + reports + exports + flags) · `npm run e2e:users` (users & roles) · `npm run sync-indexes` (reconcile DB indexes) · `npm run dev` (live at :3000).
 
 ## Open items
 - Exact report/output column layout — pending user's reference sheet.
 - Brand accent — LOF blue default; confirm if TRGBI has its own color.
+- Mobile app — `mobile/docs` plan merged; implementation not started.
 - Face-recognition approach — RESOLVED: `@vladmandic/face-api` **node-wasm build** on the TensorFlow.js **WASM backend** (tfjs-node's native binding does not load on Node 22). Pure JS, no native build, ~0.5s/encode, 128-d descriptors, self-hosted. Engine is behind `src/lib/face.ts` (`encodeFace`/`bestMatch`) so a Python micro-service can replace it later if accuracy demands. Model weights committed under `models/face/`.
 - Biometric data (face encodings) under India's DPDP Act — flag for legal/compliance review (consent capture + retention), not a code decision.
