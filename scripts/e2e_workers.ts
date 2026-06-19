@@ -181,8 +181,10 @@ async function main(): Promise<void> {
   assert("restore appends a note remark", !!restored && restored.remarks.some((r) => r.type === "note" && /restored/i.test(r.text)));
 
   // ---- #28: add a remark, then clear it (struck through but retained) ----
+  const remarksBefore = (await WorkerModel.findById(w!._id))!.remarks.length;
   const emptyRemark = await admin.post(`/workers/${w!._id}/remarks`).type("form").send({ text: "" });
-  assert("empty remark rejected", emptyRemark.status === 302);
+  assert("empty remark rejected (redirect)", emptyRemark.status === 302);
+  assert("empty remark not stored", (await WorkerModel.findById(w!._id))!.remarks.length === remarksBefore);
 
   await admin.post(`/workers/${w!._id}/remarks`).type("form").send({ text: "Spoke to site lead" });
   let wr = await WorkerModel.findById(w!._id);
