@@ -180,6 +180,19 @@ async function main(): Promise<void> {
   assert("restore clears deletedAt", restored?.deletedAt == null);
   assert("restore appends a note remark", !!restored && restored.remarks.some((r) => r.type === "note" && /restored/i.test(r.text)));
 
+  // ---- #28: add a remark, then clear it (struck through but retained) ----
+  const emptyRemark = await admin.post(`/workers/${w!._id}/remarks`).type("form").send({ text: "" });
+  assert("empty remark rejected", emptyRemark.status === 302);
+
+  await admin.post(`/workers/${w!._id}/remarks`).type("form").send({ text: "Spoke to site lead" });
+  let wr = await WorkerModel.findById(w!._id);
+  const noteIdx = wr!.remarks.findIndex((r) => r.text === "Spoke to site lead");
+  assert("note remark added", noteIdx >= 0 && wr!.remarks[noteIdx].type === "note");
+
+  await admin.post(`/workers/${w!._id}/remarks/${noteIdx}/clear`).type("form").send({});
+  wr = await WorkerModel.findById(w!._id);
+  assert("remark cleared but retained", !!wr && wr.remarks.length > noteIdx && wr.remarks[noteIdx].cleared === true && wr.remarks[noteIdx].text === "Spoke to site lead");
+
   // Cleanup.
   if (w) {
     try { fs.unlinkSync(path.join(UPLOAD_DIR, `${w._id}.jpg`)); } catch { /* ignore */ }

@@ -328,4 +328,45 @@ router.post("/workers/:id/restore", requireCapability("delete_worker"), async (r
   res.redirect("/workers?status=archived");
 });
 
+// ---- Remarks: add a note (scoped editors) ----
+router.post("/workers/:id/remarks", requireCapability("enroll_worker"), async (req: Request, res: Response) => {
+  const worker = await WorkerModel.findById(req.params.id);
+  if (!worker || !canUseSite(req.currentUser!, String(worker.siteId))) {
+    flash(req, "danger", "Employee not found.");
+    return res.redirect("/workers");
+  }
+  const text = String(req.body.text ?? "").trim();
+  if (!text) {
+    flash(req, "danger", "Remark text is required.");
+    return res.redirect(`/workers/${req.params.id}/edit`);
+  }
+  pushRemark(worker, req.currentUser!, text, "note");
+  await worker.save();
+  flash(req, "success", "Remark added.");
+  res.redirect(`/workers/${req.params.id}/edit`);
+});
+
+// ---- Remarks: clear one (admin) — struck through, kept for audit ----
+router.post("/workers/:id/remarks/:idx/clear", requireCapability("delete_worker"), async (req: Request, res: Response) => {
+  const worker = await WorkerModel.findById(req.params.id);
+  if (!worker || !canUseSite(req.currentUser!, String(worker.siteId))) {
+    flash(req, "danger", "Employee not found.");
+    return res.redirect("/workers");
+  }
+  const idx = Number(req.params.idx);
+  if (!Number.isInteger(idx) || idx < 0 || idx >= worker.remarks.length) {
+    flash(req, "danger", "Remark not found.");
+    return res.redirect(`/workers/${req.params.id}/edit`);
+  }
+  const r = worker.remarks[idx];
+  if (!r.cleared) {
+    r.cleared = true;
+    r.clearedBy = new Types.ObjectId(req.currentUser!.id);
+    r.clearedAt = new Date();
+    await worker.save();
+  }
+  flash(req, "success", "Remark cleared.");
+  res.redirect(`/workers/${req.params.id}/edit`);
+});
+
 export default router;
