@@ -1,23 +1,26 @@
-import type { Role } from "../models/User";
+import { Role, ROLES } from "../models/User";
 
 /**
- * The permission matrix from spec §3, encoded as capability → allowed roles.
- * This is the single source of truth for route guards and nav visibility.
+ * The permission matrix, encoded as capability → allowed roles.
+ * Single source of truth for route guards and nav visibility.
  *
- *   Action                    | Mgmt | HR  | PM  | PE  | Supervisor
- *   --------------------------|------|-----|-----|-----|-----------
- *   View dashboard/reports    | all-sites | all | own-sites | own | own
- *   Mark / override attendance| yes  | yes | yes | yes | yes
- *   Enroll new worker         | yes  | yes | yes | yes | yes
- *   Add new designation       | yes  | yes | yes | yes | yes
- *   View overtime queue       | yes  | yes | view| no  | no
- *   Approve overtime          | yes  | yes | no  | no  | no
- *   View branches / sites     | yes  | view| view| no  | no
- *   Manage branches / sites   | yes  | no  | no  | no  | no
- *   Manage user accounts      | yes  | yes | no  | no  | no
+ * Hierarchy (top→bottom): Super Admin → Management → HR → PM → Supervisor.
+ * Super Admin is the chairman/override (everything Management can do, and the
+ * only role that can manage other Super Admins / Management). PE is removed.
  *
- * (Site scoping — "all sites" vs "own site" — is enforced separately via the
- *  user's assignedSiteIds, not here.)
+ *   Action                    | SuperAdmin | Mgmt | HR  | PM  | Supervisor
+ *   --------------------------|------------|------|-----|-----|-----------
+ *   View dashboard/reports    | all | all-sites | all | own-sites | own | own
+ *   Mark / override attendance| yes | yes  | yes | yes | yes
+ *   Enroll / register employee| yes | yes  | yes | yes | yes
+ *   Add new designation       | yes | yes  | yes | yes | yes
+ *   View overtime queue       | yes | yes  | yes | view| no
+ *   Approve overtime          | yes | yes  | yes | no  | no
+ *   View branches / sites     | yes | yes  | view| view| no
+ *   Manage branches / sites   | yes | yes  | no  | no  | no
+ *   Manage user accounts      | yes | yes  | yes | no  | no
+ *
+ * (Site scoping — "all sites" vs "own site" — is enforced via assignedSiteIds.)
  */
 export type Capability =
   | "view_dashboard"
@@ -30,20 +33,38 @@ export type Capability =
   | "manage_org"
   | "manage_users";
 
-const ALL: Role[] = ["management", "hr", "pm", "pe", "supervisor"];
+const ALL: Role[] = [...ROLES];
 
 export const CAPABILITY_ROLES: Record<Capability, Role[]> = {
   view_dashboard: ALL,
   mark_attendance: ALL,
   enroll_worker: ALL,
   add_designation: ALL,
-  view_overtime: ["management", "hr", "pm"],
-  approve_overtime: ["management", "hr"],
-  view_org: ["management", "hr", "pm"],
-  manage_org: ["management"],
-  manage_users: ["management", "hr"],
+  view_overtime: ["super_admin", "management", "hr", "pm"],
+  approve_overtime: ["super_admin", "management", "hr"],
+  view_org: ["super_admin", "management", "hr", "pm"],
+  manage_org: ["super_admin", "management"],
+  manage_users: ["super_admin", "management", "hr"],
 };
 
 export function can(role: Role, capability: Capability): boolean {
   return CAPABILITY_ROLES[capability].includes(role);
+}
+
+/** Roles that see every site and store no assignedSiteIds (top admins). */
+export function seesAllSites(role: Role): boolean {
+  return role === "super_admin" || role === "management" || role === "hr";
+}
+
+/** Human-friendly role labels for display. */
+export const ROLE_LABELS: Record<Role, string> = {
+  super_admin: "Super Admin",
+  management: "Management",
+  hr: "HR",
+  pm: "PM",
+  supervisor: "Supervisor",
+};
+
+export function roleLabel(role: string): string {
+  return (ROLE_LABELS as Record<string, string>)[role] ?? role;
 }

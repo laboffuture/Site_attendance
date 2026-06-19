@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { Types } from "mongoose";
 
 import { requireCapability } from "../auth/middleware";
+import { seesAllSites } from "../auth/permissions";
 import type { CurrentUser } from "../auth/types";
 import { canUseSite } from "../lib/scope";
 import {
@@ -24,12 +25,11 @@ function flash(req: Request, type: "success" | "danger", text: string): void {
   req.session.flash = { type, text };
 }
 
-/** Sites the user may mark attendance at (Management/HR: all; others: theirs). */
+/** Sites the user may mark attendance at (top admins: all; others: theirs). */
 async function allowedSites(user: CurrentUser) {
-  const filter =
-    user.role === "management" || user.role === "hr"
-      ? {}
-      : { _id: { $in: user.assignedSiteIds.map((id) => new Types.ObjectId(id)) } };
+  const filter = seesAllSites(user.role)
+    ? {}
+    : { _id: { $in: user.assignedSiteIds.map((id) => new Types.ObjectId(id)) } };
   return ProjectSiteModel.find(filter).sort({ name: 1 }).lean();
 }
 

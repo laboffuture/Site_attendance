@@ -86,7 +86,7 @@ async function main(): Promise<void> {
   }
   console.log(`Project sites ensured: ${SITES.length}`);
 
-  // First Management admin
+  // First Super Admin (chairman / root account)
   const email = (process.env.SEED_ADMIN_EMAIL || "admin@trgbi.com").toLowerCase().trim();
   const existing = await UserModel.findOne({ email });
   if (existing) {
@@ -97,11 +97,11 @@ async function main(): Promise<void> {
       name: process.env.SEED_ADMIN_NAME || "TRGBI Admin",
       email,
       passwordHash: await hashPassword(password),
-      role: "management",
+      role: "super_admin",
       assignedSiteIds: [],
       active: true,
     });
-    console.log("\nCreated Management admin:");
+    console.log("\nCreated Super Admin:");
     console.log(`  email:    ${email}`);
     console.log(
       `  password: ${process.env.SEED_ADMIN_PASSWORD ? "[from SEED_ADMIN_PASSWORD]" : password}`,

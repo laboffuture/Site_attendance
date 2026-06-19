@@ -1,7 +1,8 @@
-/* End-to-end test for Users & Roles management.
-   Verifies create + site rules + unique email; HR's limited authority (manage
-   below HR only, can't see/manage Management); and self-lockout protection.
-   Creates QA users and cleans them up. Run: npm run e2e:users */
+/* End-to-end test for Users & Roles management (new hierarchy:
+   Super Admin → Management → HR → PM → Supervisor; PE removed).
+   Verifies create + site rules + unique email; assignment authority by tier
+   (Super Admin all; Management all-but-super_admin; HR below HR); list scoping;
+   and self-lockout. Creates QA users and cleans them up. Run: npm run e2e:users */
 
 import request from "supertest";
 import mongoose from "mongoose";
@@ -14,10 +15,11 @@ import { ProjectSiteModel, UserModel } from "../src/models";
 const ADMIN_EMAIL = (process.env.SEED_ADMIN_EMAIL || "admin@trgbi.com").toLowerCase();
 const ADMIN_PW = process.env.SEED_ADMIN_PASSWORD || "ChangeMe123!";
 const S = Date.now().toString(36);
-const PE = `qa-pe-${S}@trgbi.com`;
-const HR = `qa-hr-${S}@trgbi.com`;
-const SUP = `qa-sup-${S}@trgbi.com`;
 const MGMT = `qa-mgmt-${S}@trgbi.com`;
+const HR = `qa-hr-${S}@trgbi.com`;
+const PM = `qa-pm-${S}@trgbi.com`;
+const SUP = `qa-sup-${S}@trgbi.com`;
+const SUPER = `qa-super-${S}@trgbi.com`;
 const PW = "Pass123!";
 
 function assert(label: string, cond: boolean): void {
@@ -39,52 +41,54 @@ async function main(): Promise<void> {
   const vbw = await ProjectSiteModel.findOne({ code: "VBW" });
   if (!vbw) throw new Error("Seed data missing — run npm run seed.");
   const adminUser = await UserModel.findOne({ email: ADMIN_EMAIL });
+  assert("bootstrap admin is super_admin", adminUser?.role === "super_admin");
 
   const admin = await login(app, ADMIN_EMAIL, ADMIN_PW);
+  assert("super admin GET /users → 200", (await admin.get("/users")).status === 200);
 
-  assert("admin GET /users → 200", (await admin.get("/users")).status === 200);
-
-  // Create a PE with exactly one site.
-  await admin.post("/users").type("form").send({ name: "QA PE", email: PE, password: PW, role: "pe", assignedSiteIds: String(vbw._id) });
-  const pe = await UserModel.findOne({ email: PE });
-  assert("PE created", !!pe && pe.role === "pe");
-  assert("PE assigned exactly one site", !!pe && pe.assignedSiteIds.length === 1 && String(pe.assignedSiteIds[0]) === String(vbw._id));
-
-  // PE with no site is rejected.
-  await admin.post("/users").type("form").send({ name: "QA PE2", email: `qa-pe2-${S}@trgbi.com`, password: PW, role: "pe" });
-  assert("PE without a site is rejected", !(await UserModel.findOne({ email: `qa-pe2-${S}@trgbi.com` })));
-
-  // Create an HR (Management may).
+  // Super Admin can create Management and HR.
+  await admin.post("/users").type("form").send({ name: "QA Mgmt", email: MGMT, password: PW, role: "management" });
+  assert("super admin can create Management", (await UserModel.findOne({ email: MGMT }))?.role === "management");
   await admin.post("/users").type("form").send({ name: "QA HR", email: HR, password: PW, role: "hr" });
   const hr = await UserModel.findOne({ email: HR });
   assert("HR created with no sites (all)", !!hr && hr.role === "hr" && hr.assignedSiteIds.length === 0);
 
+  // PM requires at least one site.
+  await admin.post("/users").type("form").send({ name: "QA PM noSite", email: PM, password: PW, role: "pm" });
+  assert("PM without a site is rejected", !(await UserModel.findOne({ email: PM })));
+  await admin.post("/users").type("form").send({ name: "QA PM", email: PM, password: PW, role: "pm", assignedSiteIds: String(vbw._id) });
+  assert("PM with a site is created", (await UserModel.findOne({ email: PM }))?.role === "pm");
+
   // Duplicate email rejected.
-  const before = await UserModel.countDocuments({ email: PE });
-  await admin.post("/users").type("form").send({ name: "Dup", email: PE, password: PW, role: "pe", assignedSiteIds: String(vbw._id) });
-  assert("duplicate email rejected", (await UserModel.countDocuments({ email: PE })) === before);
+  const before = await UserModel.countDocuments({ email: HR });
+  await admin.post("/users").type("form").send({ name: "Dup", email: HR, password: PW, role: "hr" });
+  assert("duplicate email rejected", (await UserModel.countDocuments({ email: HR })) === before);
 
-  // Self-lockout: admin cannot deactivate own account.
+  // Self-lockout: super admin cannot deactivate own account.
   await admin.post(`/users/${adminUser!._id}/toggle`).type("form").send({});
-  assert("admin cannot deactivate self", (await UserModel.findById(adminUser!._id))?.active === true);
+  assert("super admin cannot deactivate self", (await UserModel.findById(adminUser!._id))?.active === true);
 
-  // HR authority.
+  // Management authority: can create below it, but NOT a Super Admin.
+  const mgmtAgent = await login(app, MGMT, PW);
+  await mgmtAgent.post("/users").type("form").send({ name: "QA Sup", email: SUP, password: PW, role: "supervisor", assignedSiteIds: String(vbw._id) });
+  assert("Management can create a Supervisor", !!(await UserModel.findOne({ email: SUP })));
+  await mgmtAgent.post("/users").type("form").send({ name: "QA Super", email: SUPER, password: PW, role: "super_admin" });
+  assert("Management cannot create a Super Admin", !(await UserModel.findOne({ email: SUPER })));
+  assert("Management list excludes the Super Admin", !(await mgmtAgent.get("/users")).text.includes(ADMIN_EMAIL));
+
+  // HR authority: below HR only; cannot create Management or open its edit.
   const hrAgent = await login(app, HR, PW);
-  const hrList = await hrAgent.get("/users");
-  assert("HR GET /users → 200", hrList.status === 200);
-  assert("HR list excludes Management admin", !hrList.text.includes(ADMIN_EMAIL));
-  await hrAgent.post("/users").type("form").send({ name: "QA Sup", email: SUP, password: PW, role: "supervisor", assignedSiteIds: String(vbw._id) });
-  assert("HR can create a Supervisor", !!(await UserModel.findOne({ email: SUP })));
-  await hrAgent.post("/users").type("form").send({ name: "QA Mgmt", email: MGMT, password: PW, role: "management" });
-  assert("HR cannot create Management", !(await UserModel.findOne({ email: MGMT })));
-  assert("HR cannot open Management user's edit", (await hrAgent.get(`/users/${adminUser!._id}/edit`)).status === 302);
+  assert("HR GET /users → 200", (await hrAgent.get("/users")).status === 200);
+  await hrAgent.post("/users").type("form").send({ name: "QA Mgmt2", email: `qa-m2-${S}@trgbi.com`, password: PW, role: "management" });
+  assert("HR cannot create Management", !(await UserModel.findOne({ email: `qa-m2-${S}@trgbi.com` })));
+  assert("HR cannot open a Management user's edit", (await hrAgent.get(`/users/${(await UserModel.findOne({ email: MGMT }))!._id}/edit`)).status === 302);
 
-  // A PE has no access to user management.
-  const peAgent = await login(app, PE, PW);
-  assert("PE GET /users → 403", (await peAgent.get("/users")).status === 403);
+  // Supervisor has no access to user management.
+  const supAgent = await login(app, SUP, PW);
+  assert("Supervisor GET /users → 403", (await supAgent.get("/users")).status === 403);
 
   // Cleanup.
-  await UserModel.deleteMany({ email: { $in: [PE, HR, SUP, MGMT, `qa-pe2-${S}@trgbi.com`] } });
+  await UserModel.deleteMany({ email: { $in: [MGMT, HR, PM, SUP, SUPER, `qa-m2-${S}@trgbi.com`] } });
 
   await mongoose.connection.close();
   console.log(process.exitCode ? "\nE2E USERS FAILED" : "\nE2E USERS PASSED");

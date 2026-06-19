@@ -51,8 +51,7 @@ async function main(): Promise<void> {
   const pvm = await ProjectSiteModel.findOne({ code: "PVM" });
   for (const u of [
     { name: "Priya (PM)", email: "pm@trgbi.com", role: "pm", assignedSiteIds: [vbw._id, pvm?._id].filter(Boolean) },
-    { name: "Vijay (PE)", email: "pe@trgbi.com", role: "pe", assignedSiteIds: [vbw._id] },
-    { name: "Saran (Supervisor)", email: "supervisor@trgbi.com", role: "supervisor", assignedSiteIds: [vbw._id] },
+    { name: "Saran (Supervisor)", email: "supervisor@trgbi.com", role: "supervisor", assignedSiteIds: [vbw._id, pvm?._id].filter(Boolean) },
   ]) {
     await UserModel.updateOne({ email: u.email }, { $set: { ...u, active: true, passwordHash: pw } }, { upsert: true });
   }
@@ -126,7 +125,6 @@ async function main(): Promise<void> {
   console.log("Web (PC):  http://localhost:3000");
   console.log("  Management : admin@trgbi.com / ChangeMe123!");
   console.log("  PM         : pm@trgbi.com / Demo123!");
-  console.log("  PE         : pe@trgbi.com / Demo123!");
   console.log("  Supervisor : supervisor@trgbi.com / Demo123!");
   console.log("\nSeeded at VBW — T.Nagar (Chennai), GPS set:");
   console.log("  3 workers (Ramesh, Suresh, Mani), 6 attendance rows across 4 days,");

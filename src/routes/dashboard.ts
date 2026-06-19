@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { Types } from "mongoose";
 
 import { requireAuth } from "../auth/middleware";
+import { seesAllSites } from "../auth/permissions";
 import { buildHierarchyRollup } from "../lib/hierarchy";
 import { siteScopeFilter, flagScopeFilter } from "../lib/scope";
 import { siteLocalDate, round2 } from "../lib/time";
@@ -17,14 +18,13 @@ router.get("/dashboard", requireAuth, async (req: Request, res: Response) => {
   const today = siteLocalDate();
 
   // Sites the user can pick in the dashboard filter.
-  const mySites =
-    u.role === "management" || u.role === "hr"
-      ? await ProjectSiteModel.find().sort({ name: 1 }).lean()
-      : await ProjectSiteModel.find({
-          _id: { $in: u.assignedSiteIds.map((id) => new Types.ObjectId(id)) },
-        })
-          .sort({ name: 1 })
-          .lean();
+  const mySites = seesAllSites(u.role)
+    ? await ProjectSiteModel.find().sort({ name: 1 }).lean()
+    : await ProjectSiteModel.find({
+        _id: { $in: u.assignedSiteIds.map((id) => new Types.ObjectId(id)) },
+      })
+        .sort({ name: 1 })
+        .lean();
 
   // Optional single-site filter (only a site the user actually has).
   const selectedSiteId =
@@ -42,12 +42,10 @@ router.get("/dashboard", requireAuth, async (req: Request, res: Response) => {
   let scopeLabel: string;
   if (selectedSiteId) {
     scopeLabel = mySites.find((s) => String(s._id) === selectedSiteId)!.name;
-  } else if (u.role === "management" || u.role === "hr") {
+  } else if (seesAllSites(u.role)) {
     scopeLabel = "All branches & sites";
-  } else if (u.role === "pm" || u.role === "supervisor") {
-    scopeLabel = `${u.assignedSiteIds.length} assigned site(s)`;
   } else {
-    scopeLabel = "Own site";
+    scopeLabel = `${u.assignedSiteIds.length} assigned site(s)`;
   }
 
   // Summary stats
@@ -126,7 +124,7 @@ router.get("/dashboard", requireAuth, async (req: Request, res: Response) => {
     .lean();
 
   // Branch → site hierarchy rollup for senior roles (multi-site view).
-  const senior = u.role === "management" || u.role === "hr" || u.role === "pm";
+  const senior = seesAllSites(u.role) || u.role === "pm";
   const rollup = senior ? await buildHierarchyRollup(u) : null;
 
   res.render("dashboard", {
