@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "description": "TRGBI Site Attendance & Workforce Management",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc && node scripts/copy-assets.mjs",
