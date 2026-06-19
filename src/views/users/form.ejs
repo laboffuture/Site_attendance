@@ -40,7 +40,7 @@
         <option value="<%= s._id %>" <%= assigned.indexOf(String(s._id)) >= 0 ? "selected" : "" %>><%= s.name %> (<%= s.code %>)</option>
         <% }); %>
       </select>
-      <span class="oh-muted">PM: one or more · PE/Supervisor: exactly one · Management/HR: ignored (all sites).</span>
+      <span class="oh-muted">PM / Supervisor: one or more · PE: exactly one · Management/HR: ignored (all sites).</span>
     </div>
     <% if (isEdit && !self) { %>
     <label class="oh-check"><input type="checkbox" name="active" <%= u.active ? "checked" : "" %> /> Active</label>

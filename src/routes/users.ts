@@ -30,11 +30,14 @@ function parseSiteIds(body: Record<string, unknown>): string[] {
   return arr.map(String).filter((s) => Types.ObjectId.isValid(s));
 }
 
-/** Validates role↔site rules. Returns an error string or null. */
+/** Validates role↔site rules. Returns an error string or null.
+ *  PM and Supervisor may cover one OR more sites; PE is tied to exactly one. */
 function validateSites(role: Role, siteIds: string[]): string | null {
   if (role === "management" || role === "hr") return null; // all sites → none stored
-  if (role === "pm") return siteIds.length >= 1 ? null : "Select at least one site for a PM.";
-  return siteIds.length === 1 ? null : "Select exactly one site for a PE/Supervisor.";
+  if (role === "pm" || role === "supervisor") {
+    return siteIds.length >= 1 ? null : `Select at least one site for a ${role.toUpperCase()}.`;
+  }
+  return siteIds.length === 1 ? null : "Select exactly one site for a PE.";
 }
 
 async function siteList() {

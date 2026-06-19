@@ -25,7 +25,8 @@
     "e2e:hierarchy": "tsx scripts/e2e_hierarchy.ts",
     "e2e:attendance": "tsx scripts/e2e_attendance.ts",
     "e2e:missed": "tsx scripts/e2e_missed_clockout.ts",
-    "e2e:geo": "tsx scripts/e2e_geo.ts"
+    "e2e:geo": "tsx scripts/e2e_geo.ts",
+    "e2e:supervisor": "tsx scripts/e2e_supervisor.ts"
   },
   "dependencies": {
     "@tensorflow/tfjs": "^4.22.0",

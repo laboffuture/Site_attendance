@@ -3,14 +3,26 @@
   function ts(d) { return d ? new Date(d).toLocaleString("en-GB", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" }) : ""; }
 %>
 
-<div class="oh-page-header">
-  <h1 class="oh-page-title">Dashboard</h1>
-  <p class="oh-page-subtitle">Welcome, <%= currentUser.name %> · Scope: <%= scopeLabel %></p>
+<div class="oh-page-header oh-page-header--row">
+  <div>
+    <h1 class="oh-page-title">Dashboard</h1>
+    <p class="oh-page-subtitle">Welcome, <%= currentUser.name %> · Scope: <%= scopeLabel %></p>
+  </div>
+  <% if (mySites && mySites.length > 1) { %>
+  <form method="get" action="/dashboard" class="oh-dash-filter">
+    <select class="oh-select" name="siteId" onchange="this.form.submit()" aria-label="Filter by site">
+      <option value="">All my sites</option>
+      <% mySites.forEach(function (s) { %>
+      <option value="<%= s._id %>" <%= selectedSiteId === String(s._id) ? "selected" : "" %>><%= s.name %> (<%= s.code %>)</option>
+      <% }); %>
+    </select>
+  </form>
+  <% } %>
 </div>
 
 <div class="oh-card-grid">
   <div class="oh-card">
-    <div class="oh-card__label">Today's Attendance</div>
+    <div class="oh-card__label">Present Today</div>
     <div class="oh-card__value"><%= stats.todayCount %></div>
   </div>
   <a class="oh-card oh-card--link" href="/overtime?status=pending">
@@ -23,7 +35,8 @@
   </a>
   <div class="oh-card">
     <div class="oh-card__label">Active Workers</div>
-    <div class="oh-card__value"><%= stats.activeWorkers %></div>
+    <div class="oh-card__value"><%= stats.todayCount %> <span class="oh-card__of">/ <%= stats.activeWorkers %></span></div>
+    <div class="oh-card__note"><%= stats.activeWorkers ? Math.round((stats.todayCount / stats.activeWorkers) * 100) : 0 %>% present today</div>
   </div>
 </div>
 
