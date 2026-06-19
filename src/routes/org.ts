@@ -73,12 +73,23 @@ router.post("/org/branches/:id", requireCapability("manage_org"), async (req: Re
 });
 
 // ---- Project sites ----
+function parseCoord(v: unknown, lo: number, hi: number): number | null | undefined {
+  const s = String(v ?? "").trim();
+  if (s === "") return null; // explicitly cleared / not provided
+  const n = parseFloat(s);
+  if (!Number.isFinite(n) || n < lo || n > hi) return undefined; // invalid sentinel
+  return n;
+}
+
 function parseSite(req: Request): {
   branchId: string;
   name: string;
   code: string;
   start: string;
   end: string;
+  latitude: number | null;
+  longitude: number | null;
+  radius: number | null;
   error?: string;
 } {
   const branchId = String(req.body.branchId ?? "").trim();
@@ -86,17 +97,33 @@ function parseSite(req: Request): {
   const code = String(req.body.code ?? "").trim().toUpperCase();
   const start = String(req.body.standardStartTime ?? "").trim();
   const end = String(req.body.standardEndTime ?? "").trim();
+  const lat = parseCoord(req.body.latitude, -90, 90);
+  const lng = parseCoord(req.body.longitude, -180, 180);
+  const rad = parseCoord(req.body.geofenceRadiusMeters, 1, 100000);
 
   let error: string | undefined;
   if (!branchId || !name || !code) error = "Branch, name, and code are required.";
   else if (!isValidTime(start) || !isValidTime(end)) error = "Shift times must be valid HH:MM (24-hour).";
   else if (!endAfterStart(start, end)) error = "Shift end must be after shift start.";
+  else if (lat === undefined || lng === undefined) error = "Latitude must be -90..90 and longitude -180..180.";
+  else if (rad === undefined) error = "Radius must be a positive number of metres.";
+  else if ((lat === null) !== (lng === null)) error = "Set both latitude and longitude, or leave both blank.";
 
-  return { branchId, name, code, start, end, error };
+  return {
+    branchId,
+    name,
+    code,
+    start,
+    end,
+    latitude: lat === undefined ? null : lat,
+    longitude: lng === undefined ? null : lng,
+    radius: rad === undefined ? null : rad,
+    error,
+  };
 }
 
 router.post("/org/sites", requireCapability("manage_org"), async (req: Request, res: Response) => {
-  const { branchId, name, code, start, end, error } = parseSite(req);
+  const { branchId, name, code, start, end, latitude, longitude, radius, error } = parseSite(req);
   if (error) {
     flash(req, "danger", error);
     return res.redirect("/org");
@@ -113,6 +140,9 @@ router.post("/org/sites", requireCapability("manage_org"), async (req: Request, 
       code,
       standardStartTime: start,
       standardEndTime: end,
+      latitude,
+      longitude,
+      geofenceRadiusMeters: radius,
     });
     flash(req, "success", `Site "${name}" (${code}) added.`);
   } catch (err) {
@@ -139,7 +169,7 @@ router.get("/org/sites/:id/edit", requireCapability("manage_org"), async (req: R
 });
 
 router.post("/org/sites/:id", requireCapability("manage_org"), async (req: Request, res: Response) => {
-  const { branchId, name, code, start, end, error } = parseSite(req);
+  const { branchId, name, code, start, end, latitude, longitude, radius, error } = parseSite(req);
   if (error) {
     flash(req, "danger", error);
     return res.redirect(`/org/sites/${req.params.id}/edit`);
@@ -151,6 +181,9 @@ router.post("/org/sites/:id", requireCapability("manage_org"), async (req: Reque
       code,
       standardStartTime: start,
       standardEndTime: end,
+      latitude,
+      longitude,
+      geofenceRadiusMeters: radius,
     });
     flash(req, "success", "Site updated.");
     res.redirect("/org");

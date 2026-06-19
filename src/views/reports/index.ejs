@@ -61,7 +61,7 @@
     <div class="oh-report-site"><%= s.siteName %> · <%= s.rows.length %> record(s)</div>
     <table class="oh-table">
       <thead>
-        <tr><th>Date</th><th>Reg No</th><th>Name</th><th>Designation</th><th>In</th><th>Out</th><th>Total</th><th>OT</th><th>Status</th></tr>
+        <tr><th>Date</th><th>Reg No</th><th>Name</th><th>Designation</th><th>In</th><th>Out</th><th>Total</th><th>OT</th><th>Status</th><th>Location</th></tr>
       </thead>
       <tbody>
         <% s.rows.forEach(function (r) { %>
@@ -78,6 +78,16 @@
           <td><%= r.totalHours != null ? r.totalHours + "h" : "—" %></td>
           <td><%= (r.overtime && r.overtime.computedHours) || 0 %>h</td>
           <td><span class="oh-badge oh-badge--<%= badgeFor[(r.overtime && r.overtime.status) || 'none'] %>"><%= (r.overtime && r.overtime.status) || "none" %></span></td>
+          <td>
+            <% var g = r.inGeo; %>
+            <% if (g && g.available && g.lat != null) { %>
+            <a href="https://maps.google.com/?q=<%= g.lat %>,<%= g.lng %>" target="_blank" rel="noopener" title="In-scan location">📍<%= g.distanceMeters != null ? " " + g.distanceMeters + "m" : "" %></a>
+            <% } else if (g && !g.available) { %>
+            <span class="oh-muted" title="No GPS captured">—</span>
+            <% } else { %>
+            <span class="oh-muted">—</span>
+            <% } %>
+          </td>
         </tr>
         <% }); %>
       </tbody>

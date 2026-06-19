@@ -5,6 +5,7 @@ import { config } from "../config";
 import * as db from "../db";
 import { recordScan } from "../lib/attendance";
 import { encodeFace, bestMatch } from "../lib/face";
+import { buildGeoCapture } from "../lib/geo";
 import { dataUrlToBuffer } from "../lib/image";
 import { round2 } from "../lib/time";
 import { hashStationKey } from "../lib/stationKey";
@@ -122,6 +123,9 @@ router.post("/station/scan", requireStation, async (req: Request, res: Response)
   if (!site) return res.json({ status: "error", message: "Station site missing." });
   const branch = await BranchModel.findById(site.branchId).lean();
 
+  // Capture the device GPS sent with the scan (capture-only; never blocks).
+  const geo = buildGeoCapture(req.body.lat, req.body.lng, req.body.accuracy, site);
+
   const result = await recordScan(
     {
       _id: worker._id,
@@ -132,6 +136,7 @@ router.post("/station/scan", requireStation, async (req: Request, res: Response)
     },
     site,
     branch?.name ?? "",
+    geo,
   );
 
   res.json({
@@ -142,6 +147,7 @@ router.post("/station/scan", requireStation, async (req: Request, res: Response)
     totalHours: result.totalHours,
     overtimeHours: round2(result.overtimeHours),
     overtimeStatus: result.overtimeStatus,
+    geo: { available: geo.available, distanceMeters: geo.distanceMeters },
   });
 });
 

@@ -84,8 +84,17 @@
       <label class="oh-label" for="site-end">Shift end</label>
       <input class="oh-input" id="site-end" name="standardEndTime" type="time" value="18:00" required />
     </div>
+    <div class="oh-input-group">
+      <label class="oh-label" for="site-lat">Latitude <span class="oh-muted">(optional)</span></label>
+      <input class="oh-input" id="site-lat" name="latitude" placeholder="13.0405" />
+    </div>
+    <div class="oh-input-group">
+      <label class="oh-label" for="site-lng">Longitude <span class="oh-muted">(optional)</span></label>
+      <input class="oh-input" id="site-lng" name="longitude" placeholder="80.2337" />
+    </div>
     <button class="oh-btn oh-btn--secondary" type="submit">Add site</button>
   </form>
+  <p class="oh-muted">Tip: in Google Maps, right-click the site → the first row is “latitude, longitude”. Coordinates let each scan record its distance from the site.</p>
   <% } else { %>
   <p class="oh-muted">Add a branch first, then you can add sites under it.</p>
   <% } %>

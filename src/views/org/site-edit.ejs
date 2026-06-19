@@ -32,6 +32,21 @@
         <input class="oh-input" id="end" name="standardEndTime" type="time" value="<%= site.standardEndTime %>" required />
       </div>
     </div>
+    <div class="oh-row-2">
+      <div class="oh-input-group">
+        <label class="oh-label" for="latitude">Latitude <span class="oh-muted">(optional)</span></label>
+        <input class="oh-input" id="latitude" name="latitude" value="<%= site.latitude != null ? site.latitude : '' %>" placeholder="13.0405" />
+      </div>
+      <div class="oh-input-group">
+        <label class="oh-label" for="longitude">Longitude <span class="oh-muted">(optional)</span></label>
+        <input class="oh-input" id="longitude" name="longitude" value="<%= site.longitude != null ? site.longitude : '' %>" placeholder="80.2337" />
+      </div>
+    </div>
+    <div class="oh-input-group">
+      <label class="oh-label" for="geofenceRadiusMeters">Geofence radius (m) <span class="oh-muted">(optional, for future use)</span></label>
+      <input class="oh-input" id="geofenceRadiusMeters" name="geofenceRadiusMeters" value="<%= site.geofenceRadiusMeters != null ? site.geofenceRadiusMeters : '' %>" placeholder="200" />
+    </div>
+    <p class="oh-muted">Right-click the site in Google Maps to copy “latitude, longitude”. Coordinates make each scan record its distance from the site. Radius is stored for later geofence enforcement (not enforced yet).</p>
     <div class="oh-form-actions">
       <a class="oh-btn oh-btn--small" href="/org">Cancel</a>
       <button class="oh-btn oh-btn--secondary" type="submit">Save</button>
