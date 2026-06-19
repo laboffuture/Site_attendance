@@ -44,10 +44,13 @@ The server boots even if the database is unreachable (the login page still rende
 All suites are runnable against a local MongoDB; together they cover auth, permissions, org CRUD, enrollment + face encoding, capture + location-lock + OT, the approval queue, dashboards/reports/exports, and user management.
 
 ## Deployment
-- Set `NODE_ENV=production` (enables `trust proxy` + secure session cookies — terminate TLS at a proxy/load balancer), a strong `SESSION_SECRET`, and a managed `MONGODB_URI` (e.g. MongoDB Atlas).
-- `npm run build && npm start`.
-- Run `npm run seed` once against the production DB, then change the admin password.
-- `public/uploads/` (worker photos) and `.env` are git-ignored — provide persistent storage for uploads in production.
+**Full step-by-step:** [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) — Linux + PM2 + MongoDB Atlas behind a TLS-terminating proxy.
+
+In short:
+- Set `NODE_ENV=production` (enables `trust proxy` + secure session cookies — terminate TLS at a proxy/load balancer), a strong `SESSION_SECRET`, a managed `MONGODB_URI` (MongoDB Atlas), and `UPLOAD_DIR` pointing at a persistent volume.
+- `npm ci && npm run build` (build copies EJS views into `dist/`), then run `dist/server.js` via PM2 (`pm2 start ecosystem.config.cjs`) or systemd.
+- `npm run sync-indexes` then `npm run seed` once against the production DB, then change the admin password.
+- `.env` and the uploads dir are git-ignored — keep secrets in `.env` and back up the uploads volume + Atlas.
 
 ## Notes & follow-ups
 - **Report columns** use sensible defaults (Branch, Project, Emp Reg No, Name, Designation, Date, In, Out, Total, OT, OT Status); adjust in `src/lib/exporters.ts` to match a final reference sheet.
