@@ -59,7 +59,34 @@
   <% b.sites.forEach(function (s) { %>
   <div>
     <div class="oh-report-site"><%= s.siteName %> · <%= s.rows.length %> record(s)</div>
-    <table class="oh-table">
+    <!-- mobile: record cards -->
+    <div class="oh-only-mobile oh-m-list">
+      <% s.rows.forEach(function (r) { %>
+      <div class="oh-m-card">
+        <div class="oh-m-row" style="justify-content:space-between;align-items:flex-start;">
+          <span class="oh-m-grow">
+            <span class="oh-m-name"><%= r.workerName %><% if (r.source === "manual") { %> <span class="oh-m-badge oh-badge--warning">M</span><% } %></span>
+            <span class="oh-m-sub"><%= r.empRegNo %> · <%= r.designationName %></span>
+          </span>
+          <span class="oh-m-sub"><%= r.date %></span>
+        </div>
+        <div class="oh-m-boxes" style="margin-top:0.6rem;">
+          <div class="oh-m-box"><div class="oh-m-box__k">In</div><div class="oh-m-box__v"><%= t(r.inTime) %></div></div>
+          <div class="oh-m-box"><div class="oh-m-box__k">Out</div><div class="oh-m-box__v"><%= t(r.outTime) %></div></div>
+          <div class="oh-m-box"><div class="oh-m-box__k">Total</div><div class="oh-m-box__v"><%= r.totalHours != null ? r.totalHours + "h" : "—" %></div></div>
+          <div class="oh-m-box"><div class="oh-m-box__k">OT</div><div class="oh-m-box__v"><%= (r.overtime && r.overtime.computedHours) || 0 %>h</div></div>
+        </div>
+        <div style="margin-top:0.5rem;display:flex;align-items:center;gap:8px;">
+          <span class="oh-m-badge oh-badge--<%= badgeFor[(r.overtime && r.overtime.status) || 'none'] %>"><%= (r.overtime && r.overtime.status) || "none" %></span>
+          <% var g = r.inGeo; if (g && g.available && g.lat != null) { %>
+          <a class="oh-m-sub" href="https://maps.google.com/?q=<%= g.lat %>,<%= g.lng %>" target="_blank" rel="noopener">📍<%= g.distanceMeters != null ? " " + g.distanceMeters + "m" : "" %></a>
+          <% } %>
+        </div>
+      </div>
+      <% }); %>
+    </div>
+
+    <table class="oh-table oh-only-desktop">
       <thead>
         <tr><th>Date</th><th>Reg No</th><th>Name</th><th>Designation</th><th>In</th><th>Out</th><th>Total</th><th>OT</th><th>Status</th><th>Location</th></tr>
       </thead>

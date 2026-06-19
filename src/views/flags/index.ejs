@@ -14,7 +14,33 @@
   <a class="oh-filter-tab <%= showResolved ? 'oh-filter-tab--active' : '' %>" href="/flags?status=resolved">Resolved</a>
 </div>
 
-<div class="oh-card">
+<!-- mobile: flag cards -->
+<div class="oh-only-mobile oh-m-section">
+  <% if (flags.length) { %>
+  <div class="oh-m-list">
+    <% flags.forEach(function (f) { %>
+    <div class="oh-m-card">
+      <div class="oh-m-row" style="margin-bottom:0.5rem;">
+        <span class="material-icons" style="font-size:20px;color:#b3261e;">flag</span>
+        <span class="oh-m-badge oh-badge--danger"><%= typeLabel[f.type] || f.type %></span>
+      </div>
+      <div class="oh-m-name"><%= f.workerName || "—" %></div>
+      <div class="oh-m-sub"><%= f.attemptedSiteName || "—" %><% if (f.homeSiteName) { %> · assigned <%= f.homeSiteName %><% } %></div>
+      <div class="oh-m-sub"><%= ts(f.timestamp) %></div>
+      <% if (!showResolved) { %>
+      <form method="post" action="/flags/<%= f._id %>/resolve" class="oh-m-actions">
+        <button class="oh-btn oh-btn--small oh-btn--success" type="submit">Resolve</button>
+      </form>
+      <% } %>
+    </div>
+    <% }); %>
+  </div>
+  <% } else { %>
+  <p class="oh-muted">No <%= showResolved ? "resolved" : "unresolved" %> flags.</p>
+  <% } %>
+</div>
+
+<div class="oh-card oh-only-desktop">
   <% if (flags.length) { %>
   <table class="oh-table">
     <thead>
