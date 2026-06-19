@@ -5,7 +5,7 @@ import { Router, Request, Response } from "express";
 import { Types } from "mongoose";
 
 import { requireCapability } from "../auth/middleware";
-import { seesAllSites } from "../auth/permissions";
+import { can, seesAllSites } from "../auth/permissions";
 import type { CurrentUser } from "../auth/types";
 import { config } from "../config";
 import { encodeFace } from "../lib/face";
@@ -21,6 +21,24 @@ const UPLOAD_DIR = config.uploadDir;
 
 function flash(req: Request, type: "success" | "danger", text: string): void {
   req.session.flash = { type, text };
+}
+
+/** Append an audit remark to a hydrated worker doc (caller saves).
+ *  Only `text` is required on the subdoc; `cleared`/`clearedBy`/`clearedAt`
+ *  fall back to their schema defaults, so they're omitted here. */
+function pushRemark(
+  worker: InstanceType<typeof WorkerModel>,
+  user: CurrentUser,
+  text: string,
+  type: string,
+): void {
+  worker.remarks.push({
+    text,
+    type,
+    authorId: new Types.ObjectId(user.id),
+    authorName: user.name,
+    at: new Date(),
+  } as never);
 }
 
 /** Sites a user may enroll workers into (Management/HR: all; others: theirs). */
@@ -199,6 +217,7 @@ router.get("/workers/:id/edit", requireCapability("enroll_worker"), async (req: 
     worker,
     designations,
     sites,
+    canDelete: can(req.currentUser!.role, "delete_worker"),
   });
 });
 
@@ -248,6 +267,31 @@ router.post("/workers/:id", requireCapability("enroll_worker"), async (req: Requ
   await worker.save();
 
   flash(req, "success", "Employee updated.");
+  res.redirect("/workers");
+});
+
+// ---- Soft-delete (admin) — mandatory reason, retained + hidden ----
+router.post("/workers/:id/delete", requireCapability("delete_worker"), async (req: Request, res: Response) => {
+  const worker = await WorkerModel.findById(req.params.id);
+  if (!worker || !canUseSite(req.currentUser!, String(worker.siteId))) {
+    flash(req, "danger", "Employee not found.");
+    return res.redirect("/workers");
+  }
+  const reason = String(req.body.reason ?? "").trim();
+  if (!reason) {
+    flash(req, "danger", "A reason is required to delete an employee.");
+    return res.redirect(`/workers/${req.params.id}/edit`);
+  }
+  if (worker.status === "deleted") {
+    flash(req, "danger", "Employee is already deleted.");
+    return res.redirect("/workers");
+  }
+  worker.status = "deleted";
+  worker.deletedAt = new Date();
+  worker.deletedBy = new Types.ObjectId(req.currentUser!.id);
+  pushRemark(worker, req.currentUser!, reason, "soft_delete");
+  await worker.save();
+  flash(req, "success", `Employee ${worker.name} deleted.`);
   res.redirect("/workers");
 });
 

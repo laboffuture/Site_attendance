@@ -1,7 +1,26 @@
 import { Schema, model, InferSchemaType } from "mongoose";
 
-export const WORKER_STATUS = ["active", "inactive"] as const;
+export const WORKER_STATUS = ["pending", "active", "inactive", "deleted"] as const;
 export type WorkerStatus = (typeof WORKER_STATUS)[number];
+
+export const REMARK_TYPES = ["note", "soft_delete", "offload", "conflict", "registration", "rejection"] as const;
+export type RemarkType = (typeof REMARK_TYPES)[number];
+
+// Append-only remark. "Clear" sets `cleared` (struck through, kept for audit) —
+// entries are never removed or edited.
+const remarkSchema = new Schema(
+  {
+    text: { type: String, required: true },
+    type: { type: String, enum: [...REMARK_TYPES], default: "note" },
+    authorId: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    authorName: { type: String, default: null },
+    at: { type: Date, default: Date.now },
+    cleared: { type: Boolean, default: false },
+    clearedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    clearedAt: { type: Date, default: null },
+  },
+  { _id: false },
+);
 
 // Optional bank details (not mandatory at enrollment).
 const bankSchema = new Schema(
@@ -39,6 +58,11 @@ const workerSchema = new Schema(
     photoUrl: { type: String, default: null },
     status: { type: String, enum: [...WORKER_STATUS], default: "active" },
     dateJoined: { type: Date, default: Date.now }, // date of joining
+
+    // Lifecycle: append-only remarks + soft-delete audit (reason is a remark).
+    remarks: { type: [remarkSchema], default: [] },
+    deletedAt: { type: Date, default: null },
+    deletedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
   },
   { timestamps: true },
 );

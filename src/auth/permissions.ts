@@ -32,6 +32,7 @@ export type Capability =
   | "view_org"
   | "manage_org"
   | "manage_users"
+  | "delete_worker"
   | "view_requests"
   | "create_request"
   | "recommend_request"
@@ -49,6 +50,7 @@ export const CAPABILITY_ROLES: Record<Capability, Role[]> = {
   view_org: ["super_admin", "management", "hr", "pm", "supervisor"], // supervisor = read-only, own sites
   manage_org: ["super_admin", "management"],
   manage_users: ["super_admin", "management", "hr"],
+  delete_worker: ["super_admin", "management", "hr"],
   // Requests subsystem (scheduled OT + offload). Flow: create → PM recommends
   // → admin decides. Recommend is mandatory before an admin can approve.
   view_requests: ["super_admin", "management", "hr", "pm", "supervisor"],

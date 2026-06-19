@@ -103,4 +103,18 @@
   </form>
 </div>
 
+<% if (canDelete && worker.status !== 'deleted') { %>
+<div class="oh-card oh-form-card" style="margin-top:1rem;border-color:var(--c-danger)">
+  <h2 class="oh-section-title">Delete employee</h2>
+  <p class="oh-muted">Soft-delete keeps the record and its history; the employee is hidden from the roster and can no longer clock in. A reason is required.</p>
+  <form class="oh-form-inline" method="post" action="/workers/<%= worker._id %>/delete" onsubmit="return confirm('Soft-delete this employee?')">
+    <div class="oh-input-group oh-grow">
+      <label class="oh-label" for="reason">Reason</label>
+      <input class="oh-input" id="reason" name="reason" required placeholder="e.g. left the project" />
+    </div>
+    <button class="oh-btn oh-btn--danger" type="submit">Delete</button>
+  </form>
+</div>
+<% } %>
+
 <%- include('../partials/app-bottom') %>
