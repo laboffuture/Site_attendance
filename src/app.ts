@@ -35,9 +35,11 @@ export function createApp(): Express {
   if (config.isProd) app.set("trust proxy", 1);
 
   app.set("view engine", "ejs");
-  app.set("views", path.join(__dirname, "views"));
+  app.set("views", path.join(__dirname, "views")); // copied into dist/ at build
 
   // Static assets need no session/user — mount first to avoid per-asset DB hits.
+  // Persistent uploads dir is served first so it can live outside the app tree.
+  app.use("/static/uploads", express.static(config.uploadDir));
   app.use("/static", express.static(path.join(__dirname, "..", "public")));
   // Larger limit so base64 webcam photos (enrollment) fit in the form body.
   app.use(express.urlencoded({ extended: true, limit: "8mb" }));

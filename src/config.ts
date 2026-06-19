@@ -1,3 +1,5 @@
+import path from "path";
+
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -14,4 +16,7 @@ export const config = {
   companyName: process.env.COMPANY_NAME || "TRGBI",
   // Daily missed-clock-out sweep fires at this IST "HH:MM".
   sweepTime: process.env.SWEEP_TIME || "23:00",
+  // Where worker enrollment photos are stored. Point this at a persistent
+  // volume in production so uploads survive redeploys; served at /static/uploads.
+  uploadDir: process.env.UPLOAD_DIR || path.join(process.cwd(), "public", "uploads"),
 };
