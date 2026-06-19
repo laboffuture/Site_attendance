@@ -72,6 +72,16 @@
 <div class="oh-chart-grid">
   <div class="oh-card">
     <div class="oh-card__label">Attendance — last 14 days</div>
+    <% var d = charts.trend; var arrow = d.deltaDir === "up" ? "▲" : d.deltaDir === "down" ? "▼" : "—"; %>
+    <div class="oh-chart-headline">
+      <span class="oh-chart-big"><%= d.today %></span>
+      <span class="oh-chart-sub">
+        today · avg <%= d.avg %>/day
+        <% if (d.deltaDir !== "flat") { %>
+        · <span class="oh-trend oh-trend--<%= d.deltaDir %>"><%= arrow %> <%= Math.abs(d.deltaPct) %>%</span> vs last wk
+        <% } %>
+      </span>
+    </div>
     <div class="oh-chart-box"><canvas id="trendChart"></canvas></div>
   </div>
   <div class="oh-card">

@@ -629,6 +629,32 @@ code {
   height: 240px;
   margin-top: 0.5rem;
 }
+.oh-chart-headline {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+  flex-wrap: wrap;
+}
+.oh-chart-big {
+  font-size: 1.8rem;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--c-text);
+}
+.oh-chart-sub {
+  font-size: 0.75rem;
+  color: var(--c-text-muted);
+}
+.oh-trend {
+  font-weight: 600;
+}
+.oh-trend--up {
+  color: var(--c-success);
+}
+.oh-trend--down {
+  color: var(--c-danger);
+}
 
 /* ---- Hierarchy rollup ---- */
 .oh-table .num {
