@@ -155,6 +155,18 @@ async function main(): Promise<void> {
   });
   assert("supervisor blocked from enrolling into other site", !(await WorkerModel.findOne({ empRegNo: SNEAKY_ID })));
 
+  // ---- #28: soft-delete requires a reason, sets deleted + a soft_delete remark ----
+  const noReason = await admin.post(`/workers/${w!._id}/delete`).type("form").send({ reason: "" });
+  assert("delete without a reason is rejected", noReason.status === 302);
+  assert("worker still active after reasonless delete", (await WorkerModel.findById(w!._id))?.status === "active");
+
+  await admin.post(`/workers/${w!._id}/delete`).type("form").send({ reason: "Left the project" });
+  const deleted = await WorkerModel.findById(w!._id);
+  assert("worker soft-deleted", deleted?.status === "deleted");
+  assert("deletedAt + deletedBy recorded", !!deleted?.deletedAt && !!deleted?.deletedBy);
+  assert("soft_delete remark appended with the reason",
+    !!deleted && deleted.remarks.some((r) => r.type === "soft_delete" && r.text === "Left the project"));
+
   // Cleanup.
   if (w) {
     try { fs.unlinkSync(path.join(UPLOAD_DIR, `${w._id}.jpg`)); } catch { /* ignore */ }
