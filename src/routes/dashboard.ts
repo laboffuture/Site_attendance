@@ -1,4 +1,5 @@
 import { Router, Request, Response } from "express";
+import { Types } from "mongoose";
 
 import { requireAuth } from "../auth/middleware";
 import { buildHierarchyRollup } from "../lib/hierarchy";
@@ -6,20 +7,48 @@ import { siteScopeFilter, flagScopeFilter } from "../lib/scope";
 import { siteLocalDate, round2 } from "../lib/time";
 import { AttendanceModel } from "../models/Attendance";
 import { FlagEventModel } from "../models/FlagEvent";
+import { ProjectSiteModel } from "../models/ProjectSite";
 import { WorkerModel } from "../models/Worker";
 
 const router = Router();
 
 router.get("/dashboard", requireAuth, async (req: Request, res: Response) => {
   const u = req.currentUser!;
-  const scope = siteScopeFilter(u);
-  const flagScope = flagScopeFilter(u);
   const today = siteLocalDate();
 
+  // Sites the user can pick in the dashboard filter.
+  const mySites =
+    u.role === "management" || u.role === "hr"
+      ? await ProjectSiteModel.find().sort({ name: 1 }).lean()
+      : await ProjectSiteModel.find({
+          _id: { $in: u.assignedSiteIds.map((id) => new Types.ObjectId(id)) },
+        })
+          .sort({ name: 1 })
+          .lean();
+
+  // Optional single-site filter (only a site the user actually has).
+  const selectedSiteId =
+    typeof req.query.siteId === "string" && mySites.some((s) => String(s._id) === req.query.siteId)
+      ? req.query.siteId
+      : "";
+
+  let scope = siteScopeFilter(u);
+  let flagScope = flagScopeFilter(u);
+  if (selectedSiteId) {
+    scope = { siteId: new Types.ObjectId(selectedSiteId) };
+    flagScope = { attemptedSiteId: new Types.ObjectId(selectedSiteId) };
+  }
+
   let scopeLabel: string;
-  if (u.role === "management" || u.role === "hr") scopeLabel = "All branches & sites";
-  else if (u.role === "pm") scopeLabel = `${u.assignedSiteIds.length} assigned site(s)`;
-  else scopeLabel = "Own site";
+  if (selectedSiteId) {
+    scopeLabel = mySites.find((s) => String(s._id) === selectedSiteId)!.name;
+  } else if (u.role === "management" || u.role === "hr") {
+    scopeLabel = "All branches & sites";
+  } else if (u.role === "pm" || u.role === "supervisor") {
+    scopeLabel = `${u.assignedSiteIds.length} assigned site(s)`;
+  } else {
+    scopeLabel = "Own site";
+  }
 
   // Summary stats
   const [todayCount, pendingOT, activeWorkers, unresolvedFlags] = await Promise.all([
@@ -104,6 +133,8 @@ router.get("/dashboard", requireAuth, async (req: Request, res: Response) => {
     title: "Dashboard · " + res.locals.company,
     active: "/dashboard",
     scopeLabel,
+    mySites,
+    selectedSiteId,
     stats: { todayCount, pendingOT, activeWorkers, unresolvedFlags },
     charts: { trend, otBySite, byDesignation },
     flags,

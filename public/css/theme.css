@@ -622,6 +622,17 @@ code {
   color: var(--c-placeholder);
   text-transform: uppercase;
 }
+.oh-card__of {
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--c-text-muted);
+}
+.oh-dash-filter {
+  margin: 0;
+}
+.oh-dash-filter .oh-select {
+  min-width: 200px;
+}
 .oh-note-card {
   color: var(--c-text-muted);
 }
