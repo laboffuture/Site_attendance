@@ -1,15 +1,21 @@
 <%- include('../partials/app-top', { title: title, active: active }) %>
 
 <div class="oh-page-header">
-  <h1 class="oh-page-title">Enroll worker</h1>
+  <h1 class="oh-page-title">Enroll employee</h1>
   <p class="oh-page-subtitle">Capture one clear, front-facing photo. A face must be detected to enroll.</p>
 </div>
 
 <div class="oh-card oh-form-card oh-form-card--wide">
   <form class="oh-form-group" method="post" action="/workers" id="enrollForm">
-    <div class="oh-input-group">
-      <label class="oh-label" for="name">Name</label>
-      <input class="oh-input" id="name" name="name" required />
+    <div class="oh-row-2">
+      <div class="oh-input-group">
+        <label class="oh-label" for="empRegNo">Employee ID</label>
+        <input class="oh-input" id="empRegNo" name="empRegNo" placeholder="e.g. EMP-1024" required />
+      </div>
+      <div class="oh-input-group">
+        <label class="oh-label" for="name">Name</label>
+        <input class="oh-input" id="name" name="name" required />
+      </div>
     </div>
 
     <div class="oh-row-2">
@@ -28,18 +34,63 @@
       </div>
     </div>
 
-    <div class="oh-input-group">
-      <label class="oh-label" for="siteId">Project site</label>
-      <% if (sites.length) { %>
-      <select class="oh-select" id="siteId" name="siteId" required>
-        <% sites.forEach(function (s) { %>
-        <option value="<%= s._id %>"><%= s.name %> (<%= s.code %>)</option>
-        <% }); %>
-      </select>
-      <% } else { %>
-      <p class="oh-muted">No sites available to you. Ask an admin to assign a site first.</p>
-      <% } %>
+    <div class="oh-row-2">
+      <div class="oh-input-group">
+        <label class="oh-label" for="siteId">Project site (location)</label>
+        <% if (sites.length) { %>
+        <select class="oh-select" id="siteId" name="siteId" required>
+          <% sites.forEach(function (s) { %>
+          <option value="<%= s._id %>"><%= s.name %> (<%= s.code %>)</option>
+          <% }); %>
+        </select>
+        <% } else { %>
+        <p class="oh-muted">No sites available to you. Ask an admin to assign a site first.</p>
+        <% } %>
+      </div>
+      <div class="oh-input-group">
+        <label class="oh-label" for="dateJoined">Date of joining</label>
+        <input class="oh-input" id="dateJoined" name="dateJoined" type="date" />
+      </div>
     </div>
+
+    <div class="oh-row-2">
+      <div class="oh-input-group">
+        <label class="oh-label" for="phone">Phone</label>
+        <input class="oh-input" id="phone" name="phone" placeholder="optional" />
+      </div>
+      <div class="oh-input-group">
+        <label class="oh-label" for="emergencyPhone">Emergency phone</label>
+        <input class="oh-input" id="emergencyPhone" name="emergencyPhone" placeholder="optional" />
+      </div>
+    </div>
+    <div class="oh-input-group">
+      <label class="oh-label" for="email">Email</label>
+      <input class="oh-input" id="email" name="email" type="email" placeholder="optional" />
+    </div>
+
+    <details class="oh-details">
+      <summary>Bank details (optional)</summary>
+      <div class="oh-row-2">
+        <div class="oh-input-group">
+          <label class="oh-label" for="bankAccountHolder">Account holder name</label>
+          <input class="oh-input" id="bankAccountHolder" name="bankAccountHolder" />
+        </div>
+        <div class="oh-input-group">
+          <label class="oh-label" for="bankAccountNumber">Account number</label>
+          <input class="oh-input" id="bankAccountNumber" name="bankAccountNumber" />
+        </div>
+      </div>
+      <div class="oh-row-2">
+        <div class="oh-input-group">
+          <label class="oh-label" for="bankIfsc">IFSC</label>
+          <input class="oh-input oh-input--code" id="bankIfsc" name="bankIfsc" />
+        </div>
+        <div class="oh-input-group">
+          <label class="oh-label" for="bankName">Bank name</label>
+          <input class="oh-input" id="bankName" name="bankName" placeholder="e.g. HDFC Bank" />
+        </div>
+      </div>
+    </details>
 
     <div class="oh-input-group">
       <label class="oh-label">Photo</label>

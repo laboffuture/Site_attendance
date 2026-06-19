@@ -1,15 +1,21 @@
 <%- include('../partials/app-top', { title: title, active: active }) %>
 
 <div class="oh-page-header">
-  <h1 class="oh-page-title">Edit worker</h1>
+  <h1 class="oh-page-title">Edit employee</h1>
   <p class="oh-page-subtitle"><%= worker.empRegNo %> · photo and face data are unchanged here.</p>
 </div>
 
 <div class="oh-card oh-form-card">
   <form class="oh-form-group" method="post" action="/workers/<%= worker._id %>">
-    <div class="oh-input-group">
-      <label class="oh-label" for="name">Name</label>
-      <input class="oh-input" id="name" name="name" value="<%= worker.name %>" required />
+    <div class="oh-row-2">
+      <div class="oh-input-group">
+        <label class="oh-label" for="empRegNo">Employee ID</label>
+        <input class="oh-input" id="empRegNo" value="<%= worker.empRegNo %>" readonly title="Employee ID can't be changed after creation" />
+      </div>
+      <div class="oh-input-group">
+        <label class="oh-label" for="name">Name</label>
+        <input class="oh-input" id="name" name="name" value="<%= worker.name %>" required />
+      </div>
     </div>
 
     <div class="oh-row-2">
@@ -37,13 +43,58 @@
       </select>
     </div>
 
-    <div class="oh-input-group">
-      <label class="oh-label" for="status">Status</label>
-      <select class="oh-select" id="status" name="status">
-        <option value="active" <%= worker.status === "active" ? "selected" : "" %>>active</option>
-        <option value="inactive" <%= worker.status === "inactive" ? "selected" : "" %>>inactive</option>
-      </select>
+    <div class="oh-row-2">
+      <div class="oh-input-group">
+        <label class="oh-label" for="status">Status</label>
+        <select class="oh-select" id="status" name="status">
+          <option value="active" <%= worker.status === "active" ? "selected" : "" %>>active</option>
+          <option value="inactive" <%= worker.status === "inactive" ? "selected" : "" %>>inactive</option>
+        </select>
+      </div>
+      <div class="oh-input-group">
+        <label class="oh-label" for="dateJoined">Date of joining</label>
+        <input class="oh-input" id="dateJoined" name="dateJoined" type="date" value="<%= worker.dateJoined ? new Date(worker.dateJoined).toISOString().slice(0,10) : '' %>" />
+      </div>
     </div>
+
+    <div class="oh-row-2">
+      <div class="oh-input-group">
+        <label class="oh-label" for="phone">Phone</label>
+        <input class="oh-input" id="phone" name="phone" value="<%= worker.phone || '' %>" placeholder="optional" />
+      </div>
+      <div class="oh-input-group">
+        <label class="oh-label" for="emergencyPhone">Emergency phone</label>
+        <input class="oh-input" id="emergencyPhone" name="emergencyPhone" value="<%= worker.emergencyPhone || '' %>" placeholder="optional" />
+      </div>
+    </div>
+    <div class="oh-input-group">
+      <label class="oh-label" for="email">Email</label>
+      <input class="oh-input" id="email" name="email" type="email" value="<%= worker.email || '' %>" placeholder="optional" />
+    </div>
+
+    <details class="oh-details" <%= worker.bank ? "open" : "" %>>
+      <summary>Bank details (optional)</summary>
+      <div class="oh-row-2">
+        <div class="oh-input-group">
+          <label class="oh-label" for="bankAccountHolder">Account holder name</label>
+          <input class="oh-input" id="bankAccountHolder" name="bankAccountHolder" value="<%= worker.bank && worker.bank.accountHolderName || '' %>" />
+        </div>
+        <div class="oh-input-group">
+          <label class="oh-label" for="bankAccountNumber">Account number</label>
+          <input class="oh-input" id="bankAccountNumber" name="bankAccountNumber" value="<%= worker.bank && worker.bank.accountNumber || '' %>" />
+        </div>
+      </div>
+      <div class="oh-row-2">
+        <div class="oh-input-group">
+          <label class="oh-label" for="bankIfsc">IFSC</label>
+          <input class="oh-input oh-input--code" id="bankIfsc" name="bankIfsc" value="<%= worker.bank && worker.bank.ifsc || '' %>" />
+        </div>
+        <div class="oh-input-group">
+          <label class="oh-label" for="bankName">Bank name</label>
+          <input class="oh-input" id="bankName" name="bankName" value="<%= worker.bank && worker.bank.bankName || '' %>" />
+        </div>
+      </div>
+    </details>
 
     <div class="oh-form-actions">
       <a class="oh-btn oh-btn--small" href="/workers">Cancel</a>

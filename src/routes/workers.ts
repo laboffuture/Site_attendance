@@ -10,8 +10,7 @@ import { config } from "../config";
 import { encodeFace } from "../lib/face";
 import { dataUrlToBuffer } from "../lib/image";
 import { siteScopeFilter, canUseSite } from "../lib/scope";
-import { escapeRegex } from "../lib/validate";
-import { CounterModel } from "../models/Counter";
+import { escapeRegex, isDuplicateKeyError } from "../lib/validate";
 import { DesignationModel } from "../models/Designation";
 import { ProjectSiteModel } from "../models/ProjectSite";
 import { WorkerModel } from "../models/Worker";
@@ -32,15 +31,25 @@ async function allowedSites(user: CurrentUser) {
   return ProjectSiteModel.find(filter).sort({ name: 1 }).lean();
 }
 
-/** Atomically mints the next employee registration number, e.g. TRGBI-0001. */
-async function nextEmpRegNo(): Promise<string> {
-  const c = await CounterModel.findOneAndUpdate(
-    { key: "empRegNo" },
-    { $inc: { seq: 1 } },
-    { upsert: true, new: true },
-  );
-  const prefix = (config.companyName || "EMP").replace(/[^A-Za-z0-9]/g, "").toUpperCase() || "EMP";
-  return `${prefix}-${String(c!.seq).padStart(4, "0")}`;
+/** Reads the optional contact + bank + joining fields from the form.
+ *  Empty strings become null; bank is null unless at least one field is given. */
+function parseEmployeeExtras(req: Request) {
+  const s = (k: string): string | null => {
+    const v = String(req.body[k] ?? "").trim();
+    return v || null;
+  };
+  const bank = {
+    accountHolderName: s("bankAccountHolder"),
+    accountNumber: s("bankAccountNumber"),
+    ifsc: s("bankIfsc") ? s("bankIfsc")!.toUpperCase() : null,
+    bankName: s("bankName"),
+  };
+  const hasBank = Object.values(bank).some(Boolean);
+  const djRaw = String(req.body.dateJoined ?? "").trim();
+  const dateJoined = /^\d{4}-\d{2}-\d{2}$/.test(djRaw)
+    ? new Date(`${djRaw}T00:00:00+05:30`)
+    : undefined;
+  return { phone: s("phone"), emergencyPhone: s("emergencyPhone"), email: s("email"), bank: hasBank ? bank : null, dateJoined };
 }
 
 /** Resolves a designation from the form: an existing id, or a new name typed
@@ -71,7 +80,7 @@ router.get("/workers", requireCapability("enroll_worker"), async (req: Request, 
     .sort({ createdAt: -1 })
     .lean();
   res.render("workers/index", {
-    title: "Workers · " + res.locals.company,
+    title: "Employees · " + res.locals.company,
     active: "/workers",
     workers,
   });
@@ -84,7 +93,7 @@ router.get("/workers/new", requireCapability("enroll_worker"), async (req: Reque
     allowedSites(req.currentUser!),
   ]);
   res.render("workers/new", {
-    title: "Enroll worker · " + res.locals.company,
+    title: "Enroll employee · " + res.locals.company,
     active: "/workers",
     designations,
     sites,
@@ -94,15 +103,20 @@ router.get("/workers/new", requireCapability("enroll_worker"), async (req: Reque
 // ---- Create ----
 router.post("/workers", requireCapability("enroll_worker"), async (req: Request, res: Response) => {
   const name = String(req.body.name ?? "").trim();
+  const empRegNo = String(req.body.empRegNo ?? "").trim();
   const siteId = String(req.body.siteId ?? "").trim();
   const photo = dataUrlToBuffer(String(req.body.photoData ?? ""));
 
-  if (!name || !siteId) {
-    flash(req, "danger", "Name and site are required.");
+  if (!name || !empRegNo || !siteId) {
+    flash(req, "danger", "Employee ID, name, and site are required.");
+    return res.redirect("/workers/new");
+  }
+  if (await WorkerModel.findOne({ empRegNo })) {
+    flash(req, "danger", `Employee ID "${empRegNo}" already exists.`);
     return res.redirect("/workers/new");
   }
   if (!canUseSite(req.currentUser!, siteId)) {
-    flash(req, "danger", "You cannot enroll workers at that site.");
+    flash(req, "danger", "You cannot enroll employees at that site.");
     return res.redirect("/workers/new");
   }
   const site = await ProjectSiteModel.findById(siteId).lean();
@@ -135,21 +149,34 @@ router.post("/workers", requireCapability("enroll_worker"), async (req: Request,
     return res.redirect("/workers/new");
   }
 
-  const empRegNo = await nextEmpRegNo();
-  await fs.mkdir(UPLOAD_DIR, { recursive: true });
-  await fs.writeFile(path.join(UPLOAD_DIR, `${empRegNo}.jpg`), photo);
+  const extras = parseEmployeeExtras(req);
+  let worker;
+  try {
+    worker = await WorkerModel.create({
+      empRegNo,
+      name,
+      designationId: designation.id,
+      designationName: designation.name,
+      siteId: site._id,
+      siteName: site.name,
+      phone: extras.phone,
+      emergencyPhone: extras.emergencyPhone,
+      email: extras.email,
+      bank: extras.bank,
+      ...(extras.dateJoined ? { dateJoined: extras.dateJoined } : {}),
+      faceEncoding: encoding,
+      status: "active",
+    });
+  } catch (err) {
+    flash(req, "danger", isDuplicateKeyError(err) ? `Employee ID "${empRegNo}" already exists.` : "Could not create employee.");
+    return res.redirect("/workers/new");
+  }
 
-  await WorkerModel.create({
-    empRegNo,
-    name,
-    designationId: designation.id,
-    designationName: designation.name,
-    siteId: site._id,
-    siteName: site.name,
-    faceEncoding: encoding,
-    photoUrl: `/static/uploads/${empRegNo}.jpg`,
-    status: "active",
-  });
+  // Store the photo by _id (manual Employee IDs may contain unsafe filename chars).
+  await fs.mkdir(UPLOAD_DIR, { recursive: true });
+  await fs.writeFile(path.join(UPLOAD_DIR, `${worker._id}.jpg`), photo);
+  worker.photoUrl = `/static/uploads/${worker._id}.jpg`;
+  await worker.save();
 
   flash(req, "success", `Enrolled ${name} (${empRegNo}).`);
   res.redirect("/workers");
@@ -167,7 +194,7 @@ router.get("/workers/:id/edit", requireCapability("enroll_worker"), async (req: 
     allowedSites(req.currentUser!),
   ]);
   res.render("workers/edit", {
-    title: "Edit worker · " + res.locals.company,
+    title: "Edit employee · " + res.locals.company,
     active: "/workers",
     worker,
     designations,
@@ -206,15 +233,21 @@ router.post("/workers/:id", requireCapability("enroll_worker"), async (req: Requ
     return res.redirect(`/workers/${req.params.id}/edit`);
   }
 
+  const extras = parseEmployeeExtras(req);
   worker.name = name;
   worker.designationId = designation.id;
   worker.designationName = designation.name;
   worker.siteId = site._id;
   worker.siteName = site.name;
   worker.status = status;
+  worker.phone = extras.phone;
+  worker.emergencyPhone = extras.emergencyPhone;
+  worker.email = extras.email;
+  worker.bank = extras.bank;
+  if (extras.dateJoined) worker.dateJoined = extras.dateJoined;
   await worker.save();
 
-  flash(req, "success", "Worker updated.");
+  flash(req, "success", "Employee updated.");
   res.redirect("/workers");
 });
 
