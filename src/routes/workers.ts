@@ -240,6 +240,10 @@ router.post("/workers/:id", requireCapability("enroll_worker"), async (req: Requ
     flash(req, "danger", "Worker not found.");
     return res.redirect("/workers");
   }
+  if (worker.status === "deleted") {
+    flash(req, "danger", "Restore this employee before editing.");
+    return res.redirect("/workers?status=archived");
+  }
   const name = String(req.body.name ?? "").trim();
   const siteId = String(req.body.siteId ?? "").trim();
   const status = req.body.status === "inactive" ? "inactive" : "active";
