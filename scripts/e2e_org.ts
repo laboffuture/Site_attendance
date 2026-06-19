@@ -44,13 +44,14 @@ async function main(): Promise<void> {
   }
   const app = createApp();
 
-  // Supervisor for the permission checks.
+  // Supervisor (scoped to VBW) for the permission checks.
+  const vbwSite = await ProjectSiteModel.findOne({ code: "VBW" });
   await UserModel.create({
     name: "QA Supervisor",
     email: SUP_EMAIL,
     passwordHash: await hashPassword(SUP_PW),
     role: "supervisor",
-    assignedSiteIds: [],
+    assignedSiteIds: vbwSite ? [vbwSite._id] : [],
     active: true,
   });
 
@@ -109,12 +110,15 @@ async function main(): Promise<void> {
   assert("no duplicate designation persisted", (await DesignationModel.countDocuments({ name: new RegExp(`^${TRADE}$`, "i") })) === 1);
   void dupDesig;
 
-  // Permission matrix: supervisor blocked from org, allowed designations.
+  // Permission matrix: supervisor has READ-ONLY org (scoped to own sites),
+  // cannot manage, and can add designations.
   const sup = await login(app, SUP_EMAIL, SUP_PW);
   const supOrg = await sup.get("/org");
-  assert("supervisor GET /org → 403", supOrg.status === 403);
+  assert("supervisor GET /org → 200 (read-only)", supOrg.status === 200);
+  assert("supervisor org shows own site (VBW)", supOrg.text.includes("VBW"));
+  assert("supervisor org hides unrelated QA branch", !supOrg.text.includes(BRANCH));
   const supPost = await sup.post("/org/branches").type("form").send({ name: "Sneaky " + S });
-  assert("supervisor POST /org/branches → 403", supPost.status === 403);
+  assert("supervisor POST /org/branches → 403 (cannot manage)", supPost.status === 403);
   assert("supervisor branch not created", !(await BranchModel.findOne({ name: "Sneaky " + S })));
   const supDesig = await sup.get("/designations");
   assert("supervisor GET /designations → 200 (allowed)", supDesig.status === 200);

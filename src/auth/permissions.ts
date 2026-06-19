@@ -42,7 +42,7 @@ export const CAPABILITY_ROLES: Record<Capability, Role[]> = {
   add_designation: ALL,
   view_overtime: ["super_admin", "management", "hr", "pm"],
   approve_overtime: ["super_admin", "management", "hr"],
-  view_org: ["super_admin", "management", "hr", "pm"],
+  view_org: ["super_admin", "management", "hr", "pm", "supervisor"], // supervisor = read-only, own sites
   manage_org: ["super_admin", "management"],
   manage_users: ["super_admin", "management", "hr"],
 };

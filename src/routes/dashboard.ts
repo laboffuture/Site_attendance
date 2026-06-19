@@ -127,14 +127,43 @@ router.get("/dashboard", requireAuth, async (req: Request, res: Response) => {
   const senior = seesAllSites(u.role) || u.role === "pm";
   const rollup = senior ? await buildHierarchyRollup(u) : null;
 
+  // Present-vs-active per site (visual bar) — across the sites in scope. Drawn
+  // for any multi-site user (PM/Supervisor included) and when not filtered to one.
+  let presenceBySite: { labels: string[]; present: number[]; active: number[] } | null = null;
+  if (!selectedSiteId && mySites.length > 1) {
+    const siteIds = mySites.map((s) => s._id);
+    const [presentAgg, activeAgg] = await Promise.all([
+      AttendanceModel.aggregate([
+        { $match: { siteId: { $in: siteIds }, date: today } },
+        { $group: { _id: "$siteId", n: { $sum: 1 } } },
+      ]),
+      WorkerModel.aggregate([
+        { $match: { siteId: { $in: siteIds }, status: "active" } },
+        { $group: { _id: "$siteId", n: { $sum: 1 } } },
+      ]),
+    ]);
+    const presentMap = new Map(presentAgg.map((a) => [String(a._id), a.n as number]));
+    const activeMap = new Map(activeAgg.map((a) => [String(a._id), a.n as number]));
+    presenceBySite = {
+      labels: mySites.map((s) => s.code || s.name),
+      present: mySites.map((s) => presentMap.get(String(s._id)) ?? 0),
+      active: mySites.map((s) => activeMap.get(String(s._id)) ?? 0),
+    };
+  }
+
+  // The user's assigned locations, shown as chips on the dashboard.
+  const myLocations = mySites.map((s) => `${s.name} (${s.code})`);
+
   res.render("dashboard", {
     title: "Dashboard · " + res.locals.company,
     active: "/dashboard",
     scopeLabel,
     mySites,
     selectedSiteId,
+    myLocations,
+    seesAll: seesAllSites(u.role),
     stats: { todayCount, pendingOT, activeWorkers, unresolvedFlags },
-    charts: { trend, otBySite, byDesignation },
+    charts: { trend, otBySite, byDesignation, presenceBySite },
     flags,
     rollup,
   });

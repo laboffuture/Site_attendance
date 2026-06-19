@@ -20,6 +20,13 @@
   <% } %>
 </div>
 
+<% if (!seesAll && myLocations && myLocations.length) { %>
+<div class="oh-loc-bar">
+  <span class="oh-loc-bar__label"><%= myLocations.length %> assigned location<%= myLocations.length > 1 ? "s" : "" %>:</span>
+  <% myLocations.forEach(function (loc) { %><span class="oh-loc-chip"><span class="material-icons">place</span><%= loc %></span><% }); %>
+</div>
+<% } %>
+
 <div class="oh-card-grid">
   <div class="oh-card">
     <div class="oh-card__label">Present Today</div>
@@ -79,6 +86,13 @@
   <% } else { %>
   <p class="oh-muted">No sites in your scope yet.</p>
   <% } %>
+</div>
+<% } %>
+
+<% if (charts.presenceBySite) { %>
+<div class="oh-card">
+  <div class="oh-card__label">Present vs active — by site (today)</div>
+  <div class="oh-chart-box"><canvas id="presenceChart"></canvas></div>
 </div>
 <% } %>
 

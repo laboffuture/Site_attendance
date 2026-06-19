@@ -633,6 +633,30 @@ code {
 .oh-dash-filter .oh-select {
   min-width: 200px;
 }
+.oh-loc-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+.oh-loc-bar__label {
+  font-size: 0.78rem;
+  color: var(--c-text-muted);
+}
+.oh-loc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  color: var(--c-accent);
+  background: #eef3fa;
+  border: 1px solid #cfe0f7;
+  padding: 0.25rem 0.55rem;
+}
+.oh-loc-chip .material-icons {
+  font-size: 14px;
+}
 .oh-note-card {
   color: var(--c-text-muted);
 }
