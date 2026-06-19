@@ -14,7 +14,7 @@ import { siteScopeFilter, canUseSite } from "../lib/scope";
 import { escapeRegex, isDuplicateKeyError } from "../lib/validate";
 import { DesignationModel } from "../models/Designation";
 import { ProjectSiteModel } from "../models/ProjectSite";
-import { WorkerModel } from "../models/Worker";
+import { WorkerModel, RemarkType } from "../models/Worker";
 
 const router = Router();
 const UPLOAD_DIR = config.uploadDir;
@@ -30,7 +30,7 @@ function pushRemark(
   worker: InstanceType<typeof WorkerModel>,
   user: CurrentUser,
   text: string,
-  type: string,
+  type: RemarkType,
 ): void {
   worker.remarks.push({
     text,
