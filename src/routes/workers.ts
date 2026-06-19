@@ -308,4 +308,24 @@ router.post("/workers/:id/delete", requireCapability("delete_worker"), async (re
   res.redirect("/workers");
 });
 
+// ---- Restore (admin) — deleted → active ----
+router.post("/workers/:id/restore", requireCapability("delete_worker"), async (req: Request, res: Response) => {
+  const worker = await WorkerModel.findById(req.params.id);
+  if (!worker || !canUseSite(req.currentUser!, String(worker.siteId))) {
+    flash(req, "danger", "Employee not found.");
+    return res.redirect("/workers");
+  }
+  if (worker.status !== "deleted") {
+    flash(req, "danger", "Only a deleted employee can be restored.");
+    return res.redirect("/workers");
+  }
+  worker.status = "active";
+  worker.deletedAt = null;
+  worker.deletedBy = null;
+  pushRemark(worker, req.currentUser!, "Employee restored.", "note");
+  await worker.save();
+  flash(req, "success", `Employee ${worker.name} restored.`);
+  res.redirect("/workers?status=archived");
+});
+
 export default router;

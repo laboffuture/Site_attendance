@@ -117,4 +117,14 @@
 </div>
 <% } %>
 
+<% if (canDelete && worker.status === 'deleted') { %>
+<div class="oh-card oh-form-card" style="margin-top:1rem">
+  <h2 class="oh-section-title">Restore employee</h2>
+  <p class="oh-muted">This employee is archived (deleted). Restoring returns them to active.</p>
+  <form method="post" action="/workers/<%= worker._id %>/restore">
+    <button class="oh-btn oh-btn--secondary" type="submit">Restore to active</button>
+  </form>
+</div>
+<% } %>
+
 <%- include('../partials/app-bottom') %>
