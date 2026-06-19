@@ -1,0 +1,43 @@
+<%
+  // Active when the current path matches (or is under) the item's href.
+  function tabActive(href) {
+    var p = (typeof currentPath === "string") ? currentPath : "";
+    return (p === href || (href !== "/" && p.indexOf(href) === 0)) ? "oh-tab--active" : "";
+  }
+  var primaryHrefs = ["/dashboard", "/attendance", "/overtime"];
+%>
+<nav class="oh-bottom-nav">
+  <a class="oh-tab <%= tabActive('/dashboard') %>" href="/dashboard">
+    <span class="material-icons">dashboard</span><span>Dashboard</span>
+  </a>
+  <% if (can('mark_attendance')) { %>
+  <a class="oh-tab <%= tabActive('/attendance') %>" href="/attendance">
+    <span class="material-icons">schedule</span><span>Attendance</span>
+  </a>
+  <% } %>
+  <% if (can('view_overtime')) { %>
+  <a class="oh-tab <%= tabActive('/overtime') %>" href="/overtime">
+    <span class="material-icons">more_time</span><span>Overtime</span>
+  </a>
+  <% } %>
+  <button type="button" class="oh-tab" id="oh-more-btn" aria-label="More">
+    <span class="material-icons">menu</span><span>More</span>
+  </button>
+</nav>
+
+<div class="oh-drawer" id="oh-drawer">
+  <div class="oh-drawer__backdrop" id="oh-drawer-close"></div>
+  <div class="oh-drawer__panel">
+    <div class="oh-drawer__head">More</div>
+    <% nav.forEach(function (item) { %>
+      <% if (item.ready && can(item.cap) && primaryHrefs.indexOf(item.href) === -1) { %>
+      <a class="oh-drawer__link <%= tabActive(item.href) %>" href="<%= item.href %>">
+        <span class="material-icons"><%= item.icon %></span><span><%= item.label %></span>
+      </a>
+      <% } %>
+    <% }); %>
+    <form method="post" action="/logout" class="oh-drawer__logout">
+      <button class="oh-btn oh-btn--small w-100" type="submit">Logout</button>
+    </form>
+  </div>
+</div>
