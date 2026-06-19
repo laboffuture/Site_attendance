@@ -15,6 +15,19 @@ const overtimeSchema = new Schema(
   { _id: false },
 );
 
+// GPS captured at a scan (capture-only). available=false → no fix/denied.
+const geoSchema = new Schema(
+  {
+    available: { type: Boolean, default: false },
+    lat: { type: Number, default: null },
+    lng: { type: Number, default: null },
+    accuracy: { type: Number, default: null }, // metres
+    distanceMeters: { type: Number, default: null }, // from site, if site has coords
+    capturedAt: { type: Date, default: null },
+  },
+  { _id: false },
+);
+
 const attendanceSchema = new Schema(
   {
     date: { type: String, required: true }, // site-local day, "YYYY-MM-DD"
@@ -41,6 +54,10 @@ const attendanceSchema = new Schema(
     totalHours: { type: Number, default: null },
     standardHours: { type: Number, default: null },
     overtime: { type: overtimeSchema, default: () => ({}) },
+
+    // GPS captured at the In scan and the Out scan (capture-only).
+    inGeo: { type: geoSchema, default: null },
+    outGeo: { type: geoSchema, default: null },
 
     // Audit: how this record was created/last changed. Scan = face kiosk;
     // manual = marked/corrected by a user on the Attendance page.

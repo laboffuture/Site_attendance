@@ -1,6 +1,7 @@
 import { Types } from "mongoose";
 
 import { AttendanceModel } from "../models/Attendance";
+import type { GeoCapture } from "./geo";
 import { isDuplicateKeyError } from "./validate";
 import { siteLocalDate, standardHoursForSite, round2 } from "./time";
 
@@ -42,6 +43,7 @@ export async function recordScan(
   worker: ScanWorker,
   site: ScanSite,
   branchName: string,
+  geo?: GeoCapture,
 ): Promise<ScanResult> {
   const date = siteLocalDate();
   const now = new Date();
@@ -62,6 +64,7 @@ export async function recordScan(
         branchId: site.branchId,
         branchName,
         inTime: now,
+        inGeo: geo ?? undefined,
         source: "scan",
       });
       return {
@@ -89,6 +92,7 @@ export async function recordScan(
   const overtimeHours = round2(Math.max(0, totalHours - standardHours));
 
   rec.outTime = now;
+  if (geo) rec.outGeo = geo;
   rec.totalHours = totalHours;
   rec.standardHours = standardHours;
   rec.overtime = {

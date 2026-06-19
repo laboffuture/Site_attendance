@@ -24,14 +24,33 @@
     scanBtn.disabled = true;
   }
 
+  // Best-effort GPS — captured if the device allows it; never blocks a scan.
+  function getLocation() {
+    return new Promise(function (resolve) {
+      if (!navigator.geolocation) return resolve(null);
+      navigator.geolocation.getCurrentPosition(
+        function (p) { resolve({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy }); },
+        function () { resolve(null); },
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+      );
+    });
+  }
+
+  function locText(data) {
+    if (!data.geo) return "";
+    if (!data.geo.available) return " · 📍 location not captured";
+    if (data.geo.distanceMeters != null) return " · 📍 " + data.geo.distanceMeters + " m from site";
+    return " · 📍 location captured";
+  }
+
   function render(data) {
     switch (data.status) {
       case "in":
-        show("in", "✓ " + data.workerName + " — IN at " + data.time);
+        show("in", "✓ " + data.workerName + " — IN at " + data.time + locText(data));
         break;
       case "out": {
         var ot = data.overtimeHours > 0 ? " · OT " + data.overtimeHours + "h (" + data.overtimeStatus + ")" : "";
-        show("out", "✓ " + data.workerName + " — OUT at " + data.time + " · Total " + data.totalHours + "h" + ot);
+        show("out", "✓ " + data.workerName + " — OUT at " + data.time + " · Total " + data.totalHours + "h" + ot + locText(data));
         break;
       }
       case "wrong_site":
@@ -57,10 +76,18 @@
 
     scanBtn.disabled = true;
     show("idle", "Scanning…");
-    fetch("/station/scan", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
-      body: "photoData=" + encodeURIComponent(dataUrl),
+    getLocation().then(function (loc) {
+      var body = "photoData=" + encodeURIComponent(dataUrl);
+      if (loc) {
+        body += "&lat=" + encodeURIComponent(loc.lat) +
+                "&lng=" + encodeURIComponent(loc.lng) +
+                "&accuracy=" + encodeURIComponent(loc.accuracy);
+      }
+      return fetch("/station/scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
+        body: body,
+      });
     })
       .then(function (r) {
         if (r.status === 401) { window.location.href = "/station/login"; return null; }

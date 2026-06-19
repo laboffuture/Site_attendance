@@ -26,6 +26,12 @@ const projectSiteSchema = new Schema(
     standardStartTime: { type: String, default: "09:00" },
     standardEndTime: { type: String, default: "18:00" },
     designationOverrides: { type: [designationOverrideSchema], default: [] },
+
+    // Optional site coordinates — when set, each scan records its distance from
+    // here. (Geofence radius is stored for future enforcement; not enforced in v1.)
+    latitude: { type: Number, default: null },
+    longitude: { type: Number, default: null },
+    geofenceRadiusMeters: { type: Number, default: null },
   },
   { timestamps: true },
 );
