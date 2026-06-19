@@ -74,7 +74,32 @@
     });
   }
 
+  // Grouped bars: present (accent) vs active (grey) per site.
+  function presenceChart(id, data) {
+    var el = document.getElementById(id);
+    if (!el || !data || !data.labels || !data.labels.length) return;
+    new window.Chart(el, {
+      type: "bar",
+      data: {
+        labels: data.labels,
+        datasets: [
+          { label: "Present", data: data.present, backgroundColor: "#1C4D8C" },
+          { label: "Active", data: data.active, backgroundColor: "#cdd5df" },
+        ],
+      },
+      options: {
+        maintainAspectRatio: false,
+        plugins: { legend: { display: true, position: "bottom", labels: { boxWidth: 12, font: { size: 10 } } } },
+        scales: {
+          y: { beginAtZero: true, ticks: { precision: 0, color: "#737373" }, grid: { color: "#f0f0f0" }, border: { display: false } },
+          x: { grid: { display: false }, border: { display: false }, ticks: { color: "#737373", font: { size: 10 } } },
+        },
+      },
+    });
+  }
+
   if (c.trend) areaChart("trendChart", c.trend.labels, c.trend.data);
   if (c.otBySite) barChart("otChart", c.otBySite.labels, c.otBySite.data);
   if (c.byDesignation) barChart("desigChart", c.byDesignation.labels, c.byDesignation.data);
+  if (c.presenceBySite) presenceChart("presenceChart", c.presenceBySite);
 })();

@@ -59,6 +59,8 @@ async function main(): Promise<void> {
   assert("dropdown lists both sites", dash.text.includes("(VBW)") && dash.text.includes("(PVM)"));
   assert("present/total card shows % present", dash.text.includes("% present today"));
   assert("default scope = 2 assigned sites", dash.text.includes("2 assigned site(s)"));
+  assert("assigned-locations chips shown", dash.text.includes("assigned location") && dash.text.includes("oh-loc-chip"));
+  assert("present-vs-active visualization present", dash.text.includes("presenceChart") && dash.text.includes("Present vs active"));
 
   // filter to one site → scope label becomes that site's name.
   const filtered = await supAgent.get(`/dashboard?siteId=${vbw._id}`);

@@ -1,6 +1,8 @@
 import { Router, Request, Response } from "express";
+import { Types } from "mongoose";
 
 import { requireCapability } from "../auth/middleware";
+import { seesAllSites } from "../auth/permissions";
 import { isValidTime, endAfterStart, isDuplicateKeyError } from "../lib/validate";
 import { BranchModel } from "../models/Branch";
 import { ProjectSiteModel } from "../models/ProjectSite";
@@ -12,11 +14,21 @@ function flash(req: Request, type: "success" | "danger", text: string): void {
 }
 
 // ---- Overview: branches + project sites ----
-router.get("/org", requireCapability("view_org"), async (_req: Request, res: Response) => {
-  const [branches, sites] = await Promise.all([
-    BranchModel.find().sort({ name: 1 }).lean(),
-    ProjectSiteModel.find().sort({ name: 1 }).lean(),
-  ]);
+// Admin roles see everything; PM/Supervisor see only their assigned sites
+// (read-only — the add/edit controls are gated on manage_org in the view).
+router.get("/org", requireCapability("view_org"), async (req: Request, res: Response) => {
+  const u = req.currentUser!;
+  const siteFilter = seesAllSites(u.role)
+    ? {}
+    : { _id: { $in: u.assignedSiteIds.map((id) => new Types.ObjectId(id)) } };
+  const sites = await ProjectSiteModel.find(siteFilter).sort({ name: 1 }).lean();
+
+  // Only the branches that contain the visible sites (for scoped roles).
+  const branchFilter = seesAllSites(u.role)
+    ? {}
+    : { _id: { $in: [...new Set(sites.map((s) => String(s.branchId)))].map((id) => new Types.ObjectId(id)) } };
+  const branches = await BranchModel.find(branchFilter).sort({ name: 1 }).lean();
+
   const branchNameById = new Map(branches.map((b) => [String(b._id), b.name]));
   res.render("org/index", {
     title: "Branches & Sites · " + res.locals.company,
