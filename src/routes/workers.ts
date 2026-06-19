@@ -92,15 +92,28 @@ async function resolveDesignation(
   return null;
 }
 
-// ---- List ----
+const STATUS_TABS: Record<string, string[]> = {
+  active: ["active", "inactive"],
+  pending: ["pending"],
+  archived: ["deleted"],
+};
+
+// ---- List (status-tabbed) ----
 router.get("/workers", requireCapability("enroll_worker"), async (req: Request, res: Response) => {
-  const workers = await WorkerModel.find(siteScopeFilter(req.currentUser!))
-    .sort({ createdAt: -1 })
-    .lean();
+  const tab = STATUS_TABS[String(req.query.status)] ? String(req.query.status) : "active";
+  const scope = siteScopeFilter(req.currentUser!);
+  const [workers, active, pending, archived] = await Promise.all([
+    WorkerModel.find({ ...scope, status: { $in: STATUS_TABS[tab] } }).sort({ createdAt: -1 }).lean(),
+    WorkerModel.countDocuments({ ...scope, status: { $in: ["active", "inactive"] } }),
+    WorkerModel.countDocuments({ ...scope, status: "pending" }),
+    WorkerModel.countDocuments({ ...scope, status: "deleted" }),
+  ]);
   res.render("workers/index", {
     title: "Employees · " + res.locals.company,
     active: "/workers",
     workers,
+    tab,
+    counts: { active, pending, archived },
   });
 });
 

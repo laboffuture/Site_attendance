@@ -1,5 +1,7 @@
 <%- include('../partials/app-top', { title: title, active: active }) %>
-
+<%
+  var statusBadge = { active: "success", inactive: "muted", pending: "warning", deleted: "danger" };
+%>
 <div class="oh-page-header oh-page-header--row">
   <div>
     <h1 class="oh-page-title">Employees</h1>
@@ -8,6 +10,12 @@
   <a class="oh-btn oh-btn--secondary oh-only-desktop" href="/workers/new">
     <span class="material-icons">person_add</span> Enroll worker
   </a>
+</div>
+
+<div class="oh-filter-tabs">
+  <a class="oh-filter-tab <%= tab === 'active' ? 'oh-filter-tab--active' : '' %>" href="/workers">Active (<%= counts.active %>)</a>
+  <a class="oh-filter-tab <%= tab === 'pending' ? 'oh-filter-tab--active' : '' %>" href="/workers?status=pending">Pending (<%= counts.pending %>)</a>
+  <a class="oh-filter-tab <%= tab === 'archived' ? 'oh-filter-tab--active' : '' %>" href="/workers?status=archived">Archived (<%= counts.archived %>)</a>
 </div>
 
 <!-- mobile: worker cards + floating enroll -->
@@ -24,7 +32,7 @@
           <span class="oh-m-name"><%= w.name %></span>
           <span class="oh-m-sub"><%= w.empRegNo %> · <%= w.designationName %> · <%= w.siteName %></span>
         </span>
-        <span class="oh-m-badge oh-badge--<%= w.status === 'active' ? 'success' : 'muted' %>"><%= w.status %></span>
+        <span class="oh-m-badge oh-badge--<%= statusBadge[w.status] || 'muted' %>"><%= w.status %></span>
       </a>
       <% }); %>
     </div>
@@ -57,7 +65,7 @@
         <td><%= w.designationName %></td>
         <td><%= w.siteName %></td>
         <td>
-          <span class="oh-badge oh-badge--<%= w.status === 'active' ? 'success' : 'muted' %>"><%= w.status %></span>
+          <span class="oh-badge oh-badge--<%= statusBadge[w.status] || 'muted' %>"><%= w.status %></span>
         </td>
         <td class="oh-col-action">
           <a class="oh-btn oh-btn--small" href="/workers/<%= w._id %>/edit">Edit</a>
