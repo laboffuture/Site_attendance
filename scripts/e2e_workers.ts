@@ -173,6 +173,13 @@ async function main(): Promise<void> {
   const archivedList = await admin.get("/workers?status=archived");
   assert("deleted worker shown under archived tab", archivedList.text.includes(w!.empRegNo));
 
+  // ---- #28: restore returns a deleted worker to active ----
+  await admin.post(`/workers/${w!._id}/restore`).type("form").send({});
+  const restored = await WorkerModel.findById(w!._id);
+  assert("restore returns worker to active", restored?.status === "active");
+  assert("restore clears deletedAt", restored?.deletedAt == null);
+  assert("restore appends a note remark", !!restored && restored.remarks.some((r) => r.type === "note" && /restored/i.test(r.text)));
+
   // Cleanup.
   if (w) {
     try { fs.unlinkSync(path.join(UPLOAD_DIR, `${w._id}.jpg`)); } catch { /* ignore */ }
