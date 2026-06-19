@@ -17,7 +17,7 @@ import { ProjectSiteModel } from "../models/ProjectSite";
 import { WorkerModel } from "../models/Worker";
 
 const router = Router();
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
+const UPLOAD_DIR = config.uploadDir;
 
 function flash(req: Request, type: "success" | "danger", text: string): void {
   req.session.flash = { type, text };
