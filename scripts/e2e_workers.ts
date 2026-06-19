@@ -29,6 +29,8 @@ const SAMPLE = path.join(process.cwd(), "test/fixtures/face_single.jpg");
 const S = Date.now().toString(36);
 const WORKER = `QA Worker ${S}`;
 const SNEAKY = `QA Sneaky ${S}`;
+const EMPID = `EMP-${S}`.toUpperCase();
+const SNEAKY_ID = `SNK-${S}`.toUpperCase();
 const SUP_EMAIL = `qa-wsup-${S}@trgbi.com`;
 const SUP_PW = "SupPass123!";
 const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
@@ -85,26 +87,50 @@ async function main(): Promise<void> {
   const form = await admin.get("/workers/new");
   assert("enroll form lists a seeded site (VBW)", form.text.includes("VBW"));
 
-  // Enroll with a real face photo.
+  // Enroll with a real face photo + a manual Employee ID + contact/bank fields.
   const enroll = await admin.post("/workers").type("form").send({
+    empRegNo: EMPID,
     name: WORKER,
     designationId: String(carpenter._id),
     siteId: String(vbw._id),
+    phone: "9000000001",
+    emergencyPhone: "9000000002",
+    email: "qa@trgbi.com",
+    bankAccountHolder: WORKER,
+    bankAccountNumber: "1234567890",
+    bankIfsc: "hdfc0001234",
+    bankName: "HDFC Bank",
     photoData: faceDataUrl(),
   });
   assert("enroll succeeds → redirects to /workers", enroll.status === 302 && enroll.headers.location === "/workers");
 
-  const w = await WorkerModel.findOne({ name: WORKER });
+  const w = await WorkerModel.findOne({ empRegNo: EMPID });
   assert("worker created in DB", !!w);
-  assert("empRegNo generated (TRGBI-####)", !!w && /^TRGBI-\d{4}$/.test(w.empRegNo));
+  assert("manual empRegNo stored", w?.empRegNo === EMPID);
   assert("128-d face encoding stored", !!w && w.faceEncoding.length === 128);
   assert("designation denormalized", w?.designationName === "Carpenter");
   assert("site denormalized", w?.siteName === vbw.name);
-  assert("photo file written", !!w && fs.existsSync(path.join(UPLOAD_DIR, `${w.empRegNo}.jpg`)));
+  assert("phone + emergency stored", w?.phone === "9000000001" && w?.emergencyPhone === "9000000002");
+  assert("bank details stored (IFSC uppercased)", !!w?.bank && w.bank.ifsc === "HDFC0001234");
+  assert("photo file written (by _id)", !!w && fs.existsSync(path.join(UPLOAD_DIR, `${w._id}.jpg`)));
+
+  // Duplicate Employee ID rejected.
+  const beforeDup = await WorkerModel.countDocuments();
+  await admin.post("/workers").type("form").send({
+    empRegNo: EMPID, // same ID
+    name: WORKER + " dup",
+    designationId: String(carpenter._id),
+    siteId: String(vbw._id),
+    photoData: faceDataUrl(),
+  });
+  const dupForm = await admin.get("/workers/new");
+  assert("duplicate Employee ID rejected", dupForm.text.includes("already exists"));
+  assert("no duplicate worker persisted", (await WorkerModel.countDocuments()) === beforeDup);
 
   // Faceless image is rejected.
   const before = await WorkerModel.countDocuments();
   await admin.post("/workers").type("form").send({
+    empRegNo: `EMP-NOFACE-${S}`,
     name: WORKER + " noface",
     designationId: String(carpenter._id),
     siteId: String(vbw._id),
@@ -121,19 +147,20 @@ async function main(): Promise<void> {
   const supForm = await sup.get("/workers/new");
   assert("supervisor enroll form shows only own site", supForm.text.includes("PVM") && !supForm.text.includes("VBW"));
   await sup.post("/workers").type("form").send({
+    empRegNo: SNEAKY_ID,
     name: SNEAKY,
     designationId: String(carpenter._id),
     siteId: String(vbw._id), // not their site
     photoData: faceDataUrl(),
   });
-  assert("supervisor blocked from enrolling into other site", !(await WorkerModel.findOne({ name: SNEAKY })));
+  assert("supervisor blocked from enrolling into other site", !(await WorkerModel.findOne({ empRegNo: SNEAKY_ID })));
 
   // Cleanup.
   if (w) {
-    try { fs.unlinkSync(path.join(UPLOAD_DIR, `${w.empRegNo}.jpg`)); } catch { /* ignore */ }
+    try { fs.unlinkSync(path.join(UPLOAD_DIR, `${w._id}.jpg`)); } catch { /* ignore */ }
   }
   await Promise.all([
-    WorkerModel.deleteMany({ name: new RegExp(`^QA (Worker|Sneaky) ${S}`) }),
+    WorkerModel.deleteMany({ empRegNo: { $in: [EMPID, SNEAKY_ID, `EMP-NOFACE-${S}`] } }),
     UserModel.deleteOne({ email: SUP_EMAIL }),
   ]);
 
