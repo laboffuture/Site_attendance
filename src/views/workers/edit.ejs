@@ -127,4 +127,39 @@
 </div>
 <% } %>
 
+<div class="oh-card oh-form-card" style="margin-top:1rem">
+  <h2 class="oh-section-title">Remarks</h2>
+  <% if (worker.remarks && worker.remarks.length) { %>
+  <table class="oh-table">
+    <tbody>
+      <% worker.remarks.forEach(function (r, i) { %>
+      <tr>
+        <td<%= r.cleared ? ' style="text-decoration:line-through;color:var(--c-text-muted)"' : '' %>>
+          <span class="oh-badge oh-badge--muted"><%= r.type %></span>
+          <%= r.text %>
+          <span class="oh-muted">— <%= r.authorName || 'system' %>, <%= r.at ? new Date(r.at).toLocaleString('en-GB', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' }) : '' %></span>
+        </td>
+        <td class="oh-col-action">
+          <% if (canDelete && !r.cleared) { %>
+          <form method="post" action="/workers/<%= worker._id %>/remarks/<%= i %>/clear" style="margin:0">
+            <button class="oh-btn oh-btn--small" type="submit">Clear</button>
+          </form>
+          <% } %>
+        </td>
+      </tr>
+      <% }); %>
+    </tbody>
+  </table>
+  <% } else { %>
+  <p class="oh-muted">No remarks yet.</p>
+  <% } %>
+  <form class="oh-form-inline" method="post" action="/workers/<%= worker._id %>/remarks" style="margin-top:0.75rem">
+    <div class="oh-input-group oh-grow">
+      <label class="oh-label" for="remarkText">Add a remark</label>
+      <input class="oh-input" id="remarkText" name="text" required placeholder="note about this employee" />
+    </div>
+    <button class="oh-btn oh-btn--secondary" type="submit">Add</button>
+  </form>
+</div>
+
 <%- include('../partials/app-bottom') %>
