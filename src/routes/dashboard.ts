@@ -37,7 +37,34 @@ router.get("/dashboard", requireAuth, async (req: Request, res: Response) => {
     { $group: { _id: "$date", count: { $sum: 1 } } },
   ]);
   const trendMap = new Map(trendAgg.map((t) => [t._id as string, t.count as number]));
-  const trend = { labels: days, data: days.map((d) => trendMap.get(d) ?? 0) };
+  const trendData = days.map((d) => trendMap.get(d) ?? 0);
+  // Short, readable x-axis labels ("16 Jun") from the YYYY-MM-DD day keys.
+  const trendLabels = days.map((d) =>
+    new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", timeZone: "Asia/Kolkata" }).format(
+      new Date(`${d}T00:00:00+05:30`),
+    ),
+  );
+  // Headline figures for the card: today, daily average, and week-over-week trend.
+  const trendSum = trendData.reduce((a, b) => a + b, 0);
+  const trendAvg = Math.round((trendSum / trendData.length) * 10) / 10;
+  const last7 = trendData.slice(-7).reduce((a, b) => a + b, 0);
+  const prev7 = trendData.slice(-14, -7).reduce((a, b) => a + b, 0);
+  let deltaDir: "up" | "down" | "flat" = "flat";
+  let deltaPct = 0;
+  if (prev7 > 0) {
+    deltaPct = Math.round(((last7 - prev7) / prev7) * 100);
+    deltaDir = deltaPct > 0 ? "up" : deltaPct < 0 ? "down" : "flat";
+  } else if (last7 > 0) {
+    deltaDir = "up";
+  }
+  const trend = {
+    labels: trendLabels,
+    data: trendData,
+    today: trendData[trendData.length - 1],
+    avg: trendAvg,
+    deltaDir,
+    deltaPct,
+  };
 
   // Chart 2: overtime hours by site (pending + approved)
   const otAgg = await AttendanceModel.aggregate([
