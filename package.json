@@ -8,6 +8,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "seed": "tsx scripts/seed.ts",
+    "sweep": "tsx scripts/sweep.ts",
     "sync-indexes": "tsx scripts/sync_indexes.ts",
     "smoke": "tsx scripts/smoke.ts",
     "e2e:login": "tsx scripts/e2e_login.ts",
@@ -18,7 +19,8 @@
     "e2e:reports": "tsx scripts/e2e_reports.ts",
     "e2e:users": "tsx scripts/e2e_users.ts",
     "e2e:hierarchy": "tsx scripts/e2e_hierarchy.ts",
-    "e2e:attendance": "tsx scripts/e2e_attendance.ts"
+    "e2e:attendance": "tsx scripts/e2e_attendance.ts",
+    "e2e:missed": "tsx scripts/e2e_missed_clockout.ts"
   },
   "dependencies": {
     "@tensorflow/tfjs": "^4.22.0",
