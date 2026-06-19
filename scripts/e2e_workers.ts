@@ -167,6 +167,12 @@ async function main(): Promise<void> {
   assert("soft_delete remark appended with the reason",
     !!deleted && deleted.remarks.some((r) => r.type === "soft_delete" && r.text === "Left the project"));
 
+  // ---- #28: deleted worker hidden from the active roster, shown under Archived ----
+  const activeList = await admin.get("/workers");
+  assert("deleted worker hidden from active tab", !activeList.text.includes(w!.empRegNo));
+  const archivedList = await admin.get("/workers?status=archived");
+  assert("deleted worker shown under archived tab", archivedList.text.includes(w!.empRegNo));
+
   // Cleanup.
   if (w) {
     try { fs.unlinkSync(path.join(UPLOAD_DIR, `${w._id}.jpg`)); } catch { /* ignore */ }
