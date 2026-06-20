@@ -92,6 +92,27 @@ router.get("/attendance/scan", requireCapability("mark_attendance"), async (req:
   });
 });
 
+// Up-front location check for a picked site (geofence-first): the page calls
+// this on site-select and only unlocks Scan when the device is confirmed inside.
+router.post("/attendance/geocheck", requireCapability("mark_attendance"), async (req: Request, res: Response) => {
+  const user = req.currentUser!;
+  const siteId = String(req.body.siteId ?? "");
+  if (!Types.ObjectId.isValid(siteId) || !canUseSite(user, siteId)) {
+    return res.json({ status: "error", message: "Select a site you're assigned to." });
+  }
+  const site = await ProjectSiteModel.findById(siteId).lean();
+  if (!site) return res.json({ status: "error", message: "Site not found." });
+
+  const geo = buildGeoCapture(req.body.lat, req.body.lng, req.body.accuracy, site);
+  const fence = checkGeofence(site, geo);
+  res.json({
+    status: fence, // off | inside | outside | no_fix
+    siteName: site.name,
+    distanceMeters: geo.distanceMeters,
+    radius: site.geofenceRadiusMeters ?? null,
+  });
+});
+
 router.post("/attendance/scan", requireCapability("mark_attendance"), async (req: Request, res: Response) => {
   const user = req.currentUser!;
   const siteId = String(req.body.siteId ?? "");
