@@ -72,6 +72,20 @@
       <input class="oh-input" id="email" name="email" type="email" value="<%= worker.email || '' %>" placeholder="optional" />
     </div>
 
+    <div class="oh-row-2">
+      <div class="oh-input-group">
+        <label class="oh-label" for="dailyWage">Daily wage (₹)</label>
+        <input class="oh-input" id="dailyWage" name="dailyWage" type="number" min="0" step="1" value="<%= worker.dailyWage != null ? worker.dailyWage : '' %>" placeholder="e.g. 750" />
+      </div>
+      <div class="oh-input-group">
+        <label class="oh-label" for="foodAllowanceAmount">Food allowance (₹/day)</label>
+        <input class="oh-input" id="foodAllowanceAmount" name="foodAllowanceAmount" type="number" min="0" step="1" value="<%= worker.foodAllowance && worker.foodAllowance.amount != null ? worker.foodAllowance.amount : '' %>" placeholder="leave blank if none" />
+        <label class="oh-check" style="margin-top:0.35rem">
+          <input type="checkbox" name="foodAllowanceApplicable" id="foodAllowanceApplicable" <%= worker.foodAllowance && worker.foodAllowance.applicable ? 'checked' : '' %> /> Food allowance applies
+        </label>
+      </div>
+    </div>
+
     <details class="oh-details" <%= worker.bank ? "open" : "" %>>
       <summary>Bank details (optional)</summary>
       <div class="oh-row-2">
