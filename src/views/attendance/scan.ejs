@@ -7,27 +7,35 @@
     <div class="oh-kiosk">
       <header class="oh-kiosk__header">
         <div class="oh-kiosk__site">Log Attendance</div>
-        <div class="oh-scan-controls" style="display:flex;align-items:center;gap:0.75rem;">
-          <label for="siteSelect" class="oh-kiosk__station">Site you're at</label>
-          <select id="siteSelect" class="oh-select" style="min-width:220px;">
+        <div class="oh-scan-controls">
+          <label for="siteSelect" class="oh-scan-controls__label">Site you're at</label>
+          <select id="siteSelect" class="oh-select oh-scan-controls__select">
             <% sites.forEach(function (s) { var fenced = s.latitude != null && s.longitude != null && s.geofenceRadiusMeters != null; %>
             <option value="<%= s._id %>" data-fenced="<%= fenced ? '1' : '0' %>"><%= s.name %> (<%= s.code %>)<%= fenced ? ' • geofenced' : '' %></option>
             <% }); %>
           </select>
-          <a class="oh-btn oh-btn--small" href="/attendance">Done</a>
+          <a class="oh-btn oh-btn--small oh-scan-controls__done" href="/attendance">Done</a>
         </div>
       </header>
 
       <main class="oh-kiosk__main">
         <% if (!sites.length) { %>
-        <div class="oh-result oh-result--warn">No sites are assigned to you — ask HR/Management to assign one.</div>
+        <div class="oh-scan-empty">
+          <div class="oh-result oh-result--warn">No sites are assigned to you — ask HR or management to assign one.</div>
+        </div>
         <% } else { %>
-        <video id="video" class="oh-kiosk__video" autoplay playsinline muted></video>
-        <canvas id="canvas" hidden></canvas>
-        <div id="geoNote" class="oh-muted"></div>
-        <div id="result" class="oh-result oh-result--idle">Pick the site you're at, then face the camera and tap Scan.</div>
-        <button id="scanBtn" class="oh-btn oh-btn--secondary oh-scan-btn">Scan</button>
-        <p id="camNote" class="oh-muted"></p>
+        <div class="oh-scan-stage">
+          <div class="oh-scan-stage__video-frame">
+            <video id="video" class="oh-kiosk__video" autoplay playsinline muted></video>
+            <canvas id="canvas" hidden></canvas>
+          </div>
+          <div id="result" class="oh-result oh-result--idle">Pick the site you're at, then face the camera and tap Scan.</div>
+          <button id="scanBtn" class="oh-btn oh-btn--secondary oh-scan-btn">Scan</button>
+          <div class="oh-scan-stage__notes">
+            <p id="camNote" class="oh-muted"></p>
+            <div id="geoNote" class="oh-muted"></div>
+          </div>
+        </div>
         <% } %>
       </main>
     </div>
