@@ -54,35 +54,36 @@
     <span class="oh-muted">present = scanned in today</span>
   </div>
   <% if (rollup.length) { %>
-  <table class="oh-table oh-rollup">
-    <thead>
-      <tr>
-        <th>Branch / Site</th>
-        <th class="num">Present</th><th class="num">Active</th>
-        <th class="num">OT pending</th><th class="num">Flags</th>
-      </tr>
-    </thead>
-    <tbody>
-      <% rollup.forEach(function (b, i) { %>
-      <tr class="oh-rollup-branch" data-branch="<%= i %>">
-        <td><span class="oh-caret">&#9660;</span> <%= b.branchName %></td>
-        <td class="num"><%= b.totals.present %></td>
-        <td class="num"><%= b.totals.active %></td>
-        <td class="num"><%= b.totals.otPending %>h</td>
-        <td class="num"><%= b.totals.flags %></td>
-      </tr>
-      <% b.sites.forEach(function (s) { %>
-      <tr class="oh-rollup-site" data-branch="<%= i %>">
-        <td class="oh-rollup-sitename"><%= s.siteName %> <span class="oh-muted">(<%= s.code %>)</span></td>
-        <td class="num"><%= s.present %></td>
-        <td class="num"><%= s.active %></td>
-        <td class="num <%= s.otPending > 0 ? 'oh-num-warn' : '' %>"><%= s.otPending %>h</td>
-        <td class="num <%= s.flags > 0 ? 'oh-num-danger' : '' %>"><%= s.flags %></td>
-      </tr>
-      <% }); %>
-      <% }); %>
-    </tbody>
-  </table>
+  <div class="oh-hier">
+    <% rollup.forEach(function (b, i) { %>
+    <section class="oh-hier__block" data-branch="<%= i %>">
+      <div class="oh-hier__branch" tabindex="0" role="button" aria-expanded="true">
+        <span class="oh-hier__branch-name"><span class="oh-caret">&#9660;</span> <%= b.branchName %></span>
+        <span class="oh-hier__branch-tot">
+          <strong><%= b.totals.active %></strong> workers<% if (b.totals.present > 0) { %><span class="oh-hier__in"> · <%= b.totals.present %> in</span><% } %><% if (b.totals.otPending > 0) { %> · OT <%= b.totals.otPending %>h<% } %><% if (b.totals.flags > 0) { %> · &#9873; <%= b.totals.flags %><% } %>
+        </span>
+      </div>
+      <div class="oh-hier__grid">
+        <% b.sites.forEach(function (s) { var pct = s.active > 0 ? Math.round((s.present / s.active) * 100) : 0; %>
+        <article class="oh-hier__tile">
+          <div class="oh-hier__site"><%= s.siteName %></div>
+          <div class="oh-hier__code"><%= s.code %></div>
+          <div class="oh-hier__num"><%= s.active %></div>
+          <div class="oh-hier__num-label">workers</div>
+          <div class="oh-hier__present <%= s.present > 0 ? 'is-in' : '' %>"><%= s.present %> present today</div>
+          <% if (s.otPending > 0 || s.flags > 0) { %>
+          <div class="oh-hier__chips">
+            <% if (s.otPending > 0) { %><span class="oh-hier__chip oh-hier__chip--ot">OT <%= s.otPending %>h</span><% } %>
+            <% if (s.flags > 0) { %><span class="oh-hier__chip oh-hier__chip--flag">&#9873; <%= s.flags %></span><% } %>
+          </div>
+          <% } %>
+          <div class="oh-hier__bar"><span class="oh-hier__bar-fill" style="width: <%= pct %>%"></span></div>
+        </article>
+        <% }); %>
+      </div>
+    </section>
+    <% }); %>
+  </div>
   <% } else { %>
   <p class="oh-muted">No sites in your scope yet.</p>
   <% } %>
@@ -146,14 +147,16 @@
 </div>
 
 <script>
-  // Collapse/expand a branch's site rows in the rollup table.
-  document.querySelectorAll(".oh-rollup-branch").forEach(function (row) {
-    row.addEventListener("click", function () {
-      var key = row.getAttribute("data-branch");
-      var collapsed = row.classList.toggle("collapsed");
-      document.querySelectorAll('.oh-rollup-site[data-branch="' + key + '"]').forEach(function (s) {
-        s.style.display = collapsed ? "none" : "";
-      });
+  // Collapse/expand a branch's site tiles.
+  document.querySelectorAll(".oh-hier__branch").forEach(function (band) {
+    function toggle() {
+      var block = band.closest(".oh-hier__block");
+      var collapsed = block.classList.toggle("collapsed");
+      band.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    }
+    band.addEventListener("click", toggle);
+    band.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); }
     });
   });
 
