@@ -15,6 +15,7 @@
     "sync-indexes": "tsx scripts/sync_indexes.ts",
     "migrate-roles": "tsx scripts/migrate_roles.ts",
     "demo-prep": "tsx scripts/demo_prep.ts",
+    "import-master": "tsx scripts/import_master_data.ts",
     "smoke": "tsx scripts/smoke.ts",
     "e2e:login": "tsx scripts/e2e_login.ts",
     "e2e:org": "tsx scripts/e2e_org.ts",
