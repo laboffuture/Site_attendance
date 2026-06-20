@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <%- include('../partials/head', { title: title }) %>
+  </head>
+  <body>
+    <div class="oh-kiosk">
+      <header class="oh-kiosk__header">
+        <div class="oh-kiosk__site">Log Attendance</div>
+        <div class="oh-scan-controls" style="display:flex;align-items:center;gap:0.75rem;">
+          <label for="siteSelect" class="oh-kiosk__station">Site you're at</label>
+          <select id="siteSelect" class="oh-select" style="min-width:220px;">
+            <% sites.forEach(function (s) { var fenced = s.latitude != null && s.longitude != null && s.geofenceRadiusMeters != null; %>
+            <option value="<%= s._id %>" data-fenced="<%= fenced ? '1' : '0' %>"><%= s.name %> (<%= s.code %>)<%= fenced ? ' • geofenced' : '' %></option>
+            <% }); %>
+          </select>
+          <a class="oh-btn oh-btn--small" href="/attendance">Done</a>
+        </div>
+      </header>
+
+      <main class="oh-kiosk__main">
+        <% if (!sites.length) { %>
+        <div class="oh-result oh-result--warn">No sites are assigned to you — ask HR/Management to assign one.</div>
+        <% } else { %>
+        <video id="video" class="oh-kiosk__video" autoplay playsinline muted></video>
+        <canvas id="canvas" hidden></canvas>
+        <div id="geoNote" class="oh-muted"></div>
+        <div id="result" class="oh-result oh-result--idle">Pick the site you're at, then face the camera and tap Scan.</div>
+        <button id="scanBtn" class="oh-btn oh-btn--secondary oh-scan-btn">Scan</button>
+        <p id="camNote" class="oh-muted"></p>
+        <% } %>
+      </main>
+    </div>
+    <script src="/static/js/attendance-scan.js"></script>
+  </body>
+</html>

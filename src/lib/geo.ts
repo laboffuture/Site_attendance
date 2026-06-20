@@ -31,6 +31,31 @@ function toNum(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+export type GeofenceResult = "off" | "inside" | "outside" | "no_fix";
+
+/**
+ * Geofence decision for a scan at `site` given a captured `geo`.
+ *  - "off"      — the site has no geofence configured → no enforcement.
+ *  - "no_fix"   — geofence is configured but no usable GPS fix was sent.
+ *  - "inside"   — within the radius (allow).
+ *  - "outside"  — beyond the radius (block).
+ * A site is "configured" only when latitude, longitude AND a positive radius
+ * are all set; otherwise enforcement stays off (capture-only).
+ */
+export function checkGeofence(
+  site: { latitude?: number | null; longitude?: number | null; geofenceRadiusMeters?: number | null },
+  geo: { available: boolean; distanceMeters: number | null },
+): GeofenceResult {
+  const configured =
+    typeof site.latitude === "number" &&
+    typeof site.longitude === "number" &&
+    typeof site.geofenceRadiusMeters === "number" &&
+    site.geofenceRadiusMeters > 0;
+  if (!configured) return "off";
+  if (!geo.available || geo.distanceMeters == null) return "no_fix";
+  return geo.distanceMeters <= (site.geofenceRadiusMeters as number) ? "inside" : "outside";
+}
+
 /** Builds the geo sub-document from raw request values + the (optional) site
  *  coordinates. Returns `available:false` when no valid fix was sent. */
 export function buildGeoCapture(
