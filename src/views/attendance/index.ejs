@@ -38,72 +38,51 @@
   </div>
 
   <% if (rows.length) { %>
-  <!-- mobile: roster cards -->
+  <!-- mobile: roster cards (read-only — attendance is logged by face scan) -->
   <div class="oh-only-mobile oh-m-list">
     <% rows.forEach(function (r) {
       var st = r.outHM ? ["OUT", "secondary"] : (r.inHM ? ["IN", "success"] : ["ABSENT", "danger"]);
     %>
-    <form class="oh-m-card" method="post" action="/attendance/mark">
-      <input type="hidden" name="workerId" value="<%= r.workerId %>" />
-      <input type="hidden" name="date" value="<%= date %>" />
+    <div class="oh-m-card">
       <div class="oh-m-row">
         <span class="oh-m-avatar"><%= r.name.split(' ').map(function (x) { return x[0]; }).join('').slice(0, 2).toUpperCase() %></span>
         <span class="oh-m-grow">
-          <span class="oh-m-name">
-            <%= r.name %>
-            <% if (r.source === "manual") { %><span class="oh-m-badge oh-badge--warning">M</span><% } %>
-          </span>
+          <span class="oh-m-name"><%= r.name %></span>
           <span class="oh-m-sub"><%= r.empRegNo %> · <%= r.designationName %></span>
         </span>
         <span class="oh-m-badge oh-badge--<%= st[1] %>"><%= st[0] %></span>
       </div>
-      <div class="oh-m-boxes">
-        <label class="oh-m-box"><span class="oh-m-box__k">In</span><input type="time" name="inTime" value="<%= r.inHM %>" /></label>
-        <label class="oh-m-box"><span class="oh-m-box__k">Out</span><input type="time" name="outTime" value="<%= r.outHM %>" /></label>
-      </div>
-      <% if (r.totalHours != null || r.otHours > 0) { %>
       <div class="oh-m-sub" style="margin-top:0.5rem;">
-        Total <%= r.totalHours != null ? r.totalHours + "h" : "—" %><% if (r.otHours > 0) { %> · OT <%= r.otHours %>h (<%= r.otStatus %>)<% } %>
+        In <%= r.inHM || "—" %> · Out <%= r.outHM || "—" %><% if (r.totalHours != null) { %> · Total <%= r.totalHours %>h<% } %><% if (r.otHours > 0) { %> · OT <%= r.otHours %>h (<%= r.otStatus %>)<% } %>
       </div>
-      <% } %>
-      <div class="oh-m-actions">
-        <button class="oh-btn oh-btn--small oh-btn--secondary" type="submit">Save</button>
-      </div>
-    </form>
+    </div>
     <% }); %>
   </div>
 
   <table class="oh-table oh-only-desktop">
     <thead>
-      <tr><th>Reg No</th><th>Name</th><th>In</th><th>Out</th><th>Total</th><th>OT</th><th>Src</th><th class="oh-col-action">Save</th></tr>
+      <tr><th>Reg No</th><th>Name</th><th>In</th><th>Out</th><th>Total</th><th>OT</th><th>Status</th></tr>
     </thead>
     <tbody>
-      <% rows.forEach(function (r) { %>
+      <% rows.forEach(function (r) {
+        var st = r.outHM ? ["OUT", "secondary"] : (r.inHM ? ["IN", "success"] : ["ABSENT", "danger"]);
+      %>
       <tr>
-        <form method="post" action="/attendance/mark" class="oh-att-row">
-          <input type="hidden" name="workerId" value="<%= r.workerId %>" />
-          <input type="hidden" name="date" value="<%= date %>" />
-          <td><span class="oh-badge oh-badge--muted"><%= r.empRegNo %></span></td>
-          <td><%= r.name %><br /><span class="oh-muted"><%= r.designationName %></span></td>
-          <td><input class="oh-input oh-input--time" type="time" name="inTime" value="<%= r.inHM %>" /></td>
-          <td><input class="oh-input oh-input--time" type="time" name="outTime" value="<%= r.outHM %>" /></td>
-          <td><%= r.totalHours != null ? r.totalHours + "h" : "—" %></td>
-          <td>
-            <% if (r.otHours > 0) { %><%= r.otHours %>h
-            <span class="oh-badge oh-badge--<%= badgeFor[r.otStatus] %>"><%= r.otStatus %></span><% } else { %>—<% } %>
-          </td>
-          <td>
-            <% if (r.source === "manual") { %><span class="oh-badge oh-badge--warning" title="Marked manually">M</span>
-            <% } else if (r.source === "scan") { %><span class="oh-badge oh-badge--muted" title="Face scan">scan</span>
-            <% } else { %><span class="oh-muted">—</span><% } %>
-          </td>
-          <td class="oh-col-action"><button class="oh-btn oh-btn--small oh-btn--secondary" type="submit">Save</button></td>
-        </form>
+        <td><span class="oh-badge oh-badge--muted"><%= r.empRegNo %></span></td>
+        <td><%= r.name %><br /><span class="oh-muted"><%= r.designationName %></span></td>
+        <td><%= r.inHM || "—" %></td>
+        <td><%= r.outHM || "—" %></td>
+        <td><%= r.totalHours != null ? r.totalHours + "h" : "—" %></td>
+        <td>
+          <% if (r.otHours > 0) { %><%= r.otHours %>h
+          <span class="oh-badge oh-badge--<%= badgeFor[r.otStatus] %>"><%= r.otStatus %></span><% } else { %>—<% } %>
+        </td>
+        <td><span class="oh-badge oh-badge--<%= st[1] %>"><%= st[0] %></span></td>
       </tr>
       <% }); %>
     </tbody>
   </table>
-  <p class="oh-muted">Set In to mark present; add Out to compute total &amp; overtime. Manually saved rows are tagged <strong>M</strong> and flagged in reports.</p>
+  <p class="oh-muted">Read-only — attendance is logged by face scan. Use <strong>Log Attendance</strong> to record In/Out.</p>
   <% } else { %>
   <p class="oh-muted">No active workers enrolled at this site yet.</p>
   <% } %>

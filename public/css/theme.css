@@ -979,3 +979,129 @@ tr > .oh-att-row {
   color: #fff;
   border-color: var(--c-accent);
 }
+
+/* ---- Scan page refinements (kiosk face-capture) ---- */
+.oh-scan-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.oh-scan-controls__label {
+  font-size: 0.8rem;
+  color: #cfd2d6;
+  white-space: nowrap;
+}
+.oh-scan-controls__select {
+  min-width: 220px;
+  max-width: 320px;
+}
+.oh-scan-controls__done {
+  white-space: nowrap;
+}
+
+/* Centered stage area — video + result + button stacked */
+.oh-scan-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  max-width: 600px;
+}
+
+/* 4:3 aspect-ratio frame around the video */
+.oh-scan-stage__video-frame {
+  position: relative;
+  width: 100%;
+  max-width: 600px;
+  aspect-ratio: 4 / 3;
+  background: #000;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  overflow: hidden;
+}
+.oh-scan-stage__video-frame .oh-kiosk__video {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border: none;
+  max-height: none;
+}
+
+/* Result banner matches video width */
+.oh-scan-stage .oh-result {
+  width: 100%;
+  font-size: 1.05rem;
+  padding: 1rem 1.5rem;
+  line-height: 1.45;
+}
+
+/* Big tappable scan button */
+.oh-scan-stage .oh-scan-btn {
+  width: 100%;
+  max-width: 320px;
+  min-height: 48px;
+  font-size: 1.15rem;
+  padding: 0.85rem 2rem;
+  letter-spacing: 0.02em;
+}
+
+/* Subtle helper notes */
+.oh-scan-stage__notes {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 1.4rem;
+}
+.oh-scan-stage__notes .oh-muted {
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+/* Empty state (no sites) */
+.oh-scan-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 3rem 1.5rem;
+  max-width: 500px;
+}
+.oh-scan-empty .oh-result {
+  font-size: 1rem;
+  padding: 1.25rem 1.5rem;
+}
+
+/* Responsive: stack header controls on narrow screens */
+@media (max-width: 640px) {
+  .oh-kiosk__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+  }
+  .oh-scan-controls {
+    flex-wrap: wrap;
+    width: 100%;
+    gap: 0.5rem;
+  }
+  .oh-scan-controls__select {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: none;
+  }
+  .oh-scan-controls__done {
+    margin-left: auto;
+  }
+  .oh-kiosk__main {
+    padding: 1.25rem 1rem;
+  }
+  .oh-scan-stage .oh-scan-btn {
+    max-width: none;
+    width: 100%;
+  }
+}
