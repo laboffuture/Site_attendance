@@ -4,6 +4,10 @@ import { Types } from "mongoose";
 import { requireCapability } from "../auth/middleware";
 import { seesAllSites } from "../auth/permissions";
 import type { CurrentUser } from "../auth/types";
+import { recordScan } from "../lib/attendance";
+import { encodeFace, bestMatch } from "../lib/face";
+import { buildGeoCapture, checkGeofence } from "../lib/geo";
+import { dataUrlToBuffer } from "../lib/image";
 import { canUseSite } from "../lib/scope";
 import {
   siteLocalDate,
@@ -15,6 +19,7 @@ import {
 import { isValidTime, endAfterStart } from "../lib/validate";
 import { AttendanceModel } from "../models/Attendance";
 import { BranchModel } from "../models/Branch";
+import { FlagEventModel } from "../models/FlagEvent";
 import { ProjectSiteModel } from "../models/ProjectSite";
 import { WorkerModel } from "../models/Worker";
 
@@ -179,6 +184,89 @@ router.post("/attendance/mark", requireCapability("mark_attendance"), async (req
 
   flash(req, "success", `Attendance saved for ${worker.name}.`);
   res.redirect(back);
+});
+
+// ---- Log Attendance: in-session face-scan for a logged-in Supervisor+ ----
+// (Primary attendance method per the rule book; the fixed-station kiosk stays.)
+router.get("/attendance/scan", requireCapability("mark_attendance"), async (req: Request, res: Response) => {
+  const sites = await allowedSites(req.currentUser!);
+  res.render("attendance/scan", {
+    title: "Log Attendance · " + res.locals.company,
+    active: "/attendance",
+    sites,
+  });
+});
+
+router.post("/attendance/scan", requireCapability("mark_attendance"), async (req: Request, res: Response) => {
+  const user = req.currentUser!;
+  const siteId = String(req.body.siteId ?? "");
+  if (!Types.ObjectId.isValid(siteId) || !canUseSite(user, siteId)) {
+    return res.json({ status: "error", message: "Select a site you're assigned to." });
+  }
+  const site = await ProjectSiteModel.findById(siteId).lean();
+  if (!site) return res.json({ status: "error", message: "Site not found." });
+
+  const photo = dataUrlToBuffer(String(req.body.photoData ?? ""));
+  if (!photo) return res.json({ status: "error", message: "No image received." });
+
+  // Geofence gate first — cheap reject before face matching. Enforced only when
+  // the picked site has coordinates + a radius; otherwise GPS is capture-only.
+  const geo = buildGeoCapture(req.body.lat, req.body.lng, req.body.accuracy, site);
+  const fence = checkGeofence(site, geo);
+  if (fence === "outside") {
+    return res.json({ status: "out_of_range", siteName: site.name, distanceMeters: geo.distanceMeters, radius: site.geofenceRadiusMeters });
+  }
+  if (fence === "no_fix") {
+    return res.json({ status: "location_required", siteName: site.name });
+  }
+
+  let probe: number[] | null;
+  try {
+    probe = await encodeFace(photo);
+  } catch {
+    return res.json({ status: "error", message: "Could not read the image." });
+  }
+  if (!probe) return res.json({ status: "no_face" });
+
+  const workers = await WorkerModel.find({ status: "active", "faceEncoding.0": { $exists: true } })
+    .select("name empRegNo siteId siteName designationId designationName faceEncoding")
+    .lean();
+  const match = bestMatch(probe, workers.map((w) => ({ id: String(w._id), descriptor: w.faceEncoding })));
+  if (!match) return res.json({ status: "unknown" });
+  const worker = workers.find((w) => String(w._id) === match.id)!;
+
+  // Location-lock to the PICKED site (mirrors the kiosk, scoped to this user).
+  if (String(worker.siteId) !== siteId) {
+    await FlagEventModel.create({
+      type: "wrong_site_scan",
+      workerId: worker._id,
+      workerName: worker.name,
+      attemptedSiteId: site._id,
+      attemptedSiteName: site.name,
+      homeSiteId: worker.siteId,
+      homeSiteName: worker.siteName,
+    });
+    return res.json({ status: "wrong_site", workerName: worker.name, empRegNo: worker.empRegNo, homeSite: worker.siteName, thisSite: site.name });
+  }
+
+  const branch = await BranchModel.findById(site.branchId).lean();
+  const result = await recordScan(
+    { _id: worker._id, empRegNo: worker.empRegNo, name: worker.name, designationId: worker.designationId, designationName: worker.designationName },
+    site,
+    branch?.name ?? "",
+    geo,
+  );
+
+  res.json({
+    status: result.action, // "in" | "out"
+    workerName: worker.name,
+    empRegNo: worker.empRegNo,
+    time: istHM(result.action === "in" ? result.inTime : result.outTime),
+    totalHours: result.totalHours,
+    overtimeHours: round2(result.overtimeHours),
+    overtimeStatus: result.overtimeStatus,
+    geo: { available: geo.available, distanceMeters: geo.distanceMeters },
+  });
 });
 
 export default router;

@@ -30,7 +30,8 @@
     "e2e:missed": "tsx scripts/e2e_missed_clockout.ts",
     "e2e:geo": "tsx scripts/e2e_geo.ts",
     "e2e:supervisor": "tsx scripts/e2e_supervisor.ts",
-    "e2e:requests": "tsx scripts/e2e_requests.ts"
+    "e2e:requests": "tsx scripts/e2e_requests.ts",
+    "e2e:logscan": "tsx scripts/e2e_logscan.ts"
   },
   "dependencies": {
     "@tensorflow/tfjs": "^4.22.0",
