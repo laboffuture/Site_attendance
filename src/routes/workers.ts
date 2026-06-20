@@ -373,4 +373,37 @@ router.post("/workers/:id/remarks/:idx/clear", requireCapability("delete_worker"
   res.redirect(`/workers/${req.params.id}/edit`);
 });
 
+// ---- Enrol / replace a face on an existing worker (imports have none) ----
+router.post("/workers/:id/face", requireCapability("enroll_worker"), async (req: Request, res: Response) => {
+  const worker = await WorkerModel.findById(req.params.id);
+  if (!worker || !canUseSite(req.currentUser!, String(worker.siteId))) {
+    flash(req, "danger", "Employee not found.");
+    return res.redirect("/workers");
+  }
+  const photo = dataUrlToBuffer(String(req.body.photoData ?? ""));
+  if (!photo) {
+    flash(req, "danger", "Capture or upload a photo first.");
+    return res.redirect(`/workers/${req.params.id}/edit`);
+  }
+  let encoding: number[] | null;
+  try {
+    encoding = await encodeFace(photo);
+  } catch {
+    flash(req, "danger", "Could not read the photo. Use a clear JPEG and retake.");
+    return res.redirect(`/workers/${req.params.id}/edit`);
+  }
+  if (!encoding) {
+    flash(req, "danger", "No single clear face detected — center one face and retake.");
+    return res.redirect(`/workers/${req.params.id}/edit`);
+  }
+  await fs.mkdir(UPLOAD_DIR, { recursive: true });
+  await fs.writeFile(path.join(UPLOAD_DIR, `${worker._id}.jpg`), photo);
+  worker.faceEncoding = encoding;
+  worker.photoUrl = `/static/uploads/${worker._id}.jpg`;
+  pushRemark(worker, req.currentUser!, "Face enrolled.", "note");
+  await worker.save();
+  flash(req, "success", `Face enrolled for ${worker.name}.`);
+  res.redirect(`/workers/${req.params.id}/edit`);
+});
+
 export default router;
