@@ -14,6 +14,7 @@
             <option value="<%= s._id %>" data-fenced="<%= fenced ? '1' : '0' %>"><%= s.name %> (<%= s.code %>)<%= fenced ? ' • geofenced' : '' %></option>
             <% }); %>
           </select>
+          <a class="oh-btn oh-btn--small" href="/requests/new">Raise request</a>
           <a class="oh-btn oh-btn--small oh-scan-controls__done" href="/attendance">Done</a>
         </div>
       </header>
@@ -24,17 +25,39 @@
           <div class="oh-result oh-result--warn">No sites are assigned to you — ask HR or management to assign one.</div>
         </div>
         <% } else { %>
-        <div class="oh-scan-stage">
-          <div class="oh-scan-stage__video-frame">
-            <video id="video" class="oh-kiosk__video" autoplay playsinline muted></video>
-            <canvas id="canvas" hidden></canvas>
+        <div class="oh-scan-split">
+          <div class="oh-scan-stage">
+            <div class="oh-scan-stage__video-frame">
+              <video id="video" class="oh-kiosk__video" autoplay playsinline muted></video>
+              <canvas id="canvas" hidden></canvas>
+            </div>
+            <div id="result" class="oh-result oh-result--idle">Pick the site you're at, then face the camera and tap Scan.</div>
+            <button id="scanBtn" class="oh-btn oh-btn--secondary oh-scan-btn">Scan</button>
+            <div class="oh-scan-stage__notes">
+              <p id="camNote" class="oh-muted"></p>
+              <div id="geoNote" class="oh-muted"></div>
+            </div>
           </div>
-          <div id="result" class="oh-result oh-result--idle">Pick the site you're at, then face the camera and tap Scan.</div>
-          <button id="scanBtn" class="oh-btn oh-btn--secondary oh-scan-btn">Scan</button>
-          <div class="oh-scan-stage__notes">
-            <p id="camNote" class="oh-muted"></p>
-            <div id="geoNote" class="oh-muted"></div>
-          </div>
+
+          <aside class="oh-scan-log">
+            <div class="oh-scan-log__head">Logged today <span class="oh-scan-log__count"><%= logged.length %></span></div>
+            <% if (logged.length) { %>
+            <ul class="oh-scan-log__list">
+              <% logged.forEach(function (l) { %>
+              <li class="oh-scan-log__item">
+                <span class="oh-scan-log__badge oh-scan-log__badge--<%= l.state === 'OUT' ? 'out' : 'in' %>"><%= l.state %></span>
+                <span class="oh-scan-log__who">
+                  <span class="oh-scan-log__name"><%= l.workerName %></span>
+                  <span class="oh-scan-log__sub"><%= l.empRegNo %> · <%= l.siteName %></span>
+                </span>
+                <span class="oh-scan-log__time"><%= l.state === 'OUT' ? l.outHM : l.inHM %></span>
+              </li>
+              <% }); %>
+            </ul>
+            <% } else { %>
+            <p class="oh-muted">No attendance logged yet today. Scans appear here as they happen.</p>
+            <% } %>
+          </aside>
         </div>
         <% } %>
       </main>
