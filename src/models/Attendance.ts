@@ -53,6 +53,8 @@ const attendanceSchema = new Schema(
     outTime: { type: Date, default: null },
     totalHours: { type: Number, default: null },
     standardHours: { type: Number, default: null },
+    shiftType: { type: String, enum: ["day", "night", "sunday"], default: null },
+    breakHours: { type: Number, default: null },
     overtime: { type: overtimeSchema, default: () => ({}) },
 
     // GPS captured at the In scan and the Out scan (capture-only).
