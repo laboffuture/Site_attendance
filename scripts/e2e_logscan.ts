@@ -107,6 +107,16 @@ async function main(): Promise<void> {
   await AttendanceModel.deleteMany({ workerId: wA2._id });
   await WorkerModel.deleteOne({ _id: wA2._id });
 
+  // --- Phase 3b: geocheck endpoint (geofence-first, up-front location verify) ---
+  const gcOff = (await sup.post("/attendance/geocheck").set("Accept", "application/json").type("form").send({ siteId: String(siteB._id) })).body;
+  assert("geocheck on non-geofenced site → off", gcOff.status === "off");
+  const gcNoFix = (await sup.post("/attendance/geocheck").set("Accept", "application/json").type("form").send({ siteId: String(siteA._id) })).body;
+  assert("geocheck geofenced + no GPS → no_fix", gcNoFix.status === "no_fix");
+  const gcFar = (await sup.post("/attendance/geocheck").set("Accept", "application/json").type("form").send({ siteId: String(siteA._id), lat: "13.1", lng: "80.0", accuracy: "10" })).body;
+  assert("geocheck geofenced + far → outside", gcFar.status === "outside" && gcFar.distanceMeters > 200);
+  const gcNear = (await sup.post("/attendance/geocheck").set("Accept", "application/json").type("form").send({ siteId: String(siteA._id), lat: "13.0", lng: "80.0", accuracy: "10" })).body;
+  assert("geocheck geofenced + near → inside", gcNear.status === "inside");
+
   // --- Phase 4: no-face + off-scope site ---
   // Use site B (no geofence) — at geofenced site A, the GPS gate fires before
   // face detection, so a no-GPS blank image would return location_required.
