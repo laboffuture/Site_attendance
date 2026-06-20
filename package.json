@@ -14,6 +14,7 @@
     "sweep": "tsx scripts/sweep.ts",
     "sync-indexes": "tsx scripts/sync_indexes.ts",
     "migrate-roles": "tsx scripts/migrate_roles.ts",
+    "migrate-shifts": "tsx scripts/migrate_shifts.ts",
     "demo-prep": "tsx scripts/demo_prep.ts",
     "import-master": "tsx scripts/import_master_data.ts",
     "demo-staff": "tsx scripts/make_demo_users.ts",
