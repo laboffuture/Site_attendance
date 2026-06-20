@@ -85,10 +85,30 @@ router.get("/attendance", requireCapability("mark_attendance"), async (req: Requ
 // (Primary attendance method per the rule book; the fixed-station kiosk stays.)
 router.get("/attendance/scan", requireCapability("mark_attendance"), async (req: Request, res: Response) => {
   const sites = await allowedSites(req.currentUser!);
+  const today = siteLocalDate();
+  // Today's logged scans across the user's sites — shown so the page reflects
+  // activity, not a blank screen. Newest first.
+  const siteIds = sites.map((s) => s._id);
+  const records = siteIds.length
+    ? await AttendanceModel.find({ siteId: { $in: siteIds }, date: today })
+        .sort({ updatedAt: -1 })
+        .limit(50)
+        .lean()
+    : [];
+  const logged = records.map((r) => ({
+    workerName: r.workerName,
+    empRegNo: r.empRegNo,
+    siteName: r.siteName,
+    inHM: istHM(r.inTime ?? null),
+    outHM: istHM(r.outTime ?? null),
+    state: r.outTime ? "OUT" : "IN",
+  }));
   res.render("attendance/scan", {
     title: "Log Attendance · " + res.locals.company,
     active: "/attendance",
     sites,
+    logged,
+    today,
   });
 });
 

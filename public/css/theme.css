@@ -1076,6 +1076,93 @@ tr > .oh-att-row {
   padding: 1.25rem 1.5rem;
 }
 
+/* Log Attendance: scan stage + "logged today" side panel */
+.oh-scan-split {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+  justify-content: center;
+  width: 100%;
+  max-width: 1000px;
+  flex-wrap: wrap;
+}
+.oh-scan-log {
+  flex: 1 1 280px;
+  max-width: 360px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  align-self: stretch;
+}
+.oh-scan-log__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+.oh-scan-log__count {
+  font-size: 0.8rem;
+  background: var(--c-accent);
+  color: #fff;
+  padding: 0.05rem 0.5rem;
+}
+.oh-scan-log__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 58vh;
+  overflow-y: auto;
+}
+.oh-scan-log__item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+.oh-scan-log__badge {
+  font-size: 0.62rem;
+  font-weight: 600;
+  padding: 0.1rem 0.4rem;
+}
+.oh-scan-log__badge--in {
+  background: #e1fbe9;
+  color: #1f7a44;
+}
+.oh-scan-log__badge--out {
+  background: #ebf3fd;
+  color: #1d4ed8;
+}
+.oh-scan-log__who {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.oh-scan-log__name {
+  font-size: 0.82rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.oh-scan-log__sub {
+  font-size: 0.66rem;
+  color: #cfd2d6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.oh-scan-log__time {
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  color: #cfd2d6;
+}
+.oh-scan-log .oh-muted {
+  padding: 1rem;
+  color: #cfd2d6;
+}
+
 /* Responsive: stack header controls on narrow screens */
 @media (max-width: 640px) {
   .oh-kiosk__header {
