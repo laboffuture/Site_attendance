@@ -2,7 +2,7 @@
 
 <div class="oh-page-header">
   <h1 class="oh-page-title">Edit employee</h1>
-  <p class="oh-page-subtitle"><%= worker.empRegNo %> · photo and face data are unchanged here.</p>
+  <p class="oh-page-subtitle"><%= worker.empRegNo %> · <%= worker.designationName %></p>
 </div>
 
 <div class="oh-card oh-form-card">
@@ -103,6 +103,32 @@
   </form>
 </div>
 
+<div class="oh-card oh-form-card oh-form-card--wide" style="margin-top:1rem">
+  <h2 class="oh-section-title">Face</h2>
+  <% if (worker.photoUrl && worker.faceEncoding && worker.faceEncoding.length) { %>
+  <p class="oh-muted">A face is enrolled — this worker can be scanned. Capture again to replace it.</p>
+  <% } else { %>
+  <p class="oh-muted">No face enrolled yet — this worker can't be scanned for attendance until a face is captured.</p>
+  <% } %>
+  <form method="post" action="/workers/<%= worker._id %>/face">
+    <div class="oh-webcam-wrap">
+      <video id="video" class="oh-webcam" autoplay playsinline muted></video>
+      <img id="preview" class="oh-shot" src="<%= worker.photoUrl || '' %>" alt="captured photo" <%= worker.photoUrl ? '' : 'hidden' %> />
+    </div>
+    <canvas id="canvas" hidden></canvas>
+    <div class="oh-capture-row">
+      <button type="button" class="oh-btn oh-btn--small" id="captureBtn">Capture</button>
+      <label class="oh-btn oh-btn--small" for="fileInput">Upload instead</label>
+      <input id="fileInput" type="file" accept="image/*" hidden />
+      <span id="camNote" class="oh-muted"></span>
+    </div>
+    <input type="hidden" name="photoData" id="photoData" />
+    <div class="oh-form-actions">
+      <button class="oh-btn oh-btn--secondary" type="submit" id="submitBtn" disabled>Save face</button>
+    </div>
+  </form>
+</div>
+
 <% if (canDelete && worker.status !== 'deleted') { %>
 <div class="oh-card oh-form-card" style="margin-top:1rem;border-color:var(--c-danger)">
   <h2 class="oh-section-title">Delete employee</h2>
@@ -162,4 +188,5 @@
   </form>
 </div>
 
+<script src="/static/js/enroll.js"></script>
 <%- include('../partials/app-bottom') %>
