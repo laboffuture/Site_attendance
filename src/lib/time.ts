@@ -34,6 +34,17 @@ export function hmToHours(hm: string): number {
   return (h || 0) + (m || 0) / 60;
 }
 
+/** IST hour-of-day as a fractional number 0–24 (e.g. 20:30 → 20.5). */
+export function istHourOfDay(d: Date): number {
+  return hmToHours(istHM(d));
+}
+
+/** IST day of week: 0 = Sunday … 6 = Saturday. */
+export function istDayOfWeek(d: Date): number {
+  const wd = new Intl.DateTimeFormat("en-US", { timeZone: SITE_TZ, weekday: "short" }).format(d);
+  return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(wd);
+}
+
 export function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
