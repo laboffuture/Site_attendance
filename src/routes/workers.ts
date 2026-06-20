@@ -49,12 +49,17 @@ async function allowedSites(user: CurrentUser) {
   return ProjectSiteModel.find(filter).sort({ name: 1 }).lean();
 }
 
-/** Reads the optional contact + bank + joining fields from the form.
+/** Reads the optional contact + pay + bank + joining fields from the form.
  *  Empty strings become null; bank is null unless at least one field is given. */
 function parseEmployeeExtras(req: Request) {
   const s = (k: string): string | null => {
     const v = String(req.body[k] ?? "").trim();
     return v || null;
+  };
+  const num = (k: string): number | null => {
+    const v = String(req.body[k] ?? "").trim();
+    const n = parseFloat(v);
+    return v !== "" && Number.isFinite(n) && n >= 0 ? n : null;
   };
   const bank = {
     accountHolderName: s("bankAccountHolder"),
@@ -67,7 +72,17 @@ function parseEmployeeExtras(req: Request) {
   const dateJoined = /^\d{4}-\d{2}-\d{2}$/.test(djRaw)
     ? new Date(`${djRaw}T00:00:00+05:30`)
     : undefined;
-  return { phone: s("phone"), emergencyPhone: s("emergencyPhone"), email: s("email"), bank: hasBank ? bank : null, dateJoined };
+  const foodApplicable = req.body.foodAllowanceApplicable === "on" || req.body.foodAllowanceApplicable === "true";
+  const foodAmount = num("foodAllowanceAmount");
+  return {
+    phone: s("phone"),
+    emergencyPhone: s("emergencyPhone"),
+    email: s("email"),
+    dailyWage: num("dailyWage"),
+    foodAllowance: { applicable: foodApplicable, amount: foodApplicable ? foodAmount : null },
+    bank: hasBank ? bank : null,
+    dateJoined,
+  };
 }
 
 /** Resolves a designation from the form: an existing id, or a new name typed
@@ -193,6 +208,8 @@ router.post("/workers", requireCapability("enroll_worker"), async (req: Request,
       phone: extras.phone,
       emergencyPhone: extras.emergencyPhone,
       email: extras.email,
+      dailyWage: extras.dailyWage,
+      foodAllowance: extras.foodAllowance,
       bank: extras.bank,
       ...(extras.dateJoined ? { dateJoined: extras.dateJoined } : {}),
       faceEncoding: encoding,
@@ -279,6 +296,8 @@ router.post("/workers/:id", requireCapability("enroll_worker"), async (req: Requ
   worker.phone = extras.phone;
   worker.emergencyPhone = extras.emergencyPhone;
   worker.email = extras.email;
+  worker.dailyWage = extras.dailyWage;
+  worker.foodAllowance = extras.foodAllowance;
   worker.bank = extras.bank;
   if (extras.dateJoined) worker.dateJoined = extras.dateJoined;
   await worker.save();

@@ -68,6 +68,20 @@
       <input class="oh-input" id="email" name="email" type="email" placeholder="optional" />
     </div>
 
+    <div class="oh-row-2">
+      <div class="oh-input-group">
+        <label class="oh-label" for="dailyWage">Daily wage (₹)</label>
+        <input class="oh-input" id="dailyWage" name="dailyWage" type="number" min="0" step="1" placeholder="e.g. 750" />
+      </div>
+      <div class="oh-input-group">
+        <label class="oh-label" for="foodAllowanceAmount">Food allowance (₹/day)</label>
+        <input class="oh-input" id="foodAllowanceAmount" name="foodAllowanceAmount" type="number" min="0" step="1" placeholder="leave blank if none" />
+        <label class="oh-check" style="margin-top:0.35rem">
+          <input type="checkbox" name="foodAllowanceApplicable" id="foodAllowanceApplicable" /> Food allowance applies
+        </label>
+      </div>
+    </div>
+
     <details class="oh-details">
       <summary>Bank details (optional)</summary>
       <div class="oh-row-2">

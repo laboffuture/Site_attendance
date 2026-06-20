@@ -22,6 +22,15 @@ const remarkSchema = new Schema(
   { _id: false },
 );
 
+// Pay (per-day wage + optional food allowance). Feeds payroll-ready reports.
+const foodAllowanceSchema = new Schema(
+  {
+    applicable: { type: Boolean, default: false },
+    amount: { type: Number, default: null }, // per day, when applicable
+  },
+  { _id: false },
+);
+
 // Optional bank details (not mandatory at enrollment).
 const bankSchema = new Schema(
   {
@@ -50,6 +59,10 @@ const workerSchema = new Schema(
     phone: { type: String, default: null },
     emergencyPhone: { type: String, default: null },
     email: { type: String, default: null },
+
+    // Pay (optional at enrollment; required before payroll use)
+    dailyWage: { type: Number, default: null }, // INR per day
+    foodAllowance: { type: foodAllowanceSchema, default: () => ({}) },
 
     // Bank details (optional)
     bank: { type: bankSchema, default: null },
