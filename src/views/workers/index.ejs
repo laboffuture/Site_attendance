@@ -6,6 +6,7 @@
   <div>
     <h1 class="oh-page-title">Employees</h1>
     <p class="oh-page-subtitle"><%= { active: 'Active employees', pending: 'Pending approval', archived: 'Archived employees' }[tab] || 'Employees' %> (<%= workers.length %>).</p>
+    <p class="oh-page-subtitle">Face registered: <%= face.registered %> / <%= face.total %> — capture a face before a worker can be scanned.</p>
   </div>
   <a class="oh-btn oh-btn--secondary oh-only-desktop" href="/workers/new">
     <span class="material-icons">person_add</span> Enroll worker
@@ -18,13 +19,18 @@
   <a class="oh-filter-tab <%= tab === 'archived' ? 'oh-filter-tab--active' : '' %>" href="/workers?status=archived">Archived (<%= counts.archived %>)</a>
 </div>
 
+<div class="oh-filter-tabs">
+  <a class="oh-filter-tab <%= faceFilter === 'all' ? 'oh-filter-tab--active' : '' %>" href="/workers">All</a>
+  <a class="oh-filter-tab <%= faceFilter === 'unregistered' ? 'oh-filter-tab--active' : '' %>" href="/workers?face=unregistered">Not registered (<%= face.total - face.registered %>)</a>
+</div>
+
 <!-- mobile: worker cards + floating enroll -->
 <div class="oh-only-mobile">
   <% if (workers.length) { %>
   <div class="oh-m-section">
     <div class="oh-m-list">
       <% workers.forEach(function (w) { %>
-      <a class="oh-m-card oh-m-row oh-m-link" href="/workers/<%= w._id %>/edit">
+      <a class="oh-m-card oh-m-row oh-m-link" href="/workers/<%= w._id %>/<%= w.hasFace ? 'edit' : 'face' %>">
         <span class="oh-m-avatar">
           <% if (w.photoUrl) { %><img src="<%= w.photoUrl %>" alt="" /><% } else { %><%= w.name.split(' ').map(function (x) { return x[0]; }).join('').slice(0, 2).toUpperCase() %><% } %>
         </span>
@@ -32,7 +38,10 @@
           <span class="oh-m-name"><%= w.name %></span>
           <span class="oh-m-sub"><%= w.empRegNo %> · <%= w.designationName %> · <%= w.siteName %></span>
         </span>
-        <span class="oh-m-badge oh-badge--<%= statusBadge[w.status] || 'muted' %>"><%= w.status %></span>
+        <span style="display:flex;flex-direction:column;gap:0.3rem;align-items:flex-end">
+          <span class="oh-m-badge oh-badge--<%= statusBadge[w.status] || 'muted' %>"><%= w.status %></span>
+          <span class="oh-m-badge oh-badge--<%= w.hasFace ? 'success' : 'warning' %>"><%= w.hasFace ? 'Registered' : 'Not registered' %></span>
+        </span>
       </a>
       <% }); %>
     </div>
@@ -49,7 +58,7 @@
     <thead>
       <tr>
         <th></th><th>Reg No</th><th>Name</th><th>Designation</th>
-        <th>Site</th><th>Status</th><th class="oh-col-action"></th>
+        <th>Site</th><th>Status</th><th>Face</th><th class="oh-col-action"></th>
       </tr>
     </thead>
     <tbody>
@@ -66,6 +75,11 @@
         <td><%= w.siteName %></td>
         <td>
           <span class="oh-badge oh-badge--<%= statusBadge[w.status] || 'muted' %>"><%= w.status %></span>
+        </td>
+        <td>
+          <% if (w.hasFace) { %><span class="oh-badge oh-badge--success">Registered</span>
+          <% } else { %><span class="oh-badge oh-badge--warning">Not registered</span>
+          <a class="oh-btn oh-btn--small oh-btn--secondary" href="/workers/<%= w._id %>/face" style="margin-left:0.4rem">Register face</a><% } %>
         </td>
         <td class="oh-col-action">
           <a class="oh-btn oh-btn--small" href="/workers/<%= w._id %>/edit">Edit</a>

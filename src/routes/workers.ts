@@ -116,19 +116,33 @@ const STATUS_TABS: Record<string, string[]> = {
 // ---- List (status-tabbed) ----
 router.get("/workers", requireCapability("enroll_worker"), async (req: Request, res: Response) => {
   const tab = STATUS_TABS[String(req.query.status)] ? String(req.query.status) : "active";
+  const faceFilter = String(req.query.face) === "unregistered" ? "unregistered" : "all";
   const scope = siteScopeFilter(req.currentUser!);
-  const [workers, active, pending, archived] = await Promise.all([
-    WorkerModel.find({ ...scope, status: { $in: STATUS_TABS[tab] } }).sort({ createdAt: -1 }).lean(),
+  const listQuery: Record<string, unknown> = { ...scope, status: { $in: STATUS_TABS[tab] } };
+  // "faceEncoding.0" exists ⇒ at least one descriptor ⇒ enrolled.
+  if (faceFilter === "unregistered") listQuery["faceEncoding.0"] = { $exists: false };
+  const [workers, active, pending, archived, faceRegistered] = await Promise.all([
+    WorkerModel.find(listQuery).sort({ createdAt: -1 }).lean(),
     WorkerModel.countDocuments({ ...scope, status: { $in: ["active", "inactive"] } }),
     WorkerModel.countDocuments({ ...scope, status: "pending" }),
     WorkerModel.countDocuments({ ...scope, status: "deleted" }),
+    WorkerModel.countDocuments({ ...scope, status: { $in: ["active", "inactive"] }, "faceEncoding.0": { $exists: true } }),
   ]);
+  // Compute the enrolled flag and drop the bulky descriptor from the payload.
+  const rows = workers.map((w) => {
+    const hasFace = Array.isArray(w.faceEncoding) && w.faceEncoding.length > 0;
+    const { faceEncoding, ...rest } = w;
+    void faceEncoding;
+    return { ...rest, hasFace };
+  });
   res.render("workers/index", {
     title: "Employees · " + res.locals.company,
     active: "/workers",
-    workers,
+    workers: rows,
     tab,
+    faceFilter,
     counts: { active, pending, archived },
+    face: { registered: faceRegistered, total: active },
   });
 });
 
@@ -393,8 +407,28 @@ router.post("/workers/:id/remarks/:idx/clear", requireCapability("delete_worker"
 });
 
 // ---- Enrol / replace a face on an existing worker (imports have none) ----
+// Dedicated "Register face" capture page — the onboarding sweep entry point.
+// Focused on one worker; on save it returns to the unregistered worklist.
+router.get("/workers/:id/face", requireCapability("enroll_worker"), async (req: Request, res: Response) => {
+  const worker = await WorkerModel.findById(req.params.id).lean();
+  if (!worker || !canUseSite(req.currentUser!, String(worker.siteId))) {
+    flash(req, "danger", "Employee not found or out of your site scope.");
+    return res.redirect("/workers");
+  }
+  res.render("workers/face", {
+    title: "Register face · " + res.locals.company,
+    active: "/workers",
+    worker,
+    hasFace: Array.isArray(worker.faceEncoding) && worker.faceEncoding.length > 0,
+  });
+});
+
 router.post("/workers/:id/face", requireCapability("enroll_worker"), async (req: Request, res: Response) => {
   const worker = await WorkerModel.findById(req.params.id);
+  // Where to land after this request: the sweep page (when launched from the
+  // roster) vs the worker's Edit form.
+  const fromRoster = String(req.body.returnTo ?? "") === "roster";
+  const backOnError = fromRoster ? `/workers/${req.params.id}/face` : `/workers/${req.params.id}/edit`;
   if (!worker || !canUseSite(req.currentUser!, String(worker.siteId))) {
     flash(req, "danger", "Employee not found.");
     return res.redirect("/workers");
@@ -402,18 +436,18 @@ router.post("/workers/:id/face", requireCapability("enroll_worker"), async (req:
   const photo = dataUrlToBuffer(String(req.body.photoData ?? ""));
   if (!photo) {
     flash(req, "danger", "Capture or upload a photo first.");
-    return res.redirect(`/workers/${req.params.id}/edit`);
+    return res.redirect(backOnError);
   }
   let encoding: number[] | null;
   try {
     encoding = await encodeFace(photo);
   } catch {
     flash(req, "danger", "Could not read the photo. Use a clear JPEG and retake.");
-    return res.redirect(`/workers/${req.params.id}/edit`);
+    return res.redirect(backOnError);
   }
   if (!encoding) {
     flash(req, "danger", "No single clear face detected — center one face and retake.");
-    return res.redirect(`/workers/${req.params.id}/edit`);
+    return res.redirect(backOnError);
   }
   await fs.mkdir(UPLOAD_DIR, { recursive: true });
   await fs.writeFile(path.join(UPLOAD_DIR, `${worker._id}.jpg`), photo);
@@ -422,7 +456,7 @@ router.post("/workers/:id/face", requireCapability("enroll_worker"), async (req:
   pushRemark(worker, req.currentUser!, "Face enrolled.", "note");
   await worker.save();
   flash(req, "success", `Face enrolled for ${worker.name}.`);
-  res.redirect(`/workers/${req.params.id}/edit`);
+  res.redirect(fromRoster ? "/workers?face=unregistered" : `/workers/${req.params.id}/edit`);
 });
 
 export default router;
