@@ -158,12 +158,8 @@ async function decide(req: Request, res: Response, outcome: "approved" | "reject
     flash(req, "danger", "Request not found.");
     return res.redirect("/requests");
   }
-  // Mandatory PM recommendation before approval; rejection allowed from
-  // pending or recommended.
-  if (outcome === "approved" && r.status !== "recommended") {
-    flash(req, "danger", "This request must be recommended by a PM before approval.");
-    return res.redirect("/requests");
-  }
+  // HR/Management can approve or reject directly from pending; a PM
+  // recommendation is optional (it adds context but is no longer a gate).
   if (!["pending", "recommended"].includes(r.status)) {
     flash(req, "danger", "This request has already been decided.");
     return res.redirect("/requests");

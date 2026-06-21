@@ -1,7 +1,7 @@
 /* E2E for the Requests subsystem (scheduled OT + offload).
    Flow: Supervisor/PM create → PM recommends → admin approves/rejects.
-   Verifies: create; admin cannot approve before PM recommends (mandatory);
-   recommend then approve; reject path; offload approval deactivates the worker;
+   Verifies: create; admin approves a pending request directly (PM recommend
+   optional); recommend then approve; reject path; offload deactivates the worker;
    there is NO withdraw route; scope (supervisor only sees own-site requests).
    Cleans up. Run: npm run e2e:requests */
 
@@ -64,16 +64,12 @@ async function main(): Promise<void> {
   assert("scheduled OT request created (pending)", !!ot && ot.status === "pending");
   assert("OT hours computed (3h)", !!ot && ot.hours === 3);
 
-  // Admin CANNOT approve before PM recommends (mandatory step).
-  await admin.post(`/requests/${ot!._id}/approve`).type("form").send({});
-  assert("admin cannot approve a pending (un-recommended) request", (await RequestModel.findById(ot!._id))!.status === "pending");
-
-  // PM recommends → admin approves.
-  await pm.post(`/requests/${ot!._id}/recommend`).type("form").send({ remarks: "ok" });
-  assert("PM recommend → recommended", (await RequestModel.findById(ot!._id))!.status === "recommended");
+  // HR/Management approve a PENDING request directly — PM recommendation is
+  // optional now, not a gate. (The offload flow below still exercises the
+  // recommend → approve path to prove recommending still works.)
   await admin.post(`/requests/${ot!._id}/approve`).type("form").send({ remarks: "approved" });
   const otFinal = await RequestModel.findById(ot!._id);
-  assert("admin approve → approved", otFinal!.status === "approved");
+  assert("admin approves a pending OT request directly", otFinal!.status === "approved");
   assert("approver recorded", !!otFinal!.decidedByName);
 
   // No withdraw route exists.
