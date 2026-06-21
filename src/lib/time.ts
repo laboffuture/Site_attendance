@@ -48,23 +48,3 @@ export function istDayOfWeek(d: Date): number {
 export function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
-
-/** Standard (non-overtime) hours for a site, honoring an optional
- *  per-designation shift override. Structural type so it accepts both lean
- *  docs and plain objects. */
-export function standardHoursForSite(
-  site: {
-    standardStartTime: string;
-    standardEndTime: string;
-    designationOverrides?: { designationId: unknown; startTime: string; endTime: string }[];
-  },
-  designationId?: string,
-): number {
-  if (designationId && site.designationOverrides?.length) {
-    const ov = site.designationOverrides.find(
-      (o) => String(o.designationId) === String(designationId),
-    );
-    if (ov) return Math.max(0, hmToHours(ov.endTime) - hmToHours(ov.startTime));
-  }
-  return Math.max(0, hmToHours(site.standardEndTime) - hmToHours(site.standardStartTime));
-}
