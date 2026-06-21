@@ -37,6 +37,7 @@
     "e2e:payfields": "tsx scripts/e2e_payfields.ts",
     "e2e:shift": "tsx scripts/e2e_shift.ts",
     "e2e:regularization": "tsx scripts/e2e_regularization.ts",
+    "e2e:dashboard": "tsx scripts/e2e_dashboard.ts",
     "e2e:face-onboarding": "tsx scripts/e2e_face_onboarding.ts"
   },
   "dependencies": {

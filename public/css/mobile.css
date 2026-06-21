@@ -197,3 +197,25 @@
   .oh-table--cards td.oh-col-action { justify-content: flex-end; }
   .oh-table--cards .oh-ot-actions { flex: 1 1 auto; justify-content: flex-end; }
 }
+
+/* ---- Dashboard redesign — mobile (first-class) ---- */
+@media (max-width: 768px) {
+  /* Branch boxes: 1–2 per row; whole box stays a ≥44px tap target. */
+  .oh-dash-branches { grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+  .oh-dash-box { padding: 0.75rem 0.85rem 0.85rem; }
+  .oh-dash-box__count { font-size: 1.6rem; }
+  /* Expanded site tiles: single column, full bleed under the boxes. */
+  .oh-dash-sites { grid-template-columns: 1fr; padding: 0.7rem; }
+
+  /* Single-site header reflows; meta wraps without horizontal scroll. */
+  .oh-dash-sitehead { padding: 0.95rem 1rem; }
+  .oh-dash-sitehead__name { font-size: 1.15rem; }
+
+  /* These cards hold tables that become cards — don't trap them in x-scroll. */
+  .oh-dash-stat { overflow-x: visible; }
+}
+
+/* Phones: one branch box per row (very narrow screens). */
+@media (max-width: 430px) {
+  .oh-dash-branches { grid-template-columns: 1fr; }
+}

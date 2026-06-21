@@ -29,9 +29,9 @@ async function login(app: ReturnType<typeof createApp>, email: string, pw: strin
   if (r.status !== 302) throw new Error(`login failed ${email}`);
   return agent;
 }
-/** Extract a branch band block from the visual rollup HTML. */
+/** Extract a branch box block from the redesigned branch-boxes HTML. */
 function branchRow(html: string, branch: string): string | null {
-  const re = new RegExp(`oh-hier__branch[\\s\\S]*?${branch}[\\s\\S]*?</section>`);
+  const re = new RegExp(`oh-dash-branch[\\s\\S]*?${branch}[\\s\\S]*?</section>`);
   const m = re.exec(html);
   return m ? m[0] : null;
 }
@@ -65,19 +65,19 @@ async function main(): Promise<void> {
     { upsert: true },
   );
 
-  // Senior role: rollup present.
+  // Senior role: branch boxes present.
   const admin = await login(app, ADMIN_EMAIL, ADMIN_PW);
   const dash = (await admin.get("/dashboard")).text;
-  assert("dashboard shows rollup heading", dash.includes("By branch &amp; site"));
-  assert("rollup lists Chennai branch", dash.includes("oh-hier__branch") && dash.includes("Chennai"));
-  assert("rollup lists VBW site tile", dash.includes("(VBW)"));
+  assert("dashboard shows the Branches heading", dash.includes(">Branches<"));
+  assert("branch boxes list the Chennai branch", dash.includes("oh-dash-box") && dash.includes("Chennai"));
+  assert("a site tile links into VBW's single-site page", dash.includes(`/dashboard?siteId=${vbw._id}`) && dash.includes("(VBW)"));
   const chennai = branchRow(dash, "Chennai");
-  assert("Chennai branch band rendered", !!chennai);
+  assert("Chennai branch box rendered", !!chennai);
 
-  // Single-site Supervisor: no rollup.
+  // Single-site Supervisor: no branch boxes (not a senior multi-site view).
   const sup = await login(app, SUP_EMAIL, PW);
   const supDash = (await sup.get("/dashboard")).text;
-  assert("supervisor dashboard has NO rollup", !supDash.includes("By branch &amp; site"));
+  assert("supervisor dashboard has NO branch boxes", !supDash.includes("oh-dash-branches"));
   assert("supervisor dashboard still renders", supDash.includes("Dashboard"));
 
   void baseline;

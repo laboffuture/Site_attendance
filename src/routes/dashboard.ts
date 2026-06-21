@@ -4,8 +4,8 @@ import { Types } from "mongoose";
 import { requireAuth } from "../auth/middleware";
 import { seesAllSites } from "../auth/permissions";
 import { buildHierarchyRollup } from "../lib/hierarchy";
-import { siteScopeFilter, flagScopeFilter } from "../lib/scope";
-import { siteLocalDate, round2 } from "../lib/time";
+import { canUseSite, siteScopeFilter, flagScopeFilter } from "../lib/scope";
+import { siteLocalDate, istHM, round2 } from "../lib/time";
 import { AttendanceModel } from "../models/Attendance";
 import { FlagEventModel } from "../models/FlagEvent";
 import { ProjectSiteModel } from "../models/ProjectSite";
@@ -27,22 +27,92 @@ router.get("/dashboard", requireAuth, async (req: Request, res: Response) => {
         .lean();
 
   // Optional single-site filter (only a site the user actually has).
+  const requestedSiteId = typeof req.query.siteId === "string" ? req.query.siteId : "";
   const selectedSiteId =
-    typeof req.query.siteId === "string" && mySites.some((s) => String(s._id) === req.query.siteId)
-      ? req.query.siteId
-      : "";
+    requestedSiteId && mySites.some((s) => String(s._id) === requestedSiteId) ? requestedSiteId : "";
 
-  let scope = siteScopeFilter(u);
-  let flagScope = flagScopeFilter(u);
-  if (selectedSiteId) {
-    scope = { siteId: new Types.ObjectId(selectedSiteId) };
-    flagScope = { attemptedSiteId: new Types.ObjectId(selectedSiteId) };
+  // ---------------------------------------------------------------------------
+  // Level 3 — a dedicated, complete page for one site. An out-of-scope or
+  // unknown siteId redirects back to the all-sites view with a danger flash,
+  // rather than silently falling through to the rollup.
+  // ---------------------------------------------------------------------------
+  if (requestedSiteId) {
+    const valid = Types.ObjectId.isValid(requestedSiteId);
+    if (!valid || !canUseSite(u, requestedSiteId) || !selectedSiteId) {
+      req.session.flash = { type: "danger", text: "That site isn't in your scope." };
+      return res.redirect("/dashboard");
+    }
+
+    const site = mySites.find((s) => String(s._id) === selectedSiteId)!;
+    const siteOid = new Types.ObjectId(selectedSiteId);
+    const siteScope = { siteId: siteOid };
+
+    const [activeWorkers, todayRows, otRows, siteFlags] = await Promise.all([
+      WorkerModel.countDocuments({ ...siteScope, status: "active" }),
+      AttendanceModel.find({ ...siteScope, date: today }).sort({ inTime: 1 }).lean(),
+      AttendanceModel.find({ ...siteScope, "overtime.status": { $in: ["pending", "approved"] } })
+        .sort({ date: -1, inTime: -1 })
+        .limit(50)
+        .lean(),
+      FlagEventModel.find({ attemptedSiteId: siteOid, resolved: false })
+        .sort({ timestamp: -1 })
+        .limit(8)
+        .lean(),
+    ]);
+
+    // Today's roster rows in the shape the view renders (In/Out/Total/OT).
+    const roster = todayRows.map((r) => ({
+      workerName: r.workerName,
+      empRegNo: r.empRegNo,
+      inTime: istHM(r.inTime),
+      outTime: istHM(r.outTime),
+      totalHours: r.totalHours != null ? round2(r.totalHours) : null,
+      otHours: r.overtime?.computedHours ? round2(r.overtime.computedHours) : 0,
+      otStatus: r.overtime?.status ?? "none",
+    }));
+
+    const ot = otRows.map((r) => ({
+      date: r.date,
+      workerName: r.workerName,
+      empRegNo: r.empRegNo,
+      inTime: istHM(r.inTime),
+      outTime: istHM(r.outTime),
+      computedHours: round2(r.overtime?.computedHours ?? 0),
+      approvedHours: r.overtime?.approvedHours != null ? round2(r.overtime.approvedHours) : null,
+      status: r.overtime?.status ?? "none",
+    }));
+
+    const present = todayRows.length;
+    const otHoursTotal = round2(
+      otRows
+        .filter((r) => r.overtime?.status === "pending")
+        .reduce((sum, r) => sum + (r.overtime?.computedHours ?? 0), 0),
+    );
+
+    const shift = site.shifts?.day;
+    return res.render("dashboard-site", {
+      title: `${site.name} · ${res.locals.company}`,
+      active: "/dashboard",
+      site: {
+        id: String(site._id),
+        name: site.name,
+        code: site.code,
+        startTime: shift?.startTime || site.standardStartTime || "—",
+        endTime: shift?.endTime || site.standardEndTime || "—",
+        geofenceRadiusMeters: site.geofenceRadiusMeters ?? null,
+      },
+      summary: { present, active: activeWorkers, otHours: otHoursTotal, flags: siteFlags.length },
+      roster,
+      ot,
+      flags: siteFlags,
+    });
   }
 
+  const scope = siteScopeFilter(u);
+  const flagScope = flagScopeFilter(u);
+
   let scopeLabel: string;
-  if (selectedSiteId) {
-    scopeLabel = mySites.find((s) => String(s._id) === selectedSiteId)!.name;
-  } else if (seesAllSites(u.role)) {
+  if (seesAllSites(u.role)) {
     scopeLabel = "All branches & sites";
   } else {
     scopeLabel = `${u.assignedSiteIds.length} assigned site(s)`;
@@ -130,7 +200,7 @@ router.get("/dashboard", requireAuth, async (req: Request, res: Response) => {
   // Present-vs-active per site (visual bar) — across the sites in scope. Drawn
   // for any multi-site user (PM/Supervisor included) and when not filtered to one.
   let presenceBySite: { labels: string[]; present: number[]; active: number[] } | null = null;
-  if (!selectedSiteId && mySites.length > 1) {
+  if (mySites.length > 1) {
     const siteIds = mySites.map((s) => s._id);
     const [presentAgg, activeAgg] = await Promise.all([
       AttendanceModel.aggregate([

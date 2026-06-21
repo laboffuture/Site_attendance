@@ -10,10 +10,10 @@
   </div>
   <% if (mySites && mySites.length > 1) { %>
   <form method="get" action="/dashboard" class="oh-dash-filter">
-    <select class="oh-select" name="siteId" onchange="this.form.submit()" aria-label="Filter by site">
+    <select class="oh-select" name="siteId" onchange="this.form.submit()" aria-label="Open a site">
       <option value="">All my sites</option>
       <% mySites.forEach(function (s) { %>
-      <option value="<%= s._id %>" <%= selectedSiteId === String(s._id) ? "selected" : "" %>><%= s.name %> (<%= s.code %>)</option>
+      <option value="<%= s._id %>"><%= s.name %> (<%= s.code %>)</option>
       <% }); %>
     </select>
   </form>
@@ -48,24 +48,31 @@
 </div>
 
 <% if (rollup) { %>
-<div class="oh-card oh-stack">
+<section class="oh-stack" aria-label="Branches">
   <div class="oh-section-header">
-    <span class="oh-section-title">By branch &amp; site</span>
-    <span class="oh-muted">present = scanned in today</span>
+    <span class="oh-section-title">Branches</span>
+    <span class="oh-muted">Tap a branch to see its sites · present = scanned in today</span>
   </div>
   <% if (rollup.length) { %>
-  <div class="oh-hier">
+  <div class="oh-dash-branches">
     <% rollup.forEach(function (b, i) { %>
-    <section class="oh-hier__block" data-branch="<%= i %>">
-      <div class="oh-hier__branch" tabindex="0" role="button" aria-expanded="true">
-        <span class="oh-hier__branch-name"><span class="oh-caret">&#9660;</span> <%= b.branchName %></span>
-        <span class="oh-hier__branch-tot">
-          <strong><%= b.totals.active %></strong> workers<% if (b.totals.present > 0) { %><span class="oh-hier__in"> · <%= b.totals.present %> in</span><% } %><% if (b.totals.otPending > 0) { %> · OT <%= b.totals.otPending %>h<% } %><% if (b.totals.flags > 0) { %> · &#9873; <%= b.totals.flags %><% } %>
+    <section class="oh-dash-branch" data-branch="<%= i %>">
+      <button type="button" class="oh-dash-box" aria-expanded="false" aria-controls="dash-sites-<%= i %>">
+        <span class="oh-dash-box__head">
+          <span class="oh-dash-box__name"><%= b.branchName %></span>
+          <span class="oh-dash-box__caret" aria-hidden="true">&#9656;</span>
         </span>
-      </div>
-      <div class="oh-hier__grid">
+        <span class="oh-dash-box__count"><%= b.totals.active %> <span class="oh-dash-box__count-unit">workers</span></span>
+        <span class="oh-dash-box__sub">
+          <strong><%= b.totals.present %></strong> in · OT <%= b.totals.otPending %>h
+        </span>
+        <% if (b.totals.flags > 0) { %>
+        <span class="oh-dash-box__chip">&#9873; <%= b.totals.flags %></span>
+        <% } %>
+      </button>
+      <div class="oh-dash-sites" id="dash-sites-<%= i %>" role="region" aria-label="Sites in <%= b.branchName %>">
         <% b.sites.forEach(function (s) { var pct = s.active > 0 ? Math.round((s.present / s.active) * 100) : 0; %>
-        <article class="oh-hier__tile">
+        <a class="oh-hier__tile oh-dash-tile" href="/dashboard?siteId=<%= s.siteId %>">
           <div class="oh-hier__site"><%= s.siteName %></div>
           <div class="oh-hier__code"><%= s.code %></div>
           <div class="oh-hier__num"><%= s.active %></div>
@@ -78,7 +85,7 @@
           </div>
           <% } %>
           <div class="oh-hier__bar"><span class="oh-hier__bar-fill" style="width: <%= pct %>%"></span></div>
-        </article>
+        </a>
         <% }); %>
       </div>
     </section>
@@ -87,7 +94,7 @@
   <% } else { %>
   <p class="oh-muted">No sites in your scope yet.</p>
   <% } %>
-</div>
+</section>
 <% } %>
 
 <% if (charts.presenceBySite) { %>
@@ -147,16 +154,12 @@
 </div>
 
 <script>
-  // Collapse/expand a branch's site tiles.
-  document.querySelectorAll(".oh-hier__branch").forEach(function (band) {
-    function toggle() {
-      var block = band.closest(".oh-hier__block");
-      var collapsed = block.classList.toggle("collapsed");
-      band.setAttribute("aria-expanded", collapsed ? "false" : "true");
-    }
-    band.addEventListener("click", toggle);
-    band.addEventListener("keydown", function (e) {
-      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); }
+  // Progressive disclosure: tapping a branch box reveals its site tiles.
+  document.querySelectorAll(".oh-dash-box").forEach(function (box) {
+    box.addEventListener("click", function () {
+      var branch = box.closest(".oh-dash-branch");
+      var open = branch.classList.toggle("is-open");
+      box.setAttribute("aria-expanded", open ? "true" : "false");
     });
   });
 

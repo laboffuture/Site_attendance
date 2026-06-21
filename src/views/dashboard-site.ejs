@@ -1,0 +1,114 @@
+<%- include('partials/app-top', { title: title, active: active }) %>
+<%
+  function ts(d) { return d ? new Date(d).toLocaleString("en-GB", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" }) : ""; }
+  var otBadge = { pending: "warning", approved: "success", rejected: "danger", none: "muted" };
+  var pct = summary.active > 0 ? Math.round((summary.present / summary.active) * 100) : 0;
+%>
+
+<a class="oh-dash-back" href="/dashboard"><span class="material-icons">arrow_back</span> All sites</a>
+
+<header class="oh-dash-sitehead">
+  <div class="oh-dash-sitehead__main">
+    <h1 class="oh-dash-sitehead__name"><%= site.name %></h1>
+    <div class="oh-dash-sitehead__meta">
+      <span class="oh-dash-sitehead__code"><%= site.code %></span>
+      <span class="oh-dash-sitehead__sep">·</span>
+      <span><span class="material-icons">schedule</span> <%= site.startTime %>–<%= site.endTime %></span>
+      <span class="oh-dash-sitehead__sep">·</span>
+      <span><span class="material-icons">my_location</span> <%= site.geofenceRadiusMeters != null ? site.geofenceRadiusMeters + " m" : "no geofence" %></span>
+    </div>
+  </div>
+</header>
+
+<div class="oh-card-grid">
+  <div class="oh-card oh-dash-stat">
+    <div class="oh-card__label">Present today</div>
+    <div class="oh-card__value"><%= summary.present %> <span class="oh-card__of">/ <%= summary.active %></span></div>
+    <div class="oh-dash-stat__bar"><span style="width: <%= pct %>%"></span></div>
+    <div class="oh-card__note"><%= pct %>% of active</div>
+  </div>
+  <div class="oh-card oh-dash-stat">
+    <div class="oh-card__label">Overtime (pending)</div>
+    <div class="oh-card__value"><%= summary.otHours %><span class="oh-card__of">h</span></div>
+  </div>
+  <a class="oh-card oh-card--link oh-dash-stat" href="/flags">
+    <div class="oh-card__label">Open flags</div>
+    <div class="oh-card__value"><%= summary.flags %></div>
+  </a>
+</div>
+
+<div class="oh-card oh-stack">
+  <div class="oh-section-header">
+    <span class="oh-section-title">Today's roster</span>
+    <span class="oh-muted"><%= roster.length %> scanned in</span>
+  </div>
+  <% if (roster.length) { %>
+  <table class="oh-table oh-table--cards">
+    <thead><tr><th>Worker</th><th>In</th><th>Out</th><th>Total</th><th>OT</th></tr></thead>
+    <tbody>
+      <% roster.forEach(function (r) { %>
+      <tr>
+        <td><%= r.workerName %><br /><span class="oh-muted"><%= r.empRegNo %></span></td>
+        <td data-label="In"><%= r.inTime || "—" %></td>
+        <td data-label="Out"><%= r.outTime || "—" %></td>
+        <td data-label="Total"><%= r.totalHours != null ? r.totalHours + "h" : "—" %></td>
+        <td data-label="OT"><% if (r.otHours > 0) { %><span class="oh-badge oh-badge--<%= otBadge[r.otStatus] || 'muted' %>"><%= r.otHours %>h</span><% } else { %>—<% } %></td>
+      </tr>
+      <% }); %>
+    </tbody>
+  </table>
+  <% } else { %>
+  <p class="oh-muted">No one has scanned in at this site today.</p>
+  <% } %>
+</div>
+
+<div class="oh-card oh-stack">
+  <div class="oh-section-header">
+    <span class="oh-section-title">Overtime</span>
+    <a class="oh-btn oh-btn--small" href="/overtime">View queue</a>
+  </div>
+  <% if (ot.length) { %>
+  <table class="oh-table oh-table--cards">
+    <thead><tr><th>Worker</th><th>Date</th><th>In–Out</th><th>OT</th><th>Status</th></tr></thead>
+    <tbody>
+      <% ot.forEach(function (r) { %>
+      <tr>
+        <td><%= r.workerName %><br /><span class="oh-muted"><%= r.empRegNo %></span></td>
+        <td data-label="Date"><%= r.date %></td>
+        <td data-label="In–Out"><%= r.inTime || "—" %>–<%= r.outTime || "—" %></td>
+        <td data-label="OT"><%= r.computedHours %>h<% if (r.status === "approved" && r.approvedHours != null && r.approvedHours !== r.computedHours) { %> → <%= r.approvedHours %>h<% } %></td>
+        <td data-label="Status"><span class="oh-badge oh-badge--<%= otBadge[r.status] || 'muted' %>"><%= r.status %></span></td>
+      </tr>
+      <% }); %>
+    </tbody>
+  </table>
+  <% } else { %>
+  <p class="oh-muted">No pending or approved overtime for this site.</p>
+  <% } %>
+</div>
+
+<div class="oh-card oh-stack">
+  <div class="oh-section-header">
+    <span class="oh-section-title">Recent flags</span>
+    <a class="oh-btn oh-btn--small" href="/flags">View all</a>
+  </div>
+  <% if (flags.length) { %>
+  <table class="oh-table oh-table--cards">
+    <thead><tr><th>When</th><th>Worker</th><th>Type</th><th>Assigned to</th></tr></thead>
+    <tbody>
+      <% flags.forEach(function (f) { %>
+      <tr>
+        <td><%= ts(f.timestamp) %></td>
+        <td data-label="Worker"><%= f.workerName || "—" %></td>
+        <td data-label="Type"><%= f.type === "wrong_site_scan" ? "Wrong site" : f.type === "missed_clockout" ? "Missed clock-out" : f.type %></td>
+        <td data-label="Assigned to"><%= f.homeSiteName || "—" %></td>
+      </tr>
+      <% }); %>
+    </tbody>
+  </table>
+  <% } else { %>
+  <p class="oh-muted">No open flags for this site.</p>
+  <% } %>
+</div>
+
+<%- include('partials/app-bottom') %>

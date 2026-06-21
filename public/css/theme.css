@@ -871,6 +871,183 @@ code {
   background: var(--c-accent);
 }
 
+/* ---- Dashboard: branch boxes (Level 1) ----
+   Glanceable category boxes; the whole box is the toggle that reveals its
+   site tiles below. Flat oh- DNA: sharp corners, left accent rail, one big
+   tabular headcount as the hero, everything else quiet. */
+.oh-dash-branches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+.oh-dash-branch {
+  display: contents; /* let each box flow in the grid; its sites panel spans full width */
+}
+.oh-dash-box {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  width: 100%;
+  min-height: 44px;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-left: 3px solid var(--c-accent);
+  padding: 0.85rem 1rem 0.95rem;
+  transition: box-shadow 0.12s ease;
+}
+.oh-dash-box:hover {
+  box-shadow: var(--shadow-card);
+}
+.oh-dash-box:focus-visible {
+  outline: var(--focus);
+  outline-offset: 2px;
+}
+.oh-dash-box__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.oh-dash-box__name {
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--c-text);
+}
+.oh-dash-box__caret {
+  font-size: 0.7rem;
+  color: var(--c-text-muted);
+  transition: transform 0.15s ease;
+}
+.oh-dash-branch.is-open .oh-dash-box__caret {
+  transform: rotate(90deg);
+}
+.oh-dash-box__count {
+  font-size: 1.9rem;
+  font-weight: 600;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+  margin-top: 0.2rem;
+}
+.oh-dash-box__count-unit {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--c-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.oh-dash-box__sub {
+  font-size: 0.75rem;
+  color: var(--c-text-muted);
+}
+.oh-dash-box__sub strong {
+  color: var(--c-success);
+}
+.oh-dash-box__chip {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.7rem;
+  font-size: 0.62rem;
+  font-weight: 600;
+  padding: 0.1rem 0.4rem;
+  background: #fdebeb;
+  color: #b3261e;
+}
+/* Site tiles panel — spans the full grid row, hidden until its box is open. */
+.oh-dash-sites {
+  display: none;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 0.6rem;
+  margin: 0 0 0.4rem;
+  padding: 0.8rem;
+  background: #fafafa;
+  border: 1px solid var(--c-border-light);
+  border-left: 3px solid var(--c-accent);
+}
+.oh-dash-branch.is-open .oh-dash-sites {
+  display: grid;
+}
+/* The site tile is a link (drill into the single-site page). */
+a.oh-dash-tile {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
+/* ---- Dashboard: single-site page (Level 3) ---- */
+.oh-dash-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--c-accent);
+  text-decoration: none;
+  margin-bottom: 0.85rem;
+  min-height: 44px;
+}
+.oh-dash-back .material-icons {
+  font-size: 18px;
+}
+.oh-dash-back:hover {
+  text-decoration: underline;
+}
+.oh-dash-sitehead {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-left: 3px solid var(--c-accent);
+  padding: 1.1rem 1.25rem;
+  margin-bottom: 1.25rem;
+}
+.oh-dash-sitehead__name {
+  font-size: 1.35rem;
+  font-weight: 600;
+  margin: 0 0 0.35rem;
+}
+.oh-dash-sitehead__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--c-text-muted);
+}
+.oh-dash-sitehead__meta > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.oh-dash-sitehead__meta .material-icons {
+  font-size: 15px;
+  color: var(--c-icon);
+}
+.oh-dash-sitehead__code {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--c-accent);
+}
+.oh-dash-sitehead__sep {
+  color: var(--c-border);
+}
+.oh-dash-stat__bar {
+  height: 4px;
+  background: var(--c-border-light);
+  margin-top: 0.5rem;
+}
+.oh-dash-stat__bar > span {
+  display: block;
+  height: 100%;
+  background: var(--c-accent);
+}
+
 /* ---- Reports ---- */
 .oh-req-actions {
   display: flex;
