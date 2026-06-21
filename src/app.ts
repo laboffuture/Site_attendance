@@ -13,6 +13,7 @@ import { NAV } from "./nav";
 import authRouter from "./routes/auth";
 import attendanceRouter from "./routes/attendance";
 import regularizationRouter from "./routes/regularization";
+import meRouter from "./routes/me";
 import dashboardRouter from "./routes/dashboard";
 import designationsRouter from "./routes/designations";
 import flagsRouter from "./routes/flags";
@@ -107,6 +108,7 @@ export function createApp(): Express {
   app.use("/", requestsRouter);
   app.use("/", attendanceRouter);
   app.use("/", regularizationRouter);
+  app.use("/", meRouter);
 
   return app;
 }

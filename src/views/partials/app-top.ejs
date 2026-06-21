@@ -12,3 +12,9 @@
           <% if (flash) { %>
           <div class="oh-alert oh-alert--<%= flash.type %>"><%= flash.text %></div>
           <% } %>
+          <% if (currentUser && (currentUser.role === "pm" || currentUser.role === "supervisor")) { %>
+          <div id="geo-login-banner" class="oh-geo-banner" role="status" hidden>
+            <span class="material-icons oh-geo-banner__icon">my_location</span>
+            <span class="oh-geo-banner__text"></span>
+          </div>
+          <% } %>

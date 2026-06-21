@@ -464,6 +464,22 @@ code {
   color: #b3261e;
 }
 
+/* ---- Login geofence banner (PM / Supervisor) ---- */
+.oh-geo-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.82rem;
+  border: 1px solid transparent;
+}
+.oh-geo-banner__icon { font-size: 18px; }
+.oh-geo-banner--checking { background: #f1f3f6; color: var(--c-text-muted); }
+.oh-geo-banner--inside { background: #e1fbe9; border-color: #cbefd3; color: #1f7a44; }
+.oh-geo-banner--outside { background: #fdebeb; border-color: #f7cbce; color: #b3261e; font-weight: 600; }
+.oh-geo-banner--warn { background: #fff8e1; border-color: #fcefc6; color: #8a6d1b; }
+
 /* ---- App shell ---- */
 .oh-wrapper {
   display: flex;
