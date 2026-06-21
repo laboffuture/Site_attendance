@@ -87,7 +87,7 @@ router.post("/station/scan", requireStation, async (req: Request, res: Response)
     status: "active",
     "faceEncoding.0": { $exists: true },
   })
-    .select("name empRegNo siteId siteName designationId designationName faceEncoding")
+    .select("name empRegNo siteId siteIds siteName designationId designationName faceEncoding")
     .lean();
 
   const match = bestMatch(
@@ -98,8 +98,9 @@ router.post("/station/scan", requireStation, async (req: Request, res: Response)
 
   const worker = workers.find((w) => String(w._id) === match.id)!;
 
-  // Location-lock: worker's assigned site must equal this station's site.
-  if (String(worker.siteId) !== station.siteId) {
+  // Location-lock: the station's site must be one of the worker's assigned
+  // sites (multi-site workers can clock in at any of theirs).
+  if (!worker.siteIds.map(String).includes(String(station.siteId))) {
     await FlagEventModel.create({
       type: "wrong_site_scan",
       workerId: worker._id,

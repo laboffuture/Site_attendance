@@ -4,7 +4,7 @@ import { Types } from "mongoose";
 import { requireCapability } from "../auth/middleware";
 import { can, seesAllSites } from "../auth/permissions";
 import type { CurrentUser } from "../auth/types";
-import { siteScopeFilter, canUseSite } from "../lib/scope";
+import { siteScopeFilter, canUseSite, canUseWorker, workerScopeFilter } from "../lib/scope";
 import { hmToHours, round2 } from "../lib/time";
 import { isValidTime, endAfterStart } from "../lib/validate";
 import { BranchModel } from "../models/Branch";
@@ -20,9 +20,9 @@ function flash(req: Request, type: "success" | "danger", text: string): void {
   req.session.flash = { type, text };
 }
 
-/** Workers the user may raise a request for (their sites). */
+/** Workers the user may raise a request for (their sites — by siteIds). */
 async function allowedWorkers(user: CurrentUser) {
-  const scope = siteScopeFilter(user); // {} for admins, else {siteId:{$in}}
+  const scope = workerScopeFilter(user); // {} for admins, else {siteIds:{$in}}
   return WorkerModel.find({ ...scope, status: "active" }).sort({ name: 1 }).lean();
 }
 
@@ -74,7 +74,7 @@ router.post("/requests", requireCapability("create_request"), async (req: Reques
     return res.redirect(`/requests/new?type=${type}`);
   }
   const worker = await WorkerModel.findById(workerId).lean();
-  if (!worker || !canUseSite(u, String(worker.siteId))) {
+  if (!worker || !canUseWorker(u, worker)) {
     flash(req, "danger", "Worker not found or outside your sites.");
     return res.redirect(`/requests/new?type=${type}`);
   }

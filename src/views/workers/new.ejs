@@ -36,13 +36,14 @@
 
     <div class="oh-row-2">
       <div class="oh-input-group">
-        <label class="oh-label" for="siteId">Project site (location)</label>
+        <label class="oh-label" for="siteIds">Project site(s) (location)</label>
         <% if (sites.length) { %>
-        <select class="oh-select" id="siteId" name="siteId" required>
+        <select class="oh-select" id="siteIds" name="siteIds" multiple size="<%= Math.min(Math.max(sites.length, 3), 6) %>" required>
           <% sites.forEach(function (s) { %>
           <option value="<%= s._id %>"><%= s.name %> (<%= s.code %>)</option>
           <% }); %>
         </select>
+        <span class="oh-muted">Pick one or more sites; the first selected is the primary (used for pay &amp; reporting).</span>
         <% } else { %>
         <p class="oh-muted">No sites available to you. Ask an admin to assign a site first.</p>
         <% } %>

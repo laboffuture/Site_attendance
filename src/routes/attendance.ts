@@ -51,7 +51,9 @@ router.get("/attendance", requireCapability("mark_attendance"), async (req: Requ
   const date = DATE_RE.test(String(req.query.date ?? "")) ? String(req.query.date) : siteLocalDate();
 
   const [workers, records] = await Promise.all([
-    WorkerModel.find({ siteId: site._id, status: "active" }).sort({ name: 1 }).lean(),
+    // Match by `siteIds` so a worker assigned to this site (primary OR not)
+    // shows in its grid.
+    WorkerModel.find({ siteIds: site._id, status: "active" }).sort({ name: 1 }).lean(),
     AttendanceModel.find({ siteId: site._id, date }).lean(),
   ]);
   const recByWorker = new Map(records.map((r) => [String(r.workerId), r]));
@@ -169,14 +171,16 @@ router.post("/attendance/scan", requireCapability("mark_attendance"), async (req
   if (!probe) return res.json({ status: "no_face" });
 
   const workers = await WorkerModel.find({ status: "active", "faceEncoding.0": { $exists: true } })
-    .select("name empRegNo siteId siteName designationId designationName faceEncoding")
+    .select("name empRegNo siteId siteIds siteName designationId designationName faceEncoding")
     .lean();
   const match = bestMatch(probe, workers.map((w) => ({ id: String(w._id), descriptor: w.faceEncoding })));
   if (!match) return res.json({ status: "unknown" });
   const worker = workers.find((w) => String(w._id) === match.id)!;
 
   // Location-lock to the PICKED site (mirrors the kiosk, scoped to this user).
-  if (String(worker.siteId) !== siteId) {
+  // A worker may clock in at ANY of their assigned sites; only a site they're
+  // not assigned to is a wrong-site scan.
+  if (!worker.siteIds.map(String).includes(siteId)) {
     await FlagEventModel.create({
       type: "wrong_site_scan",
       workerId: worker._id,

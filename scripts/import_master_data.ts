@@ -190,7 +190,9 @@ async function main(): Promise<void> {
       {
         $set: {
           name, designationId: desig.id, designationName: desig.name,
-          siteId: site.id, siteName: site.name, status: "active",
+          // updateOne skips the pre-save hook, so set siteIds explicitly (master
+          // imports are single-site → siteIds mirrors the primary siteId).
+          siteId: site.id, siteIds: [site.id], siteName: site.name, status: "active",
           bank: hasBank ? { bankName: bankName || null, accountNumber: acctNo || null, accountHolderName: acctName || null, ifsc: ifsc ? ifsc.toUpperCase() : null } : null,
           ...(dojDate ? { dateJoined: dojDate } : {}),
         },

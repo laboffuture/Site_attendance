@@ -21,6 +21,33 @@ export function canUseSite(user: CurrentUser, siteId: string): boolean {
   return user.assignedSiteIds.includes(siteId);
 }
 
+/**
+ * Like siteScopeFilter but for WORKERS, which can be assigned to MANY sites
+ * (`siteIds`). A worker is in scope if ANY of its sites is one the user may see.
+ * Top admins see all (empty filter); everyone else is limited to overlap with
+ * their assignedSiteIds.
+ */
+export function workerScopeFilter(user: CurrentUser): Record<string, unknown> {
+  if (seesAllSites(user.role)) return {};
+  return { siteIds: { $in: user.assignedSiteIds.map((id) => new Types.ObjectId(id)) } };
+}
+
+/** True if the user may act on the given worker — i.e. shares at least one site
+ *  with the worker's assignment (or sees all sites). */
+export function canUseWorker(
+  user: CurrentUser,
+  worker: { siteIds?: unknown[]; siteId?: unknown },
+): boolean {
+  if (seesAllSites(user.role)) return true;
+  // Fall back to the primary siteId if siteIds is somehow absent (legacy docs).
+  const sites = Array.isArray(worker.siteIds) && worker.siteIds.length
+    ? worker.siteIds
+    : worker.siteId != null
+      ? [worker.siteId]
+      : [];
+  return sites.some((s) => user.assignedSiteIds.includes(String(s)));
+}
+
 /** Like siteScopeFilter but for flag_events, which key the site as
  *  `attemptedSiteId` (the station's site where the scan happened). */
 export function flagScopeFilter(user: CurrentUser): Record<string, unknown> {

@@ -10,7 +10,7 @@ import type { CurrentUser } from "../auth/types";
 import { config } from "../config";
 import { encodeFace } from "../lib/face";
 import { dataUrlToBuffer } from "../lib/image";
-import { siteScopeFilter, canUseSite } from "../lib/scope";
+import { canUseSite, canUseWorker, workerScopeFilter } from "../lib/scope";
 import { escapeRegex, isDuplicateKeyError } from "../lib/validate";
 import { DesignationModel } from "../models/Designation";
 import { ProjectSiteModel } from "../models/ProjectSite";
@@ -39,6 +39,24 @@ function pushRemark(
     authorName: user.name,
     at: new Date(),
   } as never);
+}
+
+/** Parses the multi-valued `siteIds` form field (array-or-single, like
+ *  users.ts) into a de-duplicated list of valid ObjectId strings, order kept
+ *  (the first is the primary). Falls back to a legacy single `siteId` field so
+ *  older callers/forms keep working. */
+function parseSiteIds(body: Record<string, unknown>): string[] {
+  const raw = body.siteIds ?? body.siteId;
+  const arr = Array.isArray(raw) ? raw : raw != null && raw !== "" ? [raw] : [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const v of arr.map(String)) {
+    if (Types.ObjectId.isValid(v) && !seen.has(v)) {
+      seen.add(v);
+      out.push(v);
+    }
+  }
+  return out;
 }
 
 /** Sites a user may enroll workers into (Management/HR: all; others: theirs). */
@@ -117,7 +135,8 @@ const STATUS_TABS: Record<string, string[]> = {
 router.get("/workers", requireCapability("enroll_worker"), async (req: Request, res: Response) => {
   const tab = STATUS_TABS[String(req.query.status)] ? String(req.query.status) : "active";
   const faceFilter = String(req.query.face) === "unregistered" ? "unregistered" : "all";
-  const scope = siteScopeFilter(req.currentUser!);
+  // Workers can be assigned to many sites, so scope by `siteIds` overlap.
+  const scope = workerScopeFilter(req.currentUser!);
   const listQuery: Record<string, unknown> = { ...scope, status: { $in: STATUS_TABS[tab] } };
   // "faceEncoding.0" exists ⇒ at least one descriptor ⇒ enrolled.
   if (faceFilter === "unregistered") listQuery["faceEncoding.0"] = { $exists: false };
@@ -164,24 +183,28 @@ router.get("/workers/new", requireCapability("enroll_worker"), async (req: Reque
 router.post("/workers", requireCapability("enroll_worker"), async (req: Request, res: Response) => {
   const name = String(req.body.name ?? "").trim();
   const empRegNo = String(req.body.empRegNo ?? "").trim();
-  const siteId = String(req.body.siteId ?? "").trim();
+  const siteIds = parseSiteIds(req.body);
   const photo = dataUrlToBuffer(String(req.body.photoData ?? ""));
 
-  if (!name || !empRegNo || !siteId) {
-    flash(req, "danger", "Employee ID, name, and site are required.");
+  if (!name || !empRegNo || !siteIds.length) {
+    flash(req, "danger", "Employee ID, name, and at least one site are required.");
     return res.redirect("/workers/new");
   }
   if (await WorkerModel.findOne({ empRegNo })) {
     flash(req, "danger", `Employee ID "${empRegNo}" already exists.`);
     return res.redirect("/workers/new");
   }
-  if (!canUseSite(req.currentUser!, siteId)) {
-    flash(req, "danger", "You cannot enroll employees at that site.");
+  if (!siteIds.every((id) => canUseSite(req.currentUser!, id))) {
+    flash(req, "danger", "You cannot enroll employees at one of the chosen sites.");
     return res.redirect("/workers/new");
   }
-  const site = await ProjectSiteModel.findById(siteId).lean();
-  if (!site) {
-    flash(req, "danger", "Selected site does not exist.");
+  // Resolve every chosen site; primary = the first picked (siteIds order).
+  const sites = await ProjectSiteModel.find({ _id: { $in: siteIds } }).lean();
+  const siteById = new Map(sites.map((s) => [String(s._id), s]));
+  const orderedSites = siteIds.map((id) => siteById.get(id)).filter(Boolean) as typeof sites;
+  const site = orderedSites[0];
+  if (!site || orderedSites.length !== siteIds.length) {
+    flash(req, "danger", "One of the selected sites does not exist.");
     return res.redirect("/workers/new");
   }
   const designation = await resolveDesignation(
@@ -217,7 +240,8 @@ router.post("/workers", requireCapability("enroll_worker"), async (req: Request,
       name,
       designationId: designation.id,
       designationName: designation.name,
-      siteId: site._id,
+      siteIds: orderedSites.map((s) => s._id),
+      siteId: site._id, // primary (the hook also keeps this = siteIds[0])
       siteName: site.name,
       phone: extras.phone,
       emergencyPhone: extras.emergencyPhone,
@@ -247,7 +271,7 @@ router.post("/workers", requireCapability("enroll_worker"), async (req: Request,
 // ---- Edit ----
 router.get("/workers/:id/edit", requireCapability("enroll_worker"), async (req: Request, res: Response) => {
   const worker = await WorkerModel.findById(req.params.id).lean();
-  if (!worker || !canUseSite(req.currentUser!, String(worker.siteId))) {
+  if (!worker || !canUseWorker(req.currentUser!, worker)) {
     flash(req, "danger", "Worker not found.");
     return res.redirect("/workers");
   }
@@ -267,7 +291,7 @@ router.get("/workers/:id/edit", requireCapability("enroll_worker"), async (req: 
 
 router.post("/workers/:id", requireCapability("enroll_worker"), async (req: Request, res: Response) => {
   const worker = await WorkerModel.findById(req.params.id);
-  if (!worker || !canUseSite(req.currentUser!, String(worker.siteId))) {
+  if (!worker || !canUseWorker(req.currentUser!, worker)) {
     flash(req, "danger", "Worker not found.");
     return res.redirect("/workers");
   }
@@ -276,19 +300,31 @@ router.post("/workers/:id", requireCapability("enroll_worker"), async (req: Requ
     return res.redirect("/workers?status=archived");
   }
   const name = String(req.body.name ?? "").trim();
-  const siteId = String(req.body.siteId ?? "").trim();
+  const submitted = parseSiteIds(req.body);
   const status = req.body.status === "inactive" ? "inactive" : "active";
-  if (!name || !siteId) {
-    flash(req, "danger", "Name and site are required.");
+  if (!name || !submitted.length) {
+    flash(req, "danger", "Name and at least one site are required.");
     return res.redirect(`/workers/${req.params.id}/edit`);
   }
-  if (!canUseSite(req.currentUser!, siteId)) {
-    flash(req, "danger", "You cannot move a worker to that site.");
+  // The editor can only assign sites in their own scope; any site already on the
+  // worker that's OUTSIDE the editor's scope is preserved (we never silently
+  // drop an assignment the editor can't even see). Result order: submitted
+  // (in-scope) first, then the retained out-of-scope ones → primary stays the
+  // editor's chosen first pick.
+  if (!submitted.every((id) => canUseSite(req.currentUser!, id))) {
+    flash(req, "danger", "You cannot assign a worker to that site.");
     return res.redirect(`/workers/${req.params.id}/edit`);
   }
-  const site = await ProjectSiteModel.findById(siteId).lean();
-  if (!site) {
-    flash(req, "danger", "Selected site does not exist.");
+  const retained = worker.siteIds
+    .map(String)
+    .filter((id) => !canUseSite(req.currentUser!, id) && !submitted.includes(id));
+  const finalIds = [...submitted, ...retained];
+  const sites = await ProjectSiteModel.find({ _id: { $in: finalIds } }).lean();
+  const siteById = new Map(sites.map((s) => [String(s._id), s]));
+  const orderedSites = finalIds.map((id) => siteById.get(id)).filter(Boolean) as typeof sites;
+  const site = orderedSites[0];
+  if (!site || orderedSites.length !== finalIds.length) {
+    flash(req, "danger", "One of the selected sites does not exist.");
     return res.redirect(`/workers/${req.params.id}/edit`);
   }
   const designation = await resolveDesignation(
@@ -304,7 +340,8 @@ router.post("/workers/:id", requireCapability("enroll_worker"), async (req: Requ
   worker.name = name;
   worker.designationId = designation.id;
   worker.designationName = designation.name;
-  worker.siteId = site._id;
+  worker.siteIds = orderedSites.map((s) => s._id) as never;
+  worker.siteId = site._id; // primary (the hook also keeps this = siteIds[0])
   worker.siteName = site.name;
   worker.status = status;
   worker.phone = extras.phone;
@@ -323,7 +360,7 @@ router.post("/workers/:id", requireCapability("enroll_worker"), async (req: Requ
 // ---- Soft-delete (admin) — mandatory reason, retained + hidden ----
 router.post("/workers/:id/delete", requireCapability("delete_worker"), async (req: Request, res: Response) => {
   const worker = await WorkerModel.findById(req.params.id);
-  if (!worker || !canUseSite(req.currentUser!, String(worker.siteId))) {
+  if (!worker || !canUseWorker(req.currentUser!, worker)) {
     flash(req, "danger", "Employee not found.");
     return res.redirect("/workers");
   }
@@ -348,7 +385,7 @@ router.post("/workers/:id/delete", requireCapability("delete_worker"), async (re
 // ---- Restore (admin) — deleted → active ----
 router.post("/workers/:id/restore", requireCapability("delete_worker"), async (req: Request, res: Response) => {
   const worker = await WorkerModel.findById(req.params.id);
-  if (!worker || !canUseSite(req.currentUser!, String(worker.siteId))) {
+  if (!worker || !canUseWorker(req.currentUser!, worker)) {
     flash(req, "danger", "Employee not found.");
     return res.redirect("/workers");
   }
@@ -368,7 +405,7 @@ router.post("/workers/:id/restore", requireCapability("delete_worker"), async (r
 // ---- Remarks: add a note (scoped editors) ----
 router.post("/workers/:id/remarks", requireCapability("enroll_worker"), async (req: Request, res: Response) => {
   const worker = await WorkerModel.findById(req.params.id);
-  if (!worker || !canUseSite(req.currentUser!, String(worker.siteId))) {
+  if (!worker || !canUseWorker(req.currentUser!, worker)) {
     flash(req, "danger", "Employee not found.");
     return res.redirect("/workers");
   }
@@ -386,7 +423,7 @@ router.post("/workers/:id/remarks", requireCapability("enroll_worker"), async (r
 // ---- Remarks: clear one (admin) — struck through, kept for audit ----
 router.post("/workers/:id/remarks/:idx/clear", requireCapability("delete_worker"), async (req: Request, res: Response) => {
   const worker = await WorkerModel.findById(req.params.id);
-  if (!worker || !canUseSite(req.currentUser!, String(worker.siteId))) {
+  if (!worker || !canUseWorker(req.currentUser!, worker)) {
     flash(req, "danger", "Employee not found.");
     return res.redirect("/workers");
   }
@@ -411,7 +448,7 @@ router.post("/workers/:id/remarks/:idx/clear", requireCapability("delete_worker"
 // Focused on one worker; on save it returns to the unregistered worklist.
 router.get("/workers/:id/face", requireCapability("enroll_worker"), async (req: Request, res: Response) => {
   const worker = await WorkerModel.findById(req.params.id).lean();
-  if (!worker || !canUseSite(req.currentUser!, String(worker.siteId))) {
+  if (!worker || !canUseWorker(req.currentUser!, worker)) {
     flash(req, "danger", "Employee not found or out of your site scope.");
     return res.redirect("/workers");
   }
@@ -429,7 +466,7 @@ router.post("/workers/:id/face", requireCapability("enroll_worker"), async (req:
   // roster) vs the worker's Edit form.
   const fromRoster = String(req.body.returnTo ?? "") === "roster";
   const backOnError = fromRoster ? `/workers/${req.params.id}/face` : `/workers/${req.params.id}/edit`;
-  if (!worker || !canUseSite(req.currentUser!, String(worker.siteId))) {
+  if (!worker || !canUseWorker(req.currentUser!, worker)) {
     flash(req, "danger", "Employee not found.");
     return res.redirect("/workers");
   }

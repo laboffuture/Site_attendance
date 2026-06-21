@@ -52,8 +52,14 @@ const workerSchema = new Schema(
       required: true,
     },
     designationName: { type: String, required: true }, // denormalized
+    // Primary site — used for pay, display, and dashboard headcount. Always the
+    // first entry of siteIds (kept in sync by the pre-save hook below).
     siteId: { type: Schema.Types.ObjectId, ref: "ProjectSite", required: true },
     siteName: { type: String, required: true }, // denormalized
+    // Multi-site assignment: every site this worker may clock in at. The first
+    // is the primary (mirrored into siteId). Existing single-site records get
+    // siteIds = [siteId] via the pre-save hook / the import upsert.
+    siteIds: { type: [Schema.Types.ObjectId], ref: "ProjectSite", default: [] },
 
     // Contact (all optional)
     phone: { type: String, default: null },
@@ -81,6 +87,22 @@ const workerSchema = new Schema(
 );
 
 workerSchema.index({ siteId: 1, status: 1 });
+workerSchema.index({ siteIds: 1, status: 1 });
+
+// Keep the primary siteId and the siteIds list in sync, so every existing
+// `WorkerModel.create({ siteId })` (tests, seed, demo) auto-populates siteIds —
+// and any code that sets siteIds gets a correct primary siteId for free.
+// Runs on `validate` (before `save`) so the synced siteId satisfies its
+// `required` check even when only siteIds was supplied.
+workerSchema.pre("validate", function syncSiteIds() {
+  if (Array.isArray(this.siteIds) && this.siteIds.length > 0) {
+    // siteIds is authoritative when provided → primary is its first entry.
+    this.siteId = this.siteIds[0];
+  } else if (this.siteId) {
+    // Single-site path (most callers) → seed the list from the primary.
+    this.siteIds = [this.siteId];
+  }
+});
 
 export type Worker = InferSchemaType<typeof workerSchema>;
 export const WorkerModel = model("Worker", workerSchema, "workers");
