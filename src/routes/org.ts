@@ -93,7 +93,7 @@ function parseCoord(v: unknown, lo: number, hi: number): number | null | undefin
   return n;
 }
 
-function parseSite(req: Request): {
+interface ParsedSite {
   branchId: string;
   name: string;
   code: string;
@@ -102,8 +102,15 @@ function parseSite(req: Request): {
   latitude: number | null;
   longitude: number | null;
   radius: number | null;
+  address: string | null;
+  inChargeName: string | null;
+  inChargePhone: string | null;
+  clientName: string | null;
+  nightShiftEnabled: boolean;
   error?: string;
-} {
+}
+
+function parseSite(req: Request): ParsedSite {
   const branchId = String(req.body.branchId ?? "").trim();
   const name = String(req.body.name ?? "").trim();
   const code = String(req.body.code ?? "").trim().toUpperCase();
@@ -112,6 +119,7 @@ function parseSite(req: Request): {
   const lat = parseCoord(req.body.latitude, -90, 90);
   const lng = parseCoord(req.body.longitude, -180, 180);
   const rad = parseCoord(req.body.geofenceRadiusMeters, 1, 100000);
+  const nightShiftEnabled = req.body.nightShiftEnabled === "on" || req.body.nightShiftEnabled === "true";
 
   let error: string | undefined;
   if (!branchId || !name || !code) error = "Branch, name, and code are required.";
@@ -130,12 +138,17 @@ function parseSite(req: Request): {
     latitude: lat === undefined ? null : lat,
     longitude: lng === undefined ? null : lng,
     radius: rad === undefined ? null : rad,
+    address: String(req.body.address ?? "").trim() || null,
+    inChargeName: String(req.body.inChargeName ?? "").trim() || null,
+    inChargePhone: String(req.body.inChargePhone ?? "").trim() || null,
+    clientName: String(req.body.clientName ?? "").trim() || null,
+    nightShiftEnabled,
     error,
   };
 }
 
-router.post("/org/sites", requireCapability("manage_org"), async (req: Request, res: Response) => {
-  const { branchId, name, code, start, end, latitude, longitude, radius, error } = parseSite(req);
+router.post("/org/sites", requireCapability("manage_sites"), async (req: Request, res: Response) => {
+  const { branchId, name, code, start, end, latitude, longitude, radius, address, inChargeName, inChargePhone, clientName, nightShiftEnabled, error } = parseSite(req);
   if (error) {
     flash(req, "danger", error);
     return res.redirect("/org");
@@ -155,6 +168,11 @@ router.post("/org/sites", requireCapability("manage_org"), async (req: Request, 
       latitude,
       longitude,
       geofenceRadiusMeters: radius,
+      address,
+      inChargeName,
+      inChargePhone,
+      clientName,
+      nightShiftEnabled,
     });
     flash(req, "success", `Site "${name}" (${code}) added.`);
   } catch (err) {
@@ -163,7 +181,7 @@ router.post("/org/sites", requireCapability("manage_org"), async (req: Request, 
   res.redirect("/org");
 });
 
-router.get("/org/sites/:id/edit", requireCapability("manage_org"), async (req: Request, res: Response) => {
+router.get("/org/sites/:id/edit", requireCapability("manage_sites"), async (req: Request, res: Response) => {
   const [site, branches] = await Promise.all([
     ProjectSiteModel.findById(req.params.id).lean(),
     BranchModel.find().sort({ name: 1 }).lean(),
@@ -180,8 +198,8 @@ router.get("/org/sites/:id/edit", requireCapability("manage_org"), async (req: R
   });
 });
 
-router.post("/org/sites/:id", requireCapability("manage_org"), async (req: Request, res: Response) => {
-  const { branchId, name, code, start, end, latitude, longitude, radius, error } = parseSite(req);
+router.post("/org/sites/:id", requireCapability("manage_sites"), async (req: Request, res: Response) => {
+  const { branchId, name, code, start, end, latitude, longitude, radius, address, inChargeName, inChargePhone, clientName, nightShiftEnabled, error } = parseSite(req);
   if (error) {
     flash(req, "danger", error);
     return res.redirect(`/org/sites/${req.params.id}/edit`);
@@ -196,6 +214,11 @@ router.post("/org/sites/:id", requireCapability("manage_org"), async (req: Reque
       latitude,
       longitude,
       geofenceRadiusMeters: radius,
+      address,
+      inChargeName,
+      inChargePhone,
+      clientName,
+      nightShiftEnabled,
     });
     flash(req, "success", "Site updated.");
     res.redirect("/org");

@@ -53,10 +53,17 @@ const projectSiteSchema = new Schema(
     shifts: { type: siteShiftsSchema, default: () => JSON.parse(JSON.stringify(DEFAULT_SHIFTS)) },
 
     // Optional site coordinates — when set, each scan records its distance from
-    // here. (Geofence radius is stored for future enforcement; not enforced in v1.)
+    // here, and the supervisor Log-Attendance flow enforces the geofence.
     latitude: { type: Number, default: null },
     longitude: { type: Number, default: null },
     geofenceRadiusMeters: { type: Number, default: null },
+
+    // Site profile (optional, captured at create/edit).
+    address: { type: String, default: null, trim: true },
+    inChargeName: { type: String, default: null, trim: true },
+    inChargePhone: { type: String, default: null, trim: true },
+    clientName: { type: String, default: null, trim: true },
+    nightShiftEnabled: { type: Boolean, default: false },
   },
   { timestamps: true },
 );

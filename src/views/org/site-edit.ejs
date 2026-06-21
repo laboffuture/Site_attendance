@@ -43,10 +43,30 @@
       </div>
     </div>
     <div class="oh-input-group">
-      <label class="oh-label" for="geofenceRadiusMeters">Geofence radius (m) <span class="oh-muted">(optional, for future use)</span></label>
+      <label class="oh-label" for="geofenceRadiusMeters">Geofence radius (m) <span class="oh-muted">(optional)</span></label>
       <input class="oh-input" id="geofenceRadiusMeters" name="geofenceRadiusMeters" value="<%= site.geofenceRadiusMeters != null ? site.geofenceRadiusMeters : '' %>" placeholder="200" />
     </div>
-    <p class="oh-muted">Right-click the site in Google Maps to copy “latitude, longitude”. Coordinates make each scan record its distance from the site. Radius is stored for later geofence enforcement (not enforced yet).</p>
+    <p class="oh-muted">Right-click the site in Google Maps to copy “latitude, longitude”. Coordinates + radius enforce the geofence on the supervisor Log-Attendance scan.</p>
+
+    <div class="oh-input-group">
+      <label class="oh-label" for="address">Address <span class="oh-muted">(optional)</span></label>
+      <input class="oh-input" id="address" name="address" value="<%= site.address || '' %>" placeholder="street, area" />
+    </div>
+    <div class="oh-row-2">
+      <div class="oh-input-group">
+        <label class="oh-label" for="inChargeName">Site in-charge</label>
+        <input class="oh-input" id="inChargeName" name="inChargeName" value="<%= site.inChargeName || '' %>" placeholder="name" />
+      </div>
+      <div class="oh-input-group">
+        <label class="oh-label" for="inChargePhone">In-charge phone</label>
+        <input class="oh-input" id="inChargePhone" type="tel" name="inChargePhone" value="<%= site.inChargePhone || '' %>" placeholder="+91…" />
+      </div>
+    </div>
+    <div class="oh-input-group">
+      <label class="oh-label" for="clientName">Client / project</label>
+      <input class="oh-input" id="clientName" name="clientName" value="<%= site.clientName || '' %>" placeholder="optional" />
+    </div>
+    <label class="oh-check"><input type="checkbox" name="nightShiftEnabled" <%= site.nightShiftEnabled ? 'checked' : '' %> /> Night shift enabled</label>
     <div class="oh-form-actions">
       <a class="oh-btn oh-btn--small" href="/org">Cancel</a>
       <button class="oh-btn oh-btn--secondary" type="submit">Save</button>

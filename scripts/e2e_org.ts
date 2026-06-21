@@ -74,10 +74,13 @@ async function main(): Promise<void> {
     code: CODE,
     standardStartTime: "09:00",
     standardEndTime: "18:00",
+    address: "12 Mount Rd", inChargeName: "R. Kumar", inChargePhone: "+91 90000 00000",
+    clientName: "Acme Builders", nightShiftEnabled: "on",
   });
   const siteDoc = await ProjectSiteModel.findOne({ code: CODE });
   assert("site created in DB", !!siteDoc);
   assert("site code stored uppercase", siteDoc?.code === CODE);
+  assert("site profile fields stored", siteDoc?.address === "12 Mount Rd" && siteDoc?.inChargeName === "R. Kumar" && siteDoc?.clientName === "Acme Builders" && siteDoc?.nightShiftEnabled === true);
 
   // Duplicate site code is rejected (flash shows on the next render).
   await admin.post("/org/sites").type("form").send({
@@ -101,6 +104,15 @@ async function main(): Promise<void> {
   });
   assert("end-before-start site not persisted", (await ProjectSiteModel.countDocuments({ code: CODE + "X" })) === 0);
 
+  // HR can add a SITE (manage_sites) but not a BRANCH (manage_org).
+  const HR_EMAIL = `qa-orghr-${S}@trgbi.com`;
+  await UserModel.create({ name: "QA Org HR", email: HR_EMAIL, passwordHash: await hashPassword(SUP_PW), role: "hr", assignedSiteIds: [], active: true });
+  const hr = await login(app, HR_EMAIL, SUP_PW);
+  await hr.post("/org/sites").type("form").send({ branchId: String(branchDoc!._id), name: SITE + " HR", code: CODE + "H", standardStartTime: "09:00", standardEndTime: "18:00" });
+  assert("HR can create a site (manage_sites)", !!(await ProjectSiteModel.findOne({ code: CODE + "H" })));
+  const hrBranch = await hr.post("/org/branches").type("form").send({ name: "HR Branch " + S });
+  assert("HR cannot create a branch (manage_org → 403)", hrBranch.status === 403);
+
   // Designation create + case-insensitive duplicate guard.
   await admin.post("/designations").type("form").send({ name: TRADE });
   assert("designation created", !!(await DesignationModel.findOne({ name: TRADE })));
@@ -120,15 +132,17 @@ async function main(): Promise<void> {
   const supPost = await sup.post("/org/branches").type("form").send({ name: "Sneaky " + S });
   assert("supervisor POST /org/branches → 403 (cannot manage)", supPost.status === 403);
   assert("supervisor branch not created", !(await BranchModel.findOne({ name: "Sneaky " + S })));
+  const supSite = await sup.post("/org/sites").type("form").send({ branchId: String(branchDoc!._id), name: "Sneaky Site", code: CODE + "S", standardStartTime: "09:00", standardEndTime: "18:00" });
+  assert("supervisor POST /org/sites → 403 (cannot add sites)", supSite.status === 403);
   const supDesig = await sup.get("/designations");
   assert("supervisor GET /designations → 200 (allowed)", supDesig.status === 200);
 
   // Cleanup.
   await Promise.all([
     BranchModel.deleteOne({ name: BRANCH }),
-    ProjectSiteModel.deleteOne({ code: CODE }),
+    ProjectSiteModel.deleteMany({ code: new RegExp(`^${CODE}`) }),
     DesignationModel.deleteMany({ name: new RegExp(`^${TRADE}$`, "i") }),
-    UserModel.deleteOne({ email: SUP_EMAIL }),
+    UserModel.deleteMany({ email: { $in: [SUP_EMAIL, `qa-orghr-${S}@trgbi.com`] } }),
   ]);
 
   await mongoose.connection.close();

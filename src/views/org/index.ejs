@@ -5,7 +5,7 @@
     <h1 class="oh-page-title">Branches &amp; Sites</h1>
     <p class="oh-page-subtitle">Locations where attendance is captured.</p>
   </div>
-  <% if (!can('manage_org')) { %>
+  <% if (!can('manage_sites')) { %>
   <span class="oh-badge oh-badge--muted">View only</span>
   <% } %>
 </div>
@@ -57,7 +57,7 @@
     <span class="oh-muted"><%= sites.length %> total</span>
   </div>
 
-  <% if (can('manage_org')) { %>
+  <% if (can('manage_sites')) { %>
   <% if (branches.length) { %>
   <form class="oh-form-inline" method="post" action="/org/sites">
     <div class="oh-input-group">
@@ -92,6 +92,23 @@
       <label class="oh-label" for="site-lng">Longitude <span class="oh-muted">(optional)</span></label>
       <input class="oh-input" id="site-lng" name="longitude" placeholder="80.2337" />
     </div>
+    <div class="oh-input-group oh-grow">
+      <label class="oh-label" for="site-address">Address <span class="oh-muted">(optional)</span></label>
+      <input class="oh-input" id="site-address" name="address" placeholder="street, area" />
+    </div>
+    <div class="oh-input-group">
+      <label class="oh-label" for="site-incharge">In-charge</label>
+      <input class="oh-input" id="site-incharge" name="inChargeName" placeholder="name" />
+    </div>
+    <div class="oh-input-group">
+      <label class="oh-label" for="site-inchargephone">In-charge phone</label>
+      <input class="oh-input" id="site-inchargephone" type="tel" name="inChargePhone" placeholder="+91…" />
+    </div>
+    <div class="oh-input-group">
+      <label class="oh-label" for="site-client">Client / project</label>
+      <input class="oh-input" id="site-client" name="clientName" placeholder="optional" />
+    </div>
+    <label class="oh-check"><input type="checkbox" name="nightShiftEnabled" /> Night shift</label>
     <button class="oh-btn oh-btn--secondary" type="submit">Add site</button>
   </form>
   <p class="oh-muted">Tip: in Google Maps, right-click the site → the first row is “latitude, longitude”. Coordinates let each scan record its distance from the site.</p>
@@ -105,7 +122,7 @@
     <thead>
       <tr>
         <th>Branch</th><th>Site</th><th>Code</th><th>Shift</th>
-        <% if (can('manage_org')) { %><th class="oh-col-action"></th><% } %>
+        <% if (can('manage_sites')) { %><th class="oh-col-action"></th><% } %>
       </tr>
     </thead>
     <tbody>
@@ -115,7 +132,7 @@
         <td data-label="Site"><%= s.name %></td>
         <td data-label="Code"><span class="oh-badge oh-badge--muted"><%= s.code %></span></td>
         <td data-label="Shift"><%= s.standardStartTime %>–<%= s.standardEndTime %></td>
-        <% if (can('manage_org')) { %>
+        <% if (can('manage_sites')) { %>
         <td class="oh-col-action">
           <a class="oh-btn oh-btn--small" href="/org/sites/<%= s._id %>/edit">Edit</a>
         </td>

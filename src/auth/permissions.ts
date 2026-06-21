@@ -31,6 +31,7 @@ export type Capability =
   | "approve_overtime"
   | "view_org"
   | "manage_org"
+  | "manage_sites"
   | "manage_users"
   | "delete_worker"
   | "view_requests"
@@ -52,7 +53,8 @@ const CAPABILITY_ROLES: Record<Capability, Role[]> = {
   view_overtime: ["super_admin", "management", "hr", "pm"], // PM = view-only
   approve_overtime: ["super_admin", "management", "hr"], // HR + Management approve/adjust/reject OT
   view_org: ["super_admin", "management", "hr", "pm", "supervisor"], // supervisor = read-only, own sites
-  manage_org: ["super_admin", "management"],
+  manage_org: ["super_admin", "management"], // branches + stations
+  manage_sites: ["super_admin", "management", "hr"], // HR+ can add/edit project sites
   manage_users: ["super_admin", "management", "hr"],
   delete_worker: ["super_admin", "management", "hr"],
   // Requests subsystem (scheduled OT + offload). Flow: create → PM recommends
