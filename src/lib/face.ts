@@ -25,7 +25,7 @@ const WASM_DIR = path
 
 /** Max Euclidean distance between descriptors to count as the same person.
  *  Lower = stricter. 0.5 is conservative for the FaceNet-style 128-d space. */
-export const MATCH_THRESHOLD = 0.5;
+const MATCH_THRESHOLD = 0.5;
 
 let ready: Promise<void> | null = null;
 
@@ -78,7 +78,7 @@ export async function encodeFace(jpegBuffer: Buffer): Promise<number[] | null> {
 }
 
 /** Euclidean distance between two descriptors of equal length. */
-export function descriptorDistance(a: number[], b: number[]): number {
+function descriptorDistance(a: number[], b: number[]): number {
   let sum = 0;
   for (let i = 0; i < a.length; i++) {
     const d = a[i] - b[i];

@@ -44,7 +44,7 @@ export type Capability =
 
 const ALL: Role[] = [...ROLES];
 
-export const CAPABILITY_ROLES: Record<Capability, Role[]> = {
+const CAPABILITY_ROLES: Record<Capability, Role[]> = {
   view_dashboard: ALL,
   mark_attendance: ALL,
   enroll_worker: ALL,
@@ -78,7 +78,7 @@ export function seesAllSites(role: Role): boolean {
 }
 
 /** Human-friendly role labels for display. */
-export const ROLE_LABELS: Record<Role, string> = {
+const ROLE_LABELS: Record<Role, string> = {
   super_admin: "Super Admin",
   management: "Management",
   hr: "HR",
