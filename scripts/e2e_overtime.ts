@@ -1,8 +1,6 @@
-/* E2E for the read-only overtime ledger. OT is no longer approved here — the
-   daily Regularization chain subsumes it — so this verifies: the queue renders
-   with status filters, carries NO approve/reject controls, the old action
-   routes are gone (404), and the view/scope permissions still hold.
-   Self-contained; cleans up. Run: npm run e2e:overtime */
+/* E2E for the overtime queue: HR (and Management) approve / adjust / reject OT
+   on the Overtime page; PM is view-only; Supervisor is blocked. Status filters
+   segment the ledger. Self-contained; cleans up. Run: npm run e2e:overtime */
 import request from "supertest";
 import mongoose, { Types } from "mongoose";
 
@@ -34,19 +32,20 @@ async function main(): Promise<void> {
   const branch = await BranchModel.create({ name: `QA OT ${S}` });
   const site = await ProjectSiteModel.create({ branchId: branch._id, name: `QA OT Site ${S}`, code: `QAOT${S}`.toUpperCase(), standardStartTime: "09:00", standardEndTime: "18:00" });
 
-  async function mkOT(tag: string, status: "pending" | "approved" | "rejected"): Promise<string> {
+  async function mkPending(tag: string): Promise<string> {
     const rec = await AttendanceModel.create({
       date: "2026-06-10", workerId: new Types.ObjectId(), empRegNo: `QA-OT-${S}-${tag}`, workerName: `QA OT ${tag}`,
       designationId: new Types.ObjectId(), designationName: "Carpenter",
       siteId: site._id, siteName: site.name, branchId: branch._id, branchName: branch.name,
       inTime: new Date("2026-06-10T03:30:00Z"), outTime: new Date("2026-06-10T14:30:00Z"),
-      totalHours: 11, standardHours: 9, overtime: { computedHours: 2, status },
+      totalHours: 11, standardHours: 9, overtime: { computedHours: 2, status: "pending" },
     });
     return String(rec._id);
   }
-  const idPending = await mkOT("pending", "pending");
-  await mkOT("approved", "approved");
-  await mkOT("rejected", "rejected");
+  const id1 = await mkPending("adjust");
+  const id2 = await mkPending("default");
+  const id3 = await mkPending("reject");
+  const id4 = await mkPending("pmblock");
 
   const hr = `qa-othr-${S}@trgbi.com`, pm = `qa-otpm-${S}@trgbi.com`, sup = `qa-otsup-${S}@trgbi.com`;
   await UserModel.create({ name: "QA OT HR", email: hr, passwordHash: await hashPassword(PW), role: "hr", assignedSiteIds: [], active: true });
@@ -54,30 +53,40 @@ async function main(): Promise<void> {
   await UserModel.create({ name: "QA OT Sup", email: sup, passwordHash: await hashPassword(PW), role: "supervisor", assignedSiteIds: [site._id], active: true });
 
   const ha = await login(app, hr);
-
-  // Ledger renders, read-only.
-  const list = await ha.get("/overtime?status=all");
+  const list = await ha.get("/overtime");
   assert("HR GET /overtime → 200", list.status === 200);
-  assert("ledger shows a record", list.text.includes(`QA-OT-${S}-pending`));
-  assert("ledger has NO approve control", !/formaction="\/overtime\/[^"]+\/approve"/.test(list.text));
-  assert("ledger has NO reject control", !/formaction="\/overtime\/[^"]+\/reject"/.test(list.text));
-  assert("ledger points to regularization", list.text.includes("/regularization"));
+  assert("queue shows a pending record + approve control", list.text.includes(`QA-OT-${S}-adjust`) && /formaction="\/overtime\/[^"]+\/approve"/.test(list.text));
 
-  // Old action routes are gone.
-  const gone = await ha.post(`/overtime/${idPending}/approve`).type("form").send({ approvedHours: "2" });
-  assert("POST /overtime/:id/approve → 404 (route removed)", gone.status === 404);
-  const goneR = await ha.post(`/overtime/${idPending}/reject`).type("form").send({});
-  assert("POST /overtime/:id/reject → 404 (route removed)", goneR.status === 404);
-  assert("pending record untouched", (await AttendanceModel.findById(idPending).lean())?.overtime.status === "pending");
+  // Approve with an adjusted value.
+  await ha.post(`/overtime/${id1}/approve`).type("form").send({ approvedHours: "1.5", notes: "trimmed" });
+  const r1 = await AttendanceModel.findById(id1).lean();
+  assert("HR approve+adjust → approved", r1?.overtime.status === "approved");
+  assert("adjusted hours stored (1.5)", r1?.overtime.approvedHours === 1.5);
+  assert("approvedBy recorded", !!r1?.overtime.approvedBy);
 
-  // Filters still segment the ledger.
+  // Approve with no value → defaults to computed (2).
+  await ha.post(`/overtime/${id2}/approve`).type("form").send({});
+  const r2 = await AttendanceModel.findById(id2).lean();
+  assert("HR approve default → computed hours (2)", r2?.overtime.status === "approved" && r2?.overtime.approvedHours === 2);
+
+  // Reject.
+  await ha.post(`/overtime/${id3}/reject`).type("form").send({});
+  const r3 = await AttendanceModel.findById(id3).lean();
+  assert("HR reject → rejected, 0 approved", r3?.overtime.status === "rejected" && r3?.overtime.approvedHours === 0);
+
+  // Filters.
   const approved = await ha.get("/overtime?status=approved");
-  assert("approved filter includes approved row", approved.text.includes(`QA-OT-${S}-approved`));
-  assert("approved filter excludes pending row", !approved.text.includes(`QA-OT-${S}-pending`));
+  assert("approved filter includes adjusted record", approved.text.includes(`QA-OT-${S}-adjust`));
+  assert("approved filter excludes rejected record", !approved.text.includes(`QA-OT-${S}-reject`));
 
-  // Permissions: PM may view, Supervisor blocked.
+  // PM is view-only.
   const pa = await login(app, pm);
   assert("PM GET /overtime → 200 (view)", (await pa.get("/overtime")).status === 200);
+  const pmApprove = await pa.post(`/overtime/${id4}/approve`).type("form").send({ approvedHours: "2" });
+  assert("PM approve → 403", pmApprove.status === 403);
+  assert("PM could not change status", (await AttendanceModel.findById(id4).lean())?.overtime.status === "pending");
+
+  // Supervisor is blocked entirely.
   const sa = await login(app, sup);
   assert("Supervisor GET /overtime → 403", (await sa.get("/overtime")).status === 403);
 

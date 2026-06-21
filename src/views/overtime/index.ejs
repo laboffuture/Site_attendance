@@ -9,7 +9,9 @@
 
 <div class="oh-page-header">
   <h1 class="oh-page-title">Overtime</h1>
-  <p class="oh-page-subtitle">Overtime ledger (view only). Hours are approved on the day's <a href="/regularization">Regularization</a> — HR's day approval clears that day's overtime to payroll.</p>
+  <p class="oh-page-subtitle">
+    <% if (canApprove) { %>Approve, adjust, or reject overtime — only approved hours reach payroll. Approving a day in <a href="/regularization">Regularization</a> also clears that day's OT.<% } else { %>Overtime status (view only).<% } %>
+  </p>
 </div>
 
 <div class="oh-filter-tabs">
@@ -35,6 +37,13 @@
       <div class="oh-m-sub" style="margin-top:0.5rem;">
         <%= t(r.inTime) %>–<%= t(r.outTime) %> · Total <%= r.totalHours != null ? r.totalHours + "h" : "—" %> · OT <%= r.overtime.computedHours %>h<% if (r.overtime.status === "approved" && r.overtime.approvedHours != null && r.overtime.approvedHours !== r.overtime.computedHours) { %> → <%= r.overtime.approvedHours %>h<% } %>
       </div>
+      <% if (canApprove && r.overtime.status === "pending") { %>
+      <form method="post" class="oh-ot-actions" style="margin-top:0.6rem;">
+        <input class="oh-input oh-input--xs" type="number" step="0.25" min="0" name="approvedHours" value="<%= r.overtime.computedHours %>" title="Approved hours" />
+        <button class="oh-btn oh-btn--small oh-btn--success" formaction="/overtime/<%= r._id %>/approve">Approve</button>
+        <button class="oh-btn oh-btn--small oh-btn--danger" formaction="/overtime/<%= r._id %>/reject">Reject</button>
+      </form>
+      <% } %>
     </div>
     <% }); %>
   </div>
@@ -50,6 +59,7 @@
       <tr>
         <th>Date</th><th>Worker</th><th>Site</th><th>In–Out</th>
         <th>Total</th><th>Std</th><th>OT</th><th>Status</th>
+        <% if (canApprove) { %><th class="oh-col-action">Action</th><% } %>
       </tr>
     </thead>
     <tbody>
@@ -68,6 +78,19 @@
           <% } %>
         </td>
         <td><span class="oh-badge oh-badge--<%= badgeFor[r.overtime.status] %>"><%= r.overtime.status %></span></td>
+        <% if (canApprove) { %>
+        <td class="oh-col-action">
+          <% if (r.overtime.status === "pending") { %>
+          <form method="post" class="oh-ot-actions">
+            <input class="oh-input oh-input--xs" type="number" step="0.25" min="0" name="approvedHours" value="<%= r.overtime.computedHours %>" title="Approved hours" />
+            <button class="oh-btn oh-btn--small oh-btn--success" formaction="/overtime/<%= r._id %>/approve">Approve</button>
+            <button class="oh-btn oh-btn--small oh-btn--danger" formaction="/overtime/<%= r._id %>/reject">Reject</button>
+          </form>
+          <% } else { %>
+          <span class="oh-muted">decided</span>
+          <% } %>
+        </td>
+        <% } %>
       </tr>
       <% }); %>
     </tbody>
