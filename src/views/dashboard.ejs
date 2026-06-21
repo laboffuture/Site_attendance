@@ -128,15 +128,15 @@
     <a class="oh-btn oh-btn--small" href="/flags">View all</a>
   </div>
   <% if (flags.length) { %>
-  <table class="oh-table">
+  <table class="oh-table oh-table--cards">
     <thead><tr><th>When</th><th>Worker</th><th>Attempted at</th><th>Assigned to</th></tr></thead>
     <tbody>
       <% flags.forEach(function (f) { %>
       <tr>
         <td><%= ts(f.timestamp) %></td>
-        <td><%= f.workerName || "—" %></td>
-        <td><%= f.attemptedSiteName || "—" %></td>
-        <td><%= f.homeSiteName || "—" %></td>
+        <td data-label="Worker"><%= f.workerName || "—" %></td>
+        <td data-label="Attempted at"><%= f.attemptedSiteName || "—" %></td>
+        <td data-label="Assigned to"><%= f.homeSiteName || "—" %></td>
       </tr>
       <% }); %>
     </tbody>

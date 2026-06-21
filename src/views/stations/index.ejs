@@ -27,7 +27,7 @@
   <% } %>
 
   <% if (stations.length) { %>
-  <table class="oh-table">
+  <table class="oh-table oh-table--cards">
     <thead>
       <tr><th>Station</th><th>Site</th><th>Status</th><th>Last seen</th><th class="oh-col-action"></th></tr>
     </thead>
@@ -35,11 +35,11 @@
       <% stations.forEach(function (st) { %>
       <tr>
         <td><%= st.stationName %></td>
-        <td><%= siteNameById.get(String(st.projectSiteId)) || "—" %></td>
-        <td>
+        <td data-label="Site"><%= siteNameById.get(String(st.projectSiteId)) || "—" %></td>
+        <td data-label="Status">
           <span class="oh-badge oh-badge--<%= st.active ? 'success' : 'muted' %>"><%= st.active ? "active" : "inactive" %></span>
         </td>
-        <td><%= st.lastSeen ? new Date(st.lastSeen).toLocaleString() : "—" %></td>
+        <td data-label="Last seen"><%= st.lastSeen ? new Date(st.lastSeen).toLocaleString() : "—" %></td>
         <td class="oh-col-action">
           <form method="post" action="/stations/<%= st._id %>/toggle" style="margin:0">
             <button class="oh-btn oh-btn--small" type="submit"><%= st.active ? "Deactivate" : "Activate" %></button>

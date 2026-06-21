@@ -14,7 +14,7 @@
 
 <div class="oh-card">
   <% if (days.length) { %>
-  <table class="oh-table">
+  <table class="oh-table oh-table--cards">
     <thead>
       <tr><th>Date</th><th>Site</th><th>Workers</th><th>OT (h)</th><th class="oh-col-action"></th></tr>
     </thead>
@@ -22,9 +22,9 @@
       <% days.forEach(function (d) { %>
       <tr>
         <td><%= d.date %></td>
-        <td><%= d.siteName %></td>
-        <td><%= d.n %></td>
-        <td><%= d.ot > 0 ? d.ot.toFixed(2) : "—" %></td>
+        <td data-label="Site"><%= d.siteName %></td>
+        <td data-label="Workers"><%= d.n %></td>
+        <td data-label="OT (h)"><%= d.ot > 0 ? d.ot.toFixed(2) : "—" %></td>
         <td class="oh-col-action"><a class="oh-btn oh-btn--small oh-btn--secondary" href="/regularization/<%= d.siteId %>/<%= d.date %>">Open</a></td>
       </tr>
       <% }); %>

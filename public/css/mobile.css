@@ -159,3 +159,41 @@
     text-decoration: none; z-index: 40;
   }
 }
+
+/* ---- Responsive table → cards ----
+   Add `oh-table--cards` to any `.oh-table`; on mobile each row becomes a card,
+   with each cell shown as "LABEL  value" (label from the cell's data-label).
+   Single DOM (no duplicate markup), so it works for tables with form inputs. */
+@media (max-width: 768px) {
+  .oh-table--cards thead { display: none; }
+  .oh-table--cards, .oh-table--cards tbody { display: block; width: 100%; }
+  .oh-table--cards tr {
+    display: block;
+    background: var(--c-surface);
+    border: 1px solid var(--c-border-light);
+    box-shadow: var(--shadow-card);
+    padding: 0.5rem 0.8rem;
+    margin-bottom: 0.7rem;
+  }
+  .oh-table--cards td {
+    display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+    padding: 0.32rem 0; border: none; text-align: right; font-size: 0.82rem;
+  }
+  .oh-table--cards td::before {
+    content: attr(data-label);
+    font-weight: 600; font-size: 0.66rem; letter-spacing: 0.03em; text-transform: uppercase;
+    color: var(--c-text-muted); text-align: left; flex: 0 0 auto; white-space: nowrap;
+  }
+  /* first cell = card title */
+  .oh-table--cards td:first-child {
+    font-weight: 600; font-size: 0.92rem;
+    border-bottom: 1px solid var(--c-border-light); padding-bottom: 0.5rem; margin-bottom: 0.3rem;
+  }
+  .oh-table--cards td:first-child::before { display: none; }
+  .oh-table--cards td:empty { display: none; }
+  /* inputs / action groups fill the value side */
+  .oh-table--cards td .oh-input,
+  .oh-table--cards td .oh-select { width: auto; flex: 1 1 55%; max-width: 65%; }
+  .oh-table--cards td.oh-col-action { justify-content: flex-end; }
+  .oh-table--cards .oh-ot-actions { flex: 1 1 auto; justify-content: flex-end; }
+}

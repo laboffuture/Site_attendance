@@ -28,7 +28,7 @@
   <% } %>
 
   <% if (branches.length) { %>
-  <table class="oh-table">
+  <table class="oh-table oh-table--cards">
     <thead>
       <tr><th>Name</th><% if (can('manage_org')) { %><th class="oh-col-action"></th><% } %></tr>
     </thead>
@@ -101,7 +101,7 @@
   <% } %>
 
   <% if (sites.length) { %>
-  <table class="oh-table">
+  <table class="oh-table oh-table--cards">
     <thead>
       <tr>
         <th>Branch</th><th>Site</th><th>Code</th><th>Shift</th>
@@ -112,9 +112,9 @@
       <% sites.forEach(function (s) { %>
       <tr>
         <td><%= branchNameById.get(String(s.branchId)) || "—" %></td>
-        <td><%= s.name %></td>
-        <td><span class="oh-badge oh-badge--muted"><%= s.code %></span></td>
-        <td><%= s.standardStartTime %>–<%= s.standardEndTime %></td>
+        <td data-label="Site"><%= s.name %></td>
+        <td data-label="Code"><span class="oh-badge oh-badge--muted"><%= s.code %></span></td>
+        <td data-label="Shift"><%= s.standardStartTime %>–<%= s.standardEndTime %></td>
         <% if (can('manage_org')) { %>
         <td class="oh-col-action">
           <a class="oh-btn oh-btn--small" href="/org/sites/<%= s._id %>/edit">Edit</a>

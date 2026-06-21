@@ -26,23 +26,23 @@
   <p class="oh-muted">No attendance scanned for this site/date.</p>
   <% } else if (submitted) { %>
   <p class="oh-muted">This day is already submitted — it's now in the regularization queue.</p>
-  <table class="oh-table">
+  <table class="oh-table oh-table--cards">
     <thead><tr><th>Worker</th><th>In</th><th>Out</th><th>OT</th><th>Status</th><th>Remark</th></tr></thead>
     <tbody><% rows.forEach(function (r) { %>
-      <tr><td><%= r.workerName %><br/><span class="oh-muted"><%= r.empRegNo %></span></td><td><%= r.inHM || "—" %></td><td><%= r.outHM || "—" %></td><td><%= r.otHours > 0 ? r.otHours + "h" : "—" %></td><td><span class="oh-badge oh-badge--muted"><%= r.status %></span></td><td><%= r.remark || "—" %></td></tr>
+      <tr><td><%= r.workerName %><br/><span class="oh-muted"><%= r.empRegNo %></span></td><td data-label="In"><%= r.inHM || "—" %></td><td data-label="Out"><%= r.outHM || "—" %></td><td data-label="OT"><%= r.otHours > 0 ? r.otHours + "h" : "—" %></td><td data-label="Status"><span class="oh-badge oh-badge--muted"><%= r.status %></span></td><td data-label="Remark"><%= r.remark || "—" %></td></tr>
     <% }); %></tbody>
   </table>
   <% } else { %>
   <form method="post" action="/attendance/submit">
     <input type="hidden" name="siteId" value="<%= site._id %>" />
     <input type="hidden" name="date" value="<%= date %>" />
-    <table class="oh-table">
+    <table class="oh-table oh-table--cards">
       <thead><tr><th>Worker</th><th>In</th><th>Out</th><th>OT</th><th>Remark (what they did today)</th></tr></thead>
       <tbody><% rows.forEach(function (r) { %>
         <tr>
           <td><%= r.workerName %><br/><span class="oh-muted"><%= r.empRegNo %></span><% if (r.open) { %> <span class="oh-badge oh-badge--warning">open</span><% } %></td>
-          <td><%= r.inHM || "—" %></td><td><%= r.outHM || "—" %></td><td><%= r.otHours > 0 ? r.otHours + "h" : "—" %></td>
-          <td><input class="oh-input" name="remark_<%= r.workerId %>" value="<%= r.remark %>" placeholder="optional" /></td>
+          <td data-label="In"><%= r.inHM || "—" %></td><td data-label="Out"><%= r.outHM || "—" %></td><td data-label="OT"><%= r.otHours > 0 ? r.otHours + "h" : "—" %></td>
+          <td data-label="Remark"><input class="oh-input" name="remark_<%= r.workerId %>" value="<%= r.remark %>" placeholder="optional" /></td>
         </tr>
       <% }); %></tbody>
     </table>
