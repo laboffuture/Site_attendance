@@ -22,6 +22,10 @@
       <input class="oh-input" id="email" type="email" name="email" value="<%= u.email || '' %>" required />
     </div>
     <div class="oh-input-group">
+      <label class="oh-label" for="phone">Phone</label>
+      <input class="oh-input" id="phone" type="tel" name="phone" value="<%= u.phone || '' %>" placeholder="optional · e.g. +971 50 000 0000" />
+    </div>
+    <div class="oh-input-group">
       <label class="oh-label" for="password">Password</label>
       <input class="oh-input" id="password" type="password" name="password" <%= isEdit ? "" : "required" %> placeholder="<%= isEdit ? 'leave blank to keep current' : '' %>" />
     </div>

@@ -23,6 +23,7 @@
         <span class="oh-m-badge oh-badge--muted"><%= roleLabel(u.role) %></span>
       </div>
       <div class="oh-m-sub"><%= u.email %></div>
+      <% if (u.phone) { %><div class="oh-m-sub" style="display:flex;align-items:center;gap:5px;"><span class="material-icons" style="font-size:14px;">call</span><%= u.phone %></div><% } %>
       <div class="oh-m-sub" style="display:flex;align-items:center;gap:5px;"><span class="material-icons" style="font-size:14px;">place</span><%= sites %></div>
       <div class="oh-m-actions" style="margin-top:0.7rem;">
         <a class="oh-btn oh-btn--small" href="/users/<%= u._id %>/edit">Edit</a>
@@ -46,13 +47,14 @@
   <% if (users.length) { %>
   <table class="oh-table">
     <thead>
-      <tr><th>Name</th><th>Email</th><th>Role</th><th>Sites</th><th>Status</th><th class="oh-col-action"></th></tr>
+      <tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>Sites</th><th>Status</th><th class="oh-col-action"></th></tr>
     </thead>
     <tbody>
       <% users.forEach(function (u) { %>
       <tr>
         <td><%= u.name %><%= String(u._id) === selfId ? " (you)" : "" %></td>
         <td><%= u.email %></td>
+        <td><%= u.phone || "—" %></td>
         <td><span class="oh-badge oh-badge--muted"><%= roleLabel(u.role) %></span></td>
         <td>
           <% if (u.role === "super_admin" || u.role === "management" || u.role === "hr") { %>All sites<% } else if (u.assignedSiteIds && u.assignedSiteIds.length) { %>

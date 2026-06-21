@@ -49,9 +49,14 @@ async function main(): Promise<void> {
   // Super Admin can create Management and HR.
   await admin.post("/users").type("form").send({ name: "QA Mgmt", email: MGMT, password: PW, role: "management" });
   assert("super admin can create Management", (await UserModel.findOne({ email: MGMT }))?.role === "management");
-  await admin.post("/users").type("form").send({ name: "QA HR", email: HR, password: PW, role: "hr" });
+  await admin.post("/users").type("form").send({ name: "QA HR", email: HR, password: PW, role: "hr", phone: "+1 555 0100" });
   const hr = await UserModel.findOne({ email: HR });
   assert("HR created with no sites (all)", !!hr && hr.role === "hr" && hr.assignedSiteIds.length === 0);
+  assert("phone stored on create", hr?.phone === "+1 555 0100");
+  assert("phone shown in the list", (await admin.get("/users")).text.includes("+1 555 0100"));
+  // Edit can change the phone.
+  await admin.post(`/users/${hr!._id}`).type("form").send({ name: "QA HR", email: HR, role: "hr", phone: "555 0199" });
+  assert("phone updated on edit", (await UserModel.findById(hr!._id))?.phone === "555 0199");
 
   // PM requires at least one site.
   await admin.post("/users").type("form").send({ name: "QA PM noSite", email: PM, password: PW, role: "pm" });

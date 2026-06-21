@@ -8,6 +8,9 @@ const userSchema = new Schema(
   {
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    // Contact number (HR/management reach-out). Free-form to allow +country
+    // codes and spacing (e.g. "+971 50 000 0000"); optional.
+    phone: { type: String, default: null, trim: true },
     passwordHash: { type: String, required: true },
     role: { type: String, enum: [...ROLES], required: true },
     // Scope rule: [] = all sites (Management/HR); [N ids] = PM's sites;

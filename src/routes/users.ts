@@ -80,6 +80,7 @@ router.post("/users", requireCapability("manage_users"), async (req: Request, re
   const actor = req.currentUser!;
   const name = String(req.body.name ?? "").trim();
   const email = String(req.body.email ?? "").toLowerCase().trim();
+  const phone = String(req.body.phone ?? "").trim() || null;
   const password = String(req.body.password ?? "");
   const role = String(req.body.role ?? "") as Role;
   const siteIds = parseSiteIds(req.body);
@@ -99,7 +100,7 @@ router.post("/users", requireCapability("manage_users"), async (req: Request, re
   }
   const assignedSiteIds = seesAllSites(role) ? [] : siteIds.map((s) => new Types.ObjectId(s));
   try {
-    await UserModel.create({ name, email, passwordHash: await hashPassword(password), role, assignedSiteIds, active: true });
+    await UserModel.create({ name, email, phone, passwordHash: await hashPassword(password), role, assignedSiteIds, active: true });
     flash(req, "success", `User ${name} created.`);
     res.redirect("/users");
   } catch (err) {
@@ -156,6 +157,7 @@ router.post("/users/:id", requireCapability("manage_users"), async (req: Request
 
   user.name = name;
   user.email = email;
+  user.phone = String(req.body.phone ?? "").trim() || null;
   user.role = role;
   user.assignedSiteIds = seesAllSites(role) ? [] : (siteIds.map((s) => new Types.ObjectId(s)) as never);
   if (!isSelf && typeof req.body.active !== "undefined") user.active = req.body.active === "on" || req.body.active === "true";
