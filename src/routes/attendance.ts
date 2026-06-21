@@ -19,6 +19,10 @@ import { WorkerModel } from "../models/Worker";
 const router = Router();
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+function flash(req: Request, type: "success" | "danger", text: string): void {
+  req.session.flash = { type, text };
+}
+
 /** Sites the user may log attendance at (top admins: all; others: theirs). */
 async function allowedSites(user: CurrentUser) {
   const filter = seesAllSites(user.role)
@@ -203,6 +207,44 @@ router.post("/attendance/scan", requireCapability("mark_attendance"), async (req
     overtimeStatus: result.overtimeStatus,
     geo: { available: geo.available, distanceMeters: geo.distanceMeters },
   });
+});
+
+// ---- Supervisor: submit the day for regularization ----
+router.get("/attendance/submit", requireCapability("submit_attendance"), async (req: Request, res: Response) => {
+  const user = req.currentUser!;
+  const sites = await allowedSites(user);
+  const site = sites.find((s) => String(s._id) === String(req.query.siteId)) ?? sites[0] ?? null;
+  const date = DATE_RE.test(String(req.query.date ?? "")) ? String(req.query.date) : siteLocalDate();
+  const records = site ? await AttendanceModel.find({ siteId: site._id, date }).sort({ workerName: 1 }).lean() : [];
+  const rows = records.map((r) => ({
+    id: String(r._id), workerId: String(r.workerId), workerName: r.workerName, empRegNo: r.empRegNo,
+    inHM: istHM(r.inTime ?? null), outHM: istHM(r.outTime ?? null),
+    totalHours: r.totalHours, otHours: r.overtime?.computedHours ?? 0,
+    status: r.attendanceStatus, remark: r.dailyRemark ?? "",
+    open: !r.outTime,
+  }));
+  const submitted = records.length > 0 && records.every((r) => r.attendanceStatus !== "scanned");
+  res.render("attendance/submit", { title: "Submit attendance · " + res.locals.company, active: "/attendance", sites, site, date, rows, submitted });
+});
+
+router.post("/attendance/submit", requireCapability("submit_attendance"), async (req: Request, res: Response) => {
+  const user = req.currentUser!;
+  const siteId = String(req.body.siteId ?? "");
+  const date = String(req.body.date ?? "");
+  if (!Types.ObjectId.isValid(siteId) || !canUseSite(user, siteId) || !DATE_RE.test(date)) {
+    flash(req, "danger", "Pick a site you're assigned to and a valid date.");
+    return res.redirect("/attendance/submit");
+  }
+  const records = await AttendanceModel.find({ siteId, date, attendanceStatus: "scanned" });
+  for (const rec of records) {
+    rec.attendanceStatus = "submitted";
+    rec.dailyRemark = String(req.body[`remark_${rec.workerId}`] ?? "").trim() || null;
+    rec.submittedBy = new Types.ObjectId(user.id);
+    rec.submittedAt = new Date();
+    await rec.save();
+  }
+  flash(req, "success", `Submitted ${records.length} record(s) for ${date}.`);
+  res.redirect(`/attendance/submit?siteId=${siteId}&date=${date}`);
 });
 
 export default router;

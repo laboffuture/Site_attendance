@@ -57,6 +57,17 @@ const attendanceSchema = new Schema(
     breakHours: { type: Number, default: null },
     overtime: { type: overtimeSchema, default: () => ({}) },
 
+    // Daily approval / regularization lifecycle (governs the day's attendance).
+    attendanceStatus: { type: String, enum: ["scanned", "submitted", "recommended", "approved", "rejected"], default: "scanned" },
+    dailyRemark: { type: String, default: null }, // per-worker, set by the supervisor at submit
+    submittedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    submittedAt: { type: Date, default: null },
+    recommendedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    recommendedAt: { type: Date, default: null },
+    decidedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    decidedAt: { type: Date, default: null },
+    rejectReason: { type: String, default: null },
+
     // GPS captured at the In scan and the Out scan (capture-only).
     inGeo: { type: geoSchema, default: null },
     outGeo: { type: geoSchema, default: null },

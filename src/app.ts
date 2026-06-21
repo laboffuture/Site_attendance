@@ -12,6 +12,7 @@ import { roleLabel } from "./auth/permissions";
 import { NAV } from "./nav";
 import authRouter from "./routes/auth";
 import attendanceRouter from "./routes/attendance";
+import regularizationRouter from "./routes/regularization";
 import dashboardRouter from "./routes/dashboard";
 import designationsRouter from "./routes/designations";
 import flagsRouter from "./routes/flags";
@@ -105,6 +106,7 @@ export function createApp(): Express {
   app.use("/", usersRouter);
   app.use("/", requestsRouter);
   app.use("/", attendanceRouter);
+  app.use("/", regularizationRouter);
 
   return app;
 }

@@ -36,7 +36,11 @@ export type Capability =
   | "view_requests"
   | "create_request"
   | "recommend_request"
-  | "decide_request";
+  | "decide_request"
+  | "submit_attendance"
+  | "view_regularization"
+  | "recommend_attendance"
+  | "approve_attendance";
 
 const ALL: Role[] = [...ROLES];
 
@@ -57,6 +61,11 @@ export const CAPABILITY_ROLES: Record<Capability, Role[]> = {
   create_request: ["super_admin", "management", "hr", "pm", "supervisor"],
   recommend_request: ["pm", "super_admin"], // super_admin can recommend to avoid deadlock
   decide_request: ["super_admin", "management", "hr"], // the admin approval group
+  // Daily attendance regularization chain (submit → recommend → approve).
+  submit_attendance: ["super_admin", "management", "hr", "pm", "supervisor"],
+  view_regularization: ["super_admin", "management", "hr", "pm"],
+  recommend_attendance: ["super_admin", "management", "pm"],
+  approve_attendance: ["super_admin", "management", "hr"],
 };
 
 export function can(role: Role, capability: Capability): boolean {

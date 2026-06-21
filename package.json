@@ -35,7 +35,8 @@
     "e2e:logscan": "tsx scripts/e2e_logscan.ts",
     "e2e:facecapture": "tsx scripts/e2e_facecapture.ts",
     "e2e:payfields": "tsx scripts/e2e_payfields.ts",
-    "e2e:shift": "tsx scripts/e2e_shift.ts"
+    "e2e:shift": "tsx scripts/e2e_shift.ts",
+    "e2e:regularization": "tsx scripts/e2e_regularization.ts"
   },
   "dependencies": {
     "@tensorflow/tfjs": "^4.22.0",

@@ -1,0 +1,57 @@
+<%- include('../partials/app-top', { title: title, active: active }) %>
+
+<div class="oh-page-header">
+  <h1 class="oh-page-title">Submit attendance</h1>
+  <p class="oh-page-subtitle">Add a remark per worker and submit the day for PM → HR approval. Times are read-only (scan record).</p>
+</div>
+
+<% if (!sites.length) { %>
+<div class="oh-card"><p class="oh-muted">No sites are assigned to you.</p></div>
+<% } else { %>
+<div class="oh-card oh-stack">
+  <form class="oh-form-inline" method="get" action="/attendance/submit">
+    <div class="oh-input-group">
+      <label class="oh-label" for="siteId">Site</label>
+      <select class="oh-select" id="siteId" name="siteId" onchange="this.form.submit()">
+        <% sites.forEach(function (s) { %><option value="<%= s._id %>" <%= site && String(s._id) === String(site._id) ? "selected" : "" %>><%= s.name %> (<%= s.code %>)</option><% }); %>
+      </select>
+    </div>
+    <div class="oh-input-group">
+      <label class="oh-label" for="date">Date</label>
+      <input class="oh-input" id="date" type="date" name="date" value="<%= date %>" onchange="this.form.submit()" />
+    </div>
+  </form>
+
+  <% if (!rows.length) { %>
+  <p class="oh-muted">No attendance scanned for this site/date.</p>
+  <% } else if (submitted) { %>
+  <p class="oh-muted">This day is already submitted — it's now in the regularization queue.</p>
+  <table class="oh-table">
+    <thead><tr><th>Worker</th><th>In</th><th>Out</th><th>OT</th><th>Status</th><th>Remark</th></tr></thead>
+    <tbody><% rows.forEach(function (r) { %>
+      <tr><td><%= r.workerName %><br/><span class="oh-muted"><%= r.empRegNo %></span></td><td><%= r.inHM || "—" %></td><td><%= r.outHM || "—" %></td><td><%= r.otHours > 0 ? r.otHours + "h" : "—" %></td><td><span class="oh-badge oh-badge--muted"><%= r.status %></span></td><td><%= r.remark || "—" %></td></tr>
+    <% }); %></tbody>
+  </table>
+  <% } else { %>
+  <form method="post" action="/attendance/submit">
+    <input type="hidden" name="siteId" value="<%= site._id %>" />
+    <input type="hidden" name="date" value="<%= date %>" />
+    <table class="oh-table">
+      <thead><tr><th>Worker</th><th>In</th><th>Out</th><th>OT</th><th>Remark (what they did today)</th></tr></thead>
+      <tbody><% rows.forEach(function (r) { %>
+        <tr>
+          <td><%= r.workerName %><br/><span class="oh-muted"><%= r.empRegNo %></span><% if (r.open) { %> <span class="oh-badge oh-badge--warning">open</span><% } %></td>
+          <td><%= r.inHM || "—" %></td><td><%= r.outHM || "—" %></td><td><%= r.otHours > 0 ? r.otHours + "h" : "—" %></td>
+          <td><input class="oh-input" name="remark_<%= r.workerId %>" value="<%= r.remark %>" placeholder="optional" /></td>
+        </tr>
+      <% }); %></tbody>
+    </table>
+    <div class="oh-form-actions" style="margin-top:0.75rem">
+      <button class="oh-btn oh-btn--secondary" type="submit" onclick="return confirm('Submit this day for approval? You can\'t edit after submitting.')">Submit day</button>
+    </div>
+  </form>
+  <% } %>
+</div>
+<% } %>
+
+<%- include('../partials/app-bottom') %>

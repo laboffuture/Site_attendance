@@ -6,9 +6,12 @@
     <h1 class="oh-page-title">Attendance</h1>
     <p class="oh-page-subtitle">Scan faces to log attendance, or mark/correct manually for failed scans &amp; fixes.</p>
   </div>
-  <a class="oh-btn oh-btn--secondary" href="/attendance/scan">
-    <span class="material-icons">photo_camera</span> Log Attendance
-  </a>
+  <div style="display:flex;gap:0.5rem;align-items:center">
+    <a class="oh-btn oh-btn--small" href="/attendance/submit">Submit day</a>
+    <a class="oh-btn oh-btn--secondary" href="/attendance/scan">
+      <span class="material-icons">photo_camera</span> Log Attendance
+    </a>
+  </div>
 </div>
 
 <% if (!sites.length) { %>
