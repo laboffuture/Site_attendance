@@ -1,20 +1,16 @@
 import { Router, Request, Response } from "express";
-import { Types } from "mongoose";
 
 import { requireCapability } from "../auth/middleware";
 import { siteScopeFilter } from "../lib/scope";
-import { round2 } from "../lib/time";
 import { AttendanceModel } from "../models/Attendance";
 
 const router = Router();
 
-function flash(req: Request, type: "success" | "danger", text: string): void {
-  req.session.flash = { type, text };
-}
-
 const FILTERS = ["pending", "approved", "rejected", "all"] as const;
 
-// Queue is visible to Management/HR/PM (PM view-only). Scoped to the user's sites.
+// Read-only overtime ledger. Approval / rejection now happens through the daily
+// Regularization chain — HR's day approval subsumes that day's pending OT — so
+// this page only reports status. Visible to Management/HR/PM, scoped to sites.
 router.get("/overtime", requireCapability("view_overtime"), async (req: Request, res: Response) => {
   const filter = FILTERS.includes(req.query.status as never)
     ? (req.query.status as string)
@@ -37,50 +33,7 @@ router.get("/overtime", requireCapability("view_overtime"), async (req: Request,
     active: "/overtime",
     records,
     filter,
-    canApprove: res.locals.can("approve_overtime"),
   });
-});
-
-// Approve / adjust (Management/HR only).
-router.post("/overtime/:id/approve", requireCapability("approve_overtime"), async (req: Request, res: Response) => {
-  const rec = await AttendanceModel.findById(req.params.id);
-  if (!rec || rec.overtime.status === "none") {
-    flash(req, "danger", "Overtime record not found.");
-    return res.redirect("/overtime");
-  }
-  const raw = Number(req.body.approvedHours);
-  const approvedHours = Number.isFinite(raw) && raw >= 0 ? round2(raw) : rec.overtime.computedHours;
-  rec.overtime = {
-    computedHours: rec.overtime.computedHours,
-    status: "approved",
-    approvedHours,
-    approvedBy: new Types.ObjectId(req.currentUser!.id),
-    approvedAt: new Date(),
-    notes: String(req.body.notes ?? "").trim() || null,
-  };
-  await rec.save();
-  flash(req, "success", `Approved ${approvedHours}h OT for ${rec.workerName}.`);
-  res.redirect("/overtime");
-});
-
-// Reject (Management/HR only).
-router.post("/overtime/:id/reject", requireCapability("approve_overtime"), async (req: Request, res: Response) => {
-  const rec = await AttendanceModel.findById(req.params.id);
-  if (!rec || rec.overtime.status === "none") {
-    flash(req, "danger", "Overtime record not found.");
-    return res.redirect("/overtime");
-  }
-  rec.overtime = {
-    computedHours: rec.overtime.computedHours,
-    status: "rejected",
-    approvedHours: 0,
-    approvedBy: new Types.ObjectId(req.currentUser!.id),
-    approvedAt: new Date(),
-    notes: String(req.body.notes ?? "").trim() || null,
-  };
-  await rec.save();
-  flash(req, "success", `Rejected OT for ${rec.workerName}.`);
-  res.redirect("/overtime");
 });
 
 export default router;

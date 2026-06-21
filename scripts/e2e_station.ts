@@ -83,7 +83,10 @@ async function main(): Promise<void> {
   assert("first scan → IN", r1.status === "in" && r1.workerName === y.name);
   assert("attendance row created", !!(await AttendanceModel.findOne({ workerId: y._id, date: siteLocalDate() })));
 
-  // Backdate the In time by 10h so the next scan computes ~1h overtime (std 9h).
+  // Backdate the In time by 10h so the OUT scan runs past the shift window and
+  // books overtime. The exact OT hours are the shift engine's job (and vary by
+  // weekday vs Sunday window) — e2e_shift owns that precision. Here we only
+  // assert the station flow records a long session as pending OT.
   await AttendanceModel.updateOne(
     { workerId: y._id, date: siteLocalDate() },
     { $set: { inTime: new Date(Date.now() - 10 * 3_600_000) } },
@@ -91,7 +94,7 @@ async function main(): Promise<void> {
   const r2 = (await scan(kiosk, faceDataUrl())).body;
   assert("second scan → OUT", r2.status === "out");
   assert("OUT computed ~10h total", r2.totalHours >= 9.8 && r2.totalHours <= 10.2);
-  assert("overtime ~1h and pending", r2.overtimeHours >= 0.8 && r2.overtimeHours <= 1.2 && r2.overtimeStatus === "pending");
+  assert("overtime booked as pending", r2.overtimeHours > 0 && r2.overtimeStatus === "pending");
   await WorkerModel.deleteOne({ _id: y._id });
 
   // --- Location-lock: worker enrolled at PVM scans at the VBW station ---

@@ -28,7 +28,6 @@ export type Capability =
   | "enroll_worker"
   | "add_designation"
   | "view_overtime"
-  | "approve_overtime"
   | "view_org"
   | "manage_org"
   | "manage_users"
@@ -49,8 +48,7 @@ export const CAPABILITY_ROLES: Record<Capability, Role[]> = {
   mark_attendance: ALL,
   enroll_worker: ALL,
   add_designation: ALL,
-  view_overtime: ["super_admin", "management", "hr", "pm"],
-  approve_overtime: ["super_admin", "management", "hr"],
+  view_overtime: ["super_admin", "management", "hr", "pm"], // read-only ledger; approval lives in regularization
   view_org: ["super_admin", "management", "hr", "pm", "supervisor"], // supervisor = read-only, own sites
   manage_org: ["super_admin", "management"],
   manage_users: ["super_admin", "management", "hr"],
