@@ -112,7 +112,7 @@
 <% if (charts.presenceBySite) { %>
 <div class="oh-card">
   <div class="oh-card__label">Present vs active — by site (today)</div>
-  <div class="oh-chart-box"><canvas id="presenceChart"></canvas></div>
+  <div class="oh-chart-box"><div id="presenceChart"></div></div>
 </div>
 <% } %>
 
@@ -129,15 +129,15 @@
         <% } %>
       </span>
     </div>
-    <div class="oh-chart-box"><canvas id="trendChart"></canvas></div>
+    <div class="oh-chart-box"><div id="trendChart"></div></div>
   </div>
   <div class="oh-card">
     <div class="oh-card__label">Overtime hours by site</div>
-    <div class="oh-chart-box"><canvas id="otChart"></canvas></div>
+    <div class="oh-chart-box"><div id="otChart"></div></div>
   </div>
   <div class="oh-card">
     <div class="oh-card__label">Active headcount by designation</div>
-    <div class="oh-chart-box"><canvas id="desigChart"></canvas></div>
+    <div class="oh-chart-box"><div id="desigChart"></div></div>
   </div>
 </div>
 
@@ -177,9 +177,8 @@
 
   window.__CHARTS__ = <%- JSON.stringify(charts) %>;
 </script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
-<script src="/static/js/dashboard-charts.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
+<script src="/static/js/dashboard-charts.js"></script>
 <script src="/static/js/dashboard-gauges.js"></script>
 
 <%- include('partials/app-bottom') %>

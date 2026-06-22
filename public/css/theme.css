@@ -716,8 +716,9 @@ code {
 }
 .oh-chart-box {
   position: relative;
-  height: 240px;
+  min-height: 240px; /* ApexCharts sizes itself; don't clip its legend */
   margin-top: 0.5rem;
+  overflow: visible;
 }
 .oh-chart-headline {
   display: flex;

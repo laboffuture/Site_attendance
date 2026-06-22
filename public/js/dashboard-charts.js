@@ -1,105 +1,55 @@
-// Renders the dashboard charts from data embedded server-side in window.__CHARTS__.
+// Dashboard charts from window.__CHARTS__, rendered with ApexCharts — unified
+// with the gauges + reports (one chart lib). No-ops if ApexCharts didn't load.
 (function () {
   var c = window.__CHARTS__ || {};
-  if (!window.Chart) return;
+  if (typeof ApexCharts === "undefined") return;
+  var ACCENT = "#1c4d8c", GREY = "#cdd5df", AMBER = "#f5b438";
+  var font = "Poppins, Inter, sans-serif";
+  var PALETTE = ["#1c4d8c", "#21c06b", "#f5b438", "#2e97db", "#ff3b38", "#8e44ad", "#16a085", "#6F1E51"];
+  function baseChart(type, height) { return { type: type, height: height, fontFamily: font, toolbar: { show: false }, redrawOnParentResize: true }; }
+  function render(id, opts) { var el = document.getElementById(id); if (el) new ApexCharts(el, opts).render(); }
+  var xlab = { rotate: -35, hideOverlappingLabels: true, style: { fontSize: "10px" } };
+  var ylab = { style: { fontSize: "10px" } };
 
-  var ACCENT = "#1C4D8C";
-  var PALETTE = ["#16a085", "#2980b9", "#e74c3c", "#8e44ad", "#f39c12", "#c0392b", "#6F1E51", "#5758BB", "#1C4D8C", "#27ae60"];
-
-  // Smooth area chart with a soft gradient fill; today's point highlighted.
-  function areaChart(id, labels, data) {
-    var el = document.getElementById(id);
-    if (!el || !labels || !labels.length) return;
-    var ctx = el.getContext("2d");
-    var grad = ctx.createLinearGradient(0, 0, 0, el.height || 240);
-    grad.addColorStop(0, "rgba(28,77,140,0.28)");
-    grad.addColorStop(1, "rgba(28,77,140,0)");
-    var last = data.length - 1;
-
-    new window.Chart(el, {
-      type: "line",
-      data: {
-        labels: labels,
-        datasets: [{
-          data: data,
-          borderColor: ACCENT,
-          borderWidth: 2,
-          backgroundColor: grad,
-          fill: true,
-          tension: 0.35,
-          pointRadius: data.map(function (_, i) { return i === last ? 4 : 0; }),
-          pointHoverRadius: 5,
-          pointBackgroundColor: ACCENT,
-          pointBorderColor: "#fff",
-          pointBorderWidth: 2,
-        }],
-      },
-      options: {
-        maintainAspectRatio: false,
-        interaction: { mode: "index", intersect: false },
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            backgroundColor: "#212121",
-            padding: 10,
-            displayColors: false,
-            callbacks: {
-              title: function (items) { return items[0].label; },
-              label: function (item) { return item.parsed.y + " present"; },
-            },
-          },
-        },
-        scales: {
-          y: { beginAtZero: true, ticks: { precision: 0, maxTicksLimit: 4, color: "#737373" }, grid: { color: "#f0f0f0" }, border: { display: false } },
-          x: { grid: { display: false }, border: { display: false }, ticks: { autoSkip: true, maxTicksLimit: 7, color: "#737373", font: { size: 10 } } },
-        },
-      },
+  // Attendance trend — area
+  if (c.trend && c.trend.labels && c.trend.labels.length) {
+    render("trendChart", {
+      chart: baseChart("area", 240), colors: [ACCENT], dataLabels: { enabled: false },
+      stroke: { curve: "smooth", width: 2 }, fill: { type: "gradient", gradient: { opacityFrom: 0.3, opacityTo: 0 } },
+      series: [{ name: "Present", data: c.trend.data }],
+      xaxis: { categories: c.trend.labels, labels: { hideOverlappingLabels: true, style: { fontSize: "10px" } } },
+      yaxis: { labels: ylab },
     });
   }
-
-  function barChart(id, labels, data) {
-    var el = document.getElementById(id);
-    if (!el || !labels || !labels.length) return;
-    new window.Chart(el, {
-      type: "bar",
-      data: { labels: labels, datasets: [{ data: data, backgroundColor: PALETTE, borderWidth: 0 }] },
-      options: {
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          y: { beginAtZero: true, ticks: { precision: 0, color: "#737373" }, grid: { color: "#f0f0f0" }, border: { display: false } },
-          x: { grid: { display: false }, border: { display: false }, ticks: { color: "#737373", font: { size: 10 } } },
-        },
-      },
+  // OT hours by site — bar
+  if (c.otBySite && c.otBySite.labels && c.otBySite.labels.length) {
+    render("otChart", {
+      chart: baseChart("bar", 240), colors: [AMBER], dataLabels: { enabled: false },
+      plotOptions: { bar: { columnWidth: "55%" } },
+      series: [{ name: "OT hours", data: c.otBySite.data }],
+      xaxis: { categories: c.otBySite.labels, labels: xlab },
+      yaxis: { labels: { formatter: function (v) { return v + "h"; }, style: { fontSize: "10px" } } },
     });
   }
-
-  // Grouped bars: present (accent) vs active (grey) per site.
-  function presenceChart(id, data) {
-    var el = document.getElementById(id);
-    if (!el || !data || !data.labels || !data.labels.length) return;
-    new window.Chart(el, {
-      type: "bar",
-      data: {
-        labels: data.labels,
-        datasets: [
-          { label: "Present", data: data.present, backgroundColor: "#1C4D8C" },
-          { label: "Active", data: data.active, backgroundColor: "#cdd5df" },
-        ],
-      },
-      options: {
-        maintainAspectRatio: false,
-        plugins: { legend: { display: true, position: "bottom", labels: { boxWidth: 12, font: { size: 10 } } } },
-        scales: {
-          y: { beginAtZero: true, ticks: { precision: 0, color: "#737373" }, grid: { color: "#f0f0f0" }, border: { display: false } },
-          x: { grid: { display: false }, border: { display: false }, ticks: { color: "#737373", font: { size: 10 } } },
-        },
-      },
+  // Headcount by designation — bar (distributed palette)
+  if (c.byDesignation && c.byDesignation.labels && c.byDesignation.labels.length) {
+    render("desigChart", {
+      chart: baseChart("bar", 240), colors: PALETTE, dataLabels: { enabled: false }, legend: { show: false },
+      plotOptions: { bar: { columnWidth: "60%", distributed: true } },
+      series: [{ name: "Workers", data: c.byDesignation.data }],
+      xaxis: { categories: c.byDesignation.labels, labels: xlab },
+      yaxis: { labels: ylab },
     });
   }
-
-  if (c.trend) areaChart("trendChart", c.trend.labels, c.trend.data);
-  if (c.otBySite) barChart("otChart", c.otBySite.labels, c.otBySite.data);
-  if (c.byDesignation) barChart("desigChart", c.byDesignation.labels, c.byDesignation.data);
-  if (c.presenceBySite) presenceChart("presenceChart", c.presenceBySite);
+  // Present vs active per site — grouped bars
+  if (c.presenceBySite && c.presenceBySite.labels && c.presenceBySite.labels.length) {
+    render("presenceChart", {
+      chart: baseChart("bar", 260), colors: [ACCENT, GREY], dataLabels: { enabled: false },
+      plotOptions: { bar: { columnWidth: "60%" } },
+      series: [{ name: "Present", data: c.presenceBySite.present }, { name: "Active", data: c.presenceBySite.active }],
+      xaxis: { categories: c.presenceBySite.labels, labels: xlab },
+      yaxis: { labels: ylab },
+      legend: { position: "bottom", fontSize: "11px" },
+    });
+  }
 })();
