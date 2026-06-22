@@ -46,7 +46,14 @@
       <label class="oh-label" for="geofenceRadiusMeters">Geofence radius (m) <span class="oh-muted">(optional)</span></label>
       <input class="oh-input" id="geofenceRadiusMeters" name="geofenceRadiusMeters" value="<%= site.geofenceRadiusMeters != null ? site.geofenceRadiusMeters : '' %>" placeholder="200" />
     </div>
-    <p class="oh-muted">Right-click the site in Google Maps to copy “latitude, longitude”. Coordinates + radius enforce the geofence on the supervisor Log-Attendance scan.</p>
+    <p class="oh-muted">Search or click the map to set the coordinates (or type them above). Coordinates + radius enforce the geofence on the supervisor Log-Attendance scan.</p>
+    <div class="oh-input-group">
+      <div class="oh-map-search">
+        <input class="oh-input" id="site-map-search" type="text" placeholder="Search address / place" />
+        <button class="oh-btn oh-btn--small" type="button" id="site-map-search-btn">Search</button>
+      </div>
+      <div id="site-map" class="oh-map"></div>
+    </div>
 
     <div class="oh-input-group">
       <label class="oh-label" for="address">Address <span class="oh-muted">(optional)</span></label>
@@ -55,7 +62,7 @@
     <div class="oh-row-2">
       <div class="oh-input-group">
         <label class="oh-label" for="inChargeName">Site in-charge</label>
-        <input class="oh-input" id="inChargeName" name="inChargeName" value="<%= site.inChargeName || '' %>" placeholder="name" />
+        <input class="oh-input" id="inChargeName" name="inChargeName" value="<%= site.inChargeName || '' %>" placeholder="name" list="incharge-list" />
       </div>
       <div class="oh-input-group">
         <label class="oh-label" for="inChargePhone">In-charge phone</label>
@@ -73,5 +80,10 @@
     </div>
   </form>
 </div>
+
+<datalist id="incharge-list"><% (typeof inCharges !== 'undefined' ? inCharges : []).forEach(function (n) { %><option value="<%= n %>"></option><% }); %></datalist>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/static/js/site-map.js"></script>
 
 <%- include('../partials/app-bottom') %>

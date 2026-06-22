@@ -53,7 +53,7 @@ const CAPABILITY_ROLES: Record<Capability, Role[]> = {
   view_overtime: ["management", "hr", "pm"], // PM = view-only
   approve_overtime: ["management", "hr"], // HR + Management approve/adjust/reject OT
   view_org: ["management", "hr", "pm", "supervisor"], // supervisor = read-only, own sites
-  manage_org: ["management"], // branches + stations
+  manage_org: ["management", "hr"], // branches + stations (HR has full org access too)
   manage_sites: ["management", "hr"], // HR+ can add/edit project sites
   manage_users: ["management", "hr"],
   delete_worker: ["management", "hr"],

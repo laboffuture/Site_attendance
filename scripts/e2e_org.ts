@@ -61,6 +61,7 @@ async function main(): Promise<void> {
   const org = await admin.get("/org");
   assert("admin GET /org returns 200", org.status === 200);
   assert("org page lists seeded 'Chennai' branch", org.text.includes("Chennai"));
+  assert("add-site form has the map picker + in-charge autocomplete", org.text.includes('id="site-map"') && org.text.includes("leaflet") && org.text.includes('id="incharge-list"'));
 
   // Create a branch.
   await admin.post("/org/branches").type("form").send({ name: BRANCH });
@@ -110,8 +111,8 @@ async function main(): Promise<void> {
   const hr = await login(app, HR_EMAIL, SUP_PW);
   await hr.post("/org/sites").type("form").send({ branchId: String(branchDoc!._id), name: SITE + " HR", code: CODE + "H", standardStartTime: "09:00", standardEndTime: "18:00" });
   assert("HR can create a site (manage_sites)", !!(await ProjectSiteModel.findOne({ code: CODE + "H" })));
-  const hrBranch = await hr.post("/org/branches").type("form").send({ name: "HR Branch " + S });
-  assert("HR cannot create a branch (manage_org → 403)", hrBranch.status === 403);
+  await hr.post("/org/branches").type("form").send({ name: "HR Branch " + S });
+  assert("HR can now create a branch (manage_org)", !!(await BranchModel.findOne({ name: "HR Branch " + S })));
 
   // Designation create + case-insensitive duplicate guard.
   await admin.post("/designations").type("form").send({ name: TRADE });
@@ -139,7 +140,7 @@ async function main(): Promise<void> {
 
   // Cleanup.
   await Promise.all([
-    BranchModel.deleteOne({ name: BRANCH }),
+    BranchModel.deleteMany({ name: { $in: [BRANCH, "HR Branch " + S] } }),
     ProjectSiteModel.deleteMany({ code: new RegExp(`^${CODE}`) }),
     DesignationModel.deleteMany({ name: new RegExp(`^${TRADE}$`, "i") }),
     UserModel.deleteMany({ email: { $in: [SUP_EMAIL, `qa-orghr-${S}@trgbi.com`] } }),

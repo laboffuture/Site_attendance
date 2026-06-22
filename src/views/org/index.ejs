@@ -92,13 +92,21 @@
       <label class="oh-label" for="site-lng">Longitude <span class="oh-muted">(optional)</span></label>
       <input class="oh-input" id="site-lng" name="longitude" placeholder="80.2337" />
     </div>
+    <div class="oh-input-group" style="flex:1 1 100%">
+      <label class="oh-label">Location — search or click the map to set the coordinates above</label>
+      <div class="oh-map-search">
+        <input class="oh-input" id="site-map-search" type="text" placeholder="Search address / place (e.g. Vadapalani, Chennai)" />
+        <button class="oh-btn oh-btn--small" type="button" id="site-map-search-btn">Search</button>
+      </div>
+      <div id="site-map" class="oh-map"></div>
+    </div>
     <div class="oh-input-group oh-grow">
       <label class="oh-label" for="site-address">Address <span class="oh-muted">(optional)</span></label>
       <input class="oh-input" id="site-address" name="address" placeholder="street, area" />
     </div>
     <div class="oh-input-group">
       <label class="oh-label" for="site-incharge">In-charge</label>
-      <input class="oh-input" id="site-incharge" name="inChargeName" placeholder="name" />
+      <input class="oh-input" id="site-incharge" name="inChargeName" placeholder="name" list="incharge-list" />
     </div>
     <div class="oh-input-group">
       <label class="oh-label" for="site-inchargephone">In-charge phone</label>
@@ -145,5 +153,12 @@
   <p class="oh-muted">No project sites yet.</p>
   <% } %>
 </div>
+
+<% if (can('manage_sites')) { %>
+<datalist id="incharge-list"><% (typeof inCharges !== 'undefined' ? inCharges : []).forEach(function (n) { %><option value="<%= n %>"></option><% }); %></datalist>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/static/js/site-map.js"></script>
+<% } %>
 
 <%- include('../partials/app-bottom') %>

@@ -30,12 +30,17 @@ router.get("/org", requireCapability("view_org"), async (req: Request, res: Resp
   const branches = await BranchModel.find(branchFilter).sort({ name: 1 }).lean();
 
   const branchNameById = new Map(branches.map((b) => [String(b._id), b.name]));
+  // Existing in-charge names for the add-site autocomplete (datalist).
+  const inCharges = ((await ProjectSiteModel.distinct("inChargeName")) as (string | null)[])
+    .filter((n): n is string => !!n)
+    .sort((a, b) => a.localeCompare(b));
   res.render("org/index", {
     title: "Branches & Sites · " + res.locals.company,
     active: "/org",
     branches,
     sites,
     branchNameById,
+    inCharges,
   });
 });
 
@@ -190,11 +195,15 @@ router.get("/org/sites/:id/edit", requireCapability("manage_sites"), async (req:
     flash(req, "danger", "Site not found.");
     return res.redirect("/org");
   }
+  const inCharges = ((await ProjectSiteModel.distinct("inChargeName")) as (string | null)[])
+    .filter((n): n is string => !!n)
+    .sort((a, b) => a.localeCompare(b));
   res.render("org/site-edit", {
     title: "Edit site · " + res.locals.company,
     active: "/org",
     site,
     branches,
+    inCharges,
   });
 });
 

@@ -487,6 +487,11 @@ code {
 .oh-geo-banner--outside { background: #fdebeb; border-color: #f7cbce; color: #b3261e; font-weight: 600; }
 .oh-geo-banner--warn { background: #fff8e1; border-color: #fcefc6; color: #8a6d1b; }
 
+/* ---- Site map picker (Leaflet) ---- */
+.oh-map-search { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
+.oh-map-search .oh-input { flex: 1 1 auto; }
+.oh-map { height: 260px; width: 100%; border: 1px solid var(--c-border); }
+
 /* ---- App shell ---- */
 .oh-wrapper {
   display: flex;
