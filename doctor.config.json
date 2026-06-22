@@ -1,0 +1,9 @@
+{
+  "ignore": {
+    "files": [
+      "Interactive prototype questions/**",
+      "public/js/**",
+      "ecosystem.config.cjs"
+    ]
+  }
+}

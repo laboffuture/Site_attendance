@@ -24,5 +24,9 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 
-# Local Claude Code settings
-.claude/settings.local.json
+# Local Claude Code tooling (agent config + installed skills)
+.claude/
+
+# Raw logo drops — the real assets live in public/img/
+/TRG_1.png
+/TRG-LOGO.png
