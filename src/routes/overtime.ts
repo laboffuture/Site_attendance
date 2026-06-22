@@ -30,14 +30,30 @@ router.get("/overtime", requireCapability("view_overtime"), async (req: Request,
   }
 
   const records = await AttendanceModel.find(query)
-    .sort({ date: -1, createdAt: -1 })
+    .sort({ siteName: 1, date: -1 })
     .limit(500)
     .lean();
+
+  // Group by site so Management scans per location with a clear breaker, and
+  // can approve/decline a whole site's OT at a glance.
+  type Rec = (typeof records)[number];
+  const bySite = new Map<string, { siteName: string; otTotal: number; records: Rec[] }>();
+  for (const r of records) {
+    const key = String(r.siteId);
+    let g = bySite.get(key);
+    if (!g) { g = { siteName: r.siteName, otTotal: 0, records: [] }; bySite.set(key, g); }
+    g.records.push(r);
+    g.otTotal += r.overtime?.computedHours ?? 0;
+  }
+  const groups = [...bySite.values()]
+    .map((g) => ({ ...g, otTotal: round2(g.otTotal) }))
+    .sort((a, b) => a.siteName.localeCompare(b.siteName));
 
   res.render("overtime/index", {
     title: "Overtime · " + res.locals.company,
     active: "/overtime",
-    records,
+    groups,
+    total: records.length,
     filter,
     canApprove: res.locals.can("approve_overtime"),
   });
