@@ -13,7 +13,7 @@ export const config = {
   mongodbUri: process.env.MONGODB_URI || "mongodb://localhost:27017",
   dbName: process.env.DB_NAME || "trgbi_attendance",
   sessionSecret: process.env.SESSION_SECRET || "change-me-to-a-long-random-string",
-  companyName: process.env.COMPANY_NAME || "TRGBI",
+  companyName: process.env.COMPANY_NAME || "TRG-Attendance",
   // Daily missed-clock-out sweep fires at this IST "HH:MM".
   sweepTime: process.env.SWEEP_TIME || "23:00",
   // Where worker enrollment photos are stored. Point this at a persistent

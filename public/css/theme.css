@@ -83,6 +83,13 @@ code {
   border: 1px solid var(--c-border-light);
   box-shadow: var(--shadow-card);
 }
+.oh-auth-logo {
+  display: block;
+  max-width: 230px;
+  width: 100%;
+  height: auto;
+  margin: 0 auto 1.5rem;
+}
 .oh-auth-card__title {
   font-size: 1.25rem;
   font-weight: 600;

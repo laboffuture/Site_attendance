@@ -6,8 +6,9 @@
   <body>
     <div class="oh-auth">
       <div class="oh-auth-card">
+        <img class="oh-auth-logo" src="/static/img/trg-logo.png" alt="Toprock Global" />
         <h1 class="oh-auth-card__title">Sign In</h1>
-        <p class="oh-auth-card__subtitle">Sign in to <%= company %> Attendance</p>
+        <p class="oh-auth-card__subtitle">Sign in to <%= company %></p>
 
         <% if (typeof error !== 'undefined' && error) { %>
         <div class="oh-alert oh-alert--danger"><%= error %></div>
