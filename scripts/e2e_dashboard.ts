@@ -64,6 +64,7 @@ async function main(): Promise<void> {
   const home = await ma.get("/dashboard");
   assert("all-sites view renders", home.status === 200);
   assert("all-sites shows the branch box", home.text.includes("oh-dash-box") && home.text.includes(BRANCH));
+  assert("executive gauges added on top (ApexCharts)", home.text.includes('class="oh-gauge"') && home.text.includes("apexcharts"));
   assert("branch box carries the active worker count (2 workers)", /oh-dash-box__count[^<]*>\s*2\s*<span/.test(home.text));
   assert("site tile links into the single-site page", home.text.includes(`/dashboard?siteId=${site._id}`));
 

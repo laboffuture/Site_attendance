@@ -47,6 +47,18 @@
   </div>
 </div>
 
+<!-- Executive gauges (added on top — radialBar via ApexCharts) -->
+<% if (typeof gauges !== 'undefined' && gauges.length) { %>
+<div class="oh-chart-grid">
+  <% gauges.forEach(function (g) { %>
+  <div class="oh-card">
+    <div class="oh-card__label"><%= g.label %></div>
+    <div class="oh-gauge" id="gauge-<%= g.id %>" data-value="<%= g.value %>" data-unit="<%= g.unit %>"></div>
+  </div>
+  <% }); %>
+</div>
+<% } %>
+
 <% if (rollup) { %>
 <section class="oh-stack" aria-label="Branches">
   <div class="oh-section-header">
@@ -167,5 +179,7 @@
 </script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
 <script src="/static/js/dashboard-charts.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
+<script src="/static/js/dashboard-gauges.js"></script>
 
 <%- include('partials/app-bottom') %>

@@ -492,6 +492,10 @@ code {
 .oh-map-search .oh-input { flex: 1 1 auto; }
 .oh-map { height: 260px; width: 100%; border: 1px solid var(--c-border); }
 
+/* ---- Executive gauges (ApexCharts radialBar) ---- */
+.oh-gauge { margin-top: 0.5rem; min-height: 200px; }
+.oh-gauge .apexcharts-canvas { margin: 0 auto; }
+
 /* ---- App shell ---- */
 .oh-wrapper {
   display: flex;

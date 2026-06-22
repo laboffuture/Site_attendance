@@ -126,6 +126,16 @@ router.get("/dashboard", requireAuth, async (req: Request, res: Response) => {
     FlagEventModel.countDocuments({ ...flagScope, resolved: false }),
   ]);
 
+  // Executive gauges (radialBar) — added on top of the existing widgets.
+  const [otApproved, otTotal] = await Promise.all([
+    AttendanceModel.countDocuments({ ...scope, "overtime.status": "approved" }),
+    AttendanceModel.countDocuments({ ...scope, "overtime.status": { $in: ["pending", "approved", "rejected"] } }),
+  ]);
+  const gauges = [
+    { id: "attendance", label: "Attendance Today", value: activeWorkers ? Math.round((todayCount / activeWorkers) * 100) : 0, unit: "%" },
+    { id: "ot-approval", label: "OT Approval Rate", value: otTotal ? Math.round((otApproved / otTotal) * 100) : 0, unit: "%" },
+  ];
+
   // Chart 1: attendance trend (last 14 days)
   const days: string[] = [];
   for (let i = 13; i >= 0; i--) days.push(siteLocalDate(new Date(Date.now() - i * 86_400_000)));
@@ -234,6 +244,7 @@ router.get("/dashboard", requireAuth, async (req: Request, res: Response) => {
     seesAll: seesAllSites(u.role),
     stats: { todayCount, pendingOT, activeWorkers, unresolvedFlags },
     charts: { trend, otBySite, byDesignation, presenceBySite },
+    gauges,
     flags,
     rollup,
   });
