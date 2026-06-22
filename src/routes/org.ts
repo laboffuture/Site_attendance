@@ -6,6 +6,7 @@ import { seesAllSites } from "../auth/permissions";
 import { isValidTime, endAfterStart, isDuplicateKeyError } from "../lib/validate";
 import { BranchModel } from "../models/Branch";
 import { ProjectSiteModel } from "../models/ProjectSite";
+import { WorkerModel } from "../models/Worker";
 
 const router = Router();
 
@@ -87,6 +88,18 @@ router.post("/org/branches/:id", requireCapability("manage_org"), async (req: Re
     flash(req, "danger", isDuplicateKeyError(err) ? `Branch "${name}" already exists.` : "Could not update branch.");
     res.redirect(`/org/branches/${req.params.id}/edit`);
   }
+});
+
+// Delete a branch — blocked while it still has sites (no orphaned sites).
+router.post("/org/branches/:id/delete", requireCapability("manage_org"), async (req: Request, res: Response) => {
+  const siteCount = await ProjectSiteModel.countDocuments({ branchId: req.params.id });
+  if (siteCount > 0) {
+    flash(req, "danger", `Delete or move this branch's ${siteCount} site(s) first.`);
+    return res.redirect("/org");
+  }
+  await BranchModel.findByIdAndDelete(req.params.id);
+  flash(req, "success", "Branch deleted.");
+  res.redirect("/org");
 });
 
 // ---- Project sites ----
@@ -235,6 +248,18 @@ router.post("/org/sites/:id", requireCapability("manage_sites"), async (req: Req
     flash(req, "danger", isDuplicateKeyError(err) ? `Site code "${code}" already exists.` : "Could not update site.");
     res.redirect(`/org/sites/${req.params.id}/edit`);
   }
+});
+
+// Delete a site — blocked while employees are still assigned to it.
+router.post("/org/sites/:id/delete", requireCapability("manage_sites"), async (req: Request, res: Response) => {
+  const workerCount = await WorkerModel.countDocuments({ siteIds: req.params.id });
+  if (workerCount > 0) {
+    flash(req, "danger", `Reassign this site's ${workerCount} employee(s) first.`);
+    return res.redirect("/org");
+  }
+  await ProjectSiteModel.findByIdAndDelete(req.params.id);
+  flash(req, "success", "Site deleted.");
+  res.redirect("/org");
 });
 
 export default router;

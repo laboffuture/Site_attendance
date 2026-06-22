@@ -123,6 +123,16 @@ async function main(): Promise<void> {
   assert("no duplicate designation persisted", (await DesignationModel.countDocuments({ name: new RegExp(`^${TRADE}$`, "i") })) === 1);
   void dupDesig;
 
+  // Delete guards (admin = management): a branch with sites is blocked; an empty
+  // branch and an unstaffed site delete cleanly.
+  await admin.post(`/org/branches/${branchDoc!._id}/delete`).type("form").send({});
+  assert("branch with sites cannot be deleted", !!(await BranchModel.findById(branchDoc!._id)));
+  const hrBranchDoc = await BranchModel.findOne({ name: "HR Branch " + S });
+  await admin.post(`/org/branches/${hrBranchDoc!._id}/delete`).type("form").send({});
+  assert("empty branch deleted", !(await BranchModel.findById(hrBranchDoc!._id)));
+  await admin.post(`/org/sites/${siteDoc!._id}/delete`).type("form").send({});
+  assert("unstaffed site deleted", !(await ProjectSiteModel.findById(siteDoc!._id)));
+
   // Permission matrix: supervisor has READ-ONLY org (scoped to own sites),
   // cannot manage, and can add designations.
   const sup = await login(app, SUP_EMAIL, SUP_PW);

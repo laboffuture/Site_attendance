@@ -37,8 +37,11 @@
       <tr>
         <td><%= b.name %></td>
         <% if (can('manage_org')) { %>
-        <td class="oh-col-action">
+        <td class="oh-col-action oh-req-actions">
           <a class="oh-btn oh-btn--small" href="/org/branches/<%= b._id %>/edit">Edit</a>
+          <form method="post" action="/org/branches/<%= b._id %>/delete" onsubmit="return confirm('Delete branch <%= b.name %>?')" style="display:inline;margin:0">
+            <button class="oh-btn oh-btn--small oh-btn--danger" type="submit">Delete</button>
+          </form>
         </td>
         <% } %>
       </tr>
@@ -141,8 +144,11 @@
         <td data-label="Code"><span class="oh-badge oh-badge--muted"><%= s.code %></span></td>
         <td data-label="Shift"><%= s.standardStartTime %>–<%= s.standardEndTime %></td>
         <% if (can('manage_sites')) { %>
-        <td class="oh-col-action">
+        <td class="oh-col-action oh-req-actions">
           <a class="oh-btn oh-btn--small" href="/org/sites/<%= s._id %>/edit">Edit</a>
+          <form method="post" action="/org/sites/<%= s._id %>/delete" onsubmit="return confirm('Delete site <%= s.name %>?')" style="display:inline;margin:0">
+            <button class="oh-btn oh-btn--small oh-btn--danger" type="submit">Delete</button>
+          </form>
         </td>
         <% } %>
       </tr>
