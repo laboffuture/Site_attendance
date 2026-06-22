@@ -3,6 +3,7 @@ import { Router, Request, Response } from "express";
 import { requireCapability } from "../auth/middleware";
 import { buildXlsxBuffer, streamPdf } from "../lib/exporters";
 import { parseReportFilters, buildAttendanceQuery, groupByBranchSite, hoursBreakdown } from "../lib/report";
+import { round2 } from "../lib/time";
 import { AttendanceModel } from "../models/Attendance";
 import { BranchModel } from "../models/Branch";
 import { DesignationModel } from "../models/Designation";
@@ -37,6 +38,30 @@ router.get("/reports", requireCapability("view_dashboard"), async (req: Request,
     ProjectSiteModel.find().sort({ name: 1 }).lean(),
     DesignationModel.find().sort({ name: 1 }).lean(),
   ]);
+
+  // Visualize the SAME filtered rows (no extra queries) — added on top of the
+  // existing tables + exports.
+  const byDay = new Map<string, number>();
+  const bySite = new Map<string, { count: number; ot: number }>();
+  for (const r of rows) {
+    byDay.set(r.date, (byDay.get(r.date) ?? 0) + 1);
+    const key = r.siteName ?? "—";
+    const s = bySite.get(key) ?? { count: 0, ot: 0 };
+    s.count += 1;
+    s.ot += r.overtime?.computedHours ?? 0;
+    bySite.set(key, s);
+  }
+  const dayKeys = [...byDay.keys()].sort();
+  const siteKeys = [...bySite.keys()];
+  const reportCharts = {
+    byDay: { labels: dayKeys, data: dayKeys.map((d) => byDay.get(d) ?? 0) },
+    bySite: {
+      labels: siteKeys,
+      count: siteKeys.map((s) => bySite.get(s)!.count),
+      ot: siteKeys.map((s) => round2(bySite.get(s)!.ot)),
+    },
+  };
+
   res.render("reports/index", {
     title: "Reports · " + res.locals.company,
     active: "/reports",
@@ -48,6 +73,7 @@ router.get("/reports", requireCapability("view_dashboard"), async (req: Request,
     sites,
     designations,
     hoursBreakdown,
+    reportCharts,
     query: req.originalUrl.includes("?") ? req.originalUrl.slice(req.originalUrl.indexOf("?")) : "",
   });
 });

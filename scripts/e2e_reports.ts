@@ -96,6 +96,7 @@ async function main(): Promise<void> {
   assert("reports 200", rep.status === 200);
   assert("reports shows VBW site", rep.text.includes(vbw.name));
   assert("reports shows seeded worker", rep.text.includes(`QA-RPT-${S}-a`));
+  assert("reports adds the visuals (ApexCharts) on top", rep.text.includes('id="rpt-byday"') && rep.text.includes('id="rpt-otsite"') && rep.text.includes("apexcharts"));
   const filtered = await admin.get("/reports?q=nonexistentworkerxyz");
   assert("filter with no match shows empty state", filtered.text.includes("No attendance records"));
 
