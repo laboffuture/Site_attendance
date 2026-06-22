@@ -13,7 +13,7 @@
   <% if (users.length) { %>
   <div class="oh-m-section oh-m-list">
     <% users.forEach(function (u) {
-      var sites = (u.role === "super_admin" || u.role === "management" || u.role === "hr") ? "All sites"
+      var sites = (u.role === "management" || u.role === "hr") ? "All sites"
         : (u.assignedSiteIds && u.assignedSiteIds.length
           ? u.assignedSiteIds.map(function (id) { return siteNameById.get(String(id)) || "?"; }).join(", ") : "none");
     %>
@@ -57,7 +57,7 @@
         <td><%= u.phone || "—" %></td>
         <td><span class="oh-badge oh-badge--muted"><%= roleLabel(u.role) %></span></td>
         <td>
-          <% if (u.role === "super_admin" || u.role === "management" || u.role === "hr") { %>All sites<% } else if (u.assignedSiteIds && u.assignedSiteIds.length) { %>
+          <% if (u.role === "management" || u.role === "hr") { %>All sites<% } else if (u.assignedSiteIds && u.assignedSiteIds.length) { %>
           <%= u.assignedSiteIds.map(function (id) { return siteNameById.get(String(id)) || "?"; }).join(", ") %>
           <% } else { %><span class="oh-muted">none</span><% } %>
         </td>

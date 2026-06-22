@@ -1,7 +1,7 @@
 import { Schema, model, InferSchemaType } from "mongoose";
 
-// Top to bottom. super_admin = chairman/override (new top tier). PE removed.
-export const ROLES = ["super_admin", "management", "hr", "pm", "supervisor"] as const;
+// Top to bottom. Management is the single top tier (super_admin merged in). PE removed.
+export const ROLES = ["management", "hr", "pm", "supervisor"] as const;
 export type Role = (typeof ROLES)[number];
 
 const userSchema = new Schema(

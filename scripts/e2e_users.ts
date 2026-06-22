@@ -41,12 +41,12 @@ async function main(): Promise<void> {
   const vbw = await ProjectSiteModel.findOne({ code: "VBW" });
   if (!vbw) throw new Error("Seed data missing — run npm run seed.");
   const adminUser = await UserModel.findOne({ email: ADMIN_EMAIL });
-  assert("bootstrap admin is super_admin", adminUser?.role === "super_admin");
+  assert("bootstrap admin is management (super_admin merged in)", adminUser?.role === "management");
 
   const admin = await login(app, ADMIN_EMAIL, ADMIN_PW);
-  assert("super admin GET /users → 200", (await admin.get("/users")).status === 200);
+  assert("admin (management) GET /users → 200", (await admin.get("/users")).status === 200);
 
-  // Super Admin can create Management and HR.
+  // Top admin (Management) can create Management and HR.
   await admin.post("/users").type("form").send({ name: "QA Mgmt", email: MGMT, password: PW, role: "management" });
   assert("super admin can create Management", (await UserModel.findOne({ email: MGMT }))?.role === "management");
   await admin.post("/users").type("form").send({ name: "QA HR", email: HR, password: PW, role: "hr", phone: "+1 555 0100" });
@@ -69,17 +69,17 @@ async function main(): Promise<void> {
   await admin.post("/users").type("form").send({ name: "Dup", email: HR, password: PW, role: "hr" });
   assert("duplicate email rejected", (await UserModel.countDocuments({ email: HR })) === before);
 
-  // Self-lockout: super admin cannot deactivate own account.
+  // Self-lockout: the top admin cannot deactivate own account.
   await admin.post(`/users/${adminUser!._id}/toggle`).type("form").send({});
-  assert("super admin cannot deactivate self", (await UserModel.findById(adminUser!._id))?.active === true);
+  assert("top admin cannot deactivate self", (await UserModel.findById(adminUser!._id))?.active === true);
 
-  // Management authority: can create below it, but NOT a Super Admin.
+  // Management is the top tier: creates any role (incl. Management) and sees everyone.
   const mgmtAgent = await login(app, MGMT, PW);
   await mgmtAgent.post("/users").type("form").send({ name: "QA Sup", email: SUP, password: PW, role: "supervisor", assignedSiteIds: String(vbw._id) });
   assert("Management can create a Supervisor", !!(await UserModel.findOne({ email: SUP })));
-  await mgmtAgent.post("/users").type("form").send({ name: "QA Super", email: SUPER, password: PW, role: "super_admin" });
-  assert("Management cannot create a Super Admin", !(await UserModel.findOne({ email: SUPER })));
-  assert("Management list excludes the Super Admin", !(await mgmtAgent.get("/users")).text.includes(ADMIN_EMAIL));
+  await mgmtAgent.post("/users").type("form").send({ name: "QA Mgmt3", email: SUPER, password: PW, role: "management" });
+  assert("Management can create another Management", (await UserModel.findOne({ email: SUPER }))?.role === "management");
+  assert("Management list includes other Management", (await mgmtAgent.get("/users")).text.includes(ADMIN_EMAIL));
 
   // HR authority: below HR only; cannot create Management or open its edit.
   const hrAgent = await login(app, HR, PW);

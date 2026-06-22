@@ -97,7 +97,7 @@ async function main(): Promise<void> {
       name: process.env.SEED_ADMIN_NAME || "TRGBI Admin",
       email,
       passwordHash: await hashPassword(password),
-      role: "super_admin",
+      role: "management",
       assignedSiteIds: [],
       active: true,
     });

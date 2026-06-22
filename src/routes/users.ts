@@ -15,11 +15,10 @@ function flash(req: Request, type: "success" | "danger", text: string): void {
   req.session.flash = { type, text };
 }
 
-/** Roles the actor may assign/manage. Super Admin: all; Management: everyone
- *  except Super Admin; HR: below HR only (PM, Supervisor). */
+/** Roles the actor may assign/manage. Management (top): everyone; HR: below HR
+ *  only (PM, Supervisor). */
 function assignableRoles(actor: CurrentUser): Role[] {
-  if (actor.role === "super_admin") return [...ROLES];
-  if (actor.role === "management") return ["management", "hr", "pm", "supervisor"];
+  if (actor.role === "management") return [...ROLES];
   if (actor.role === "hr") return ["pm", "supervisor"];
   return [];
 }
@@ -48,8 +47,8 @@ async function siteList() {
 // ---- List ----
 router.get("/users", requireCapability("manage_users"), async (req: Request, res: Response) => {
   const roleFilter = assignableRoles(req.currentUser!);
-  // Management sees everyone; HR sees only the roles it can manage.
-  const query = req.currentUser!.role === "super_admin" ? {} : { role: { $in: roleFilter } };
+  // Management sees everyone (roleFilter = all roles); HR sees only what it manages.
+  const query = { role: { $in: roleFilter } };
   const [users, sites] = await Promise.all([
     UserModel.find(query).sort({ role: 1, name: 1 }).lean(),
     siteList(),
