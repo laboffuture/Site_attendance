@@ -15,10 +15,12 @@
   <form class="oh-form-group" method="post" action="/requests">
     <input type="hidden" name="type" value="<%= type %>" />
 
+    <% if (typeof canRequestOt === 'undefined' || canRequestOt) { %>
     <div class="oh-tabs-switch">
       <a class="oh-btn oh-btn--small <%= isOt ? 'oh-btn--secondary' : '' %>" href="/requests/new?type=scheduled_ot">Scheduled OT</a>
       <a class="oh-btn oh-btn--small <%= !isOt ? 'oh-btn--secondary' : '' %>" href="/requests/new?type=offload">Offload</a>
     </div>
+    <% } %>
 
     <div class="oh-input-group">
       <label class="oh-label" for="workerId">Worker</label>

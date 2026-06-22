@@ -51,12 +51,15 @@ router.get("/requests", requireCapability("view_requests"), async (req: Request,
 // ---- New request form ----
 router.get("/requests/new", requireCapability("create_request"), async (req: Request, res: Response) => {
   const workers = await allowedWorkers(req.currentUser!);
-  const type = req.query.type === "offload" ? "offload" : "scheduled_ot";
+  // Management raises Offload suggestions only — never Scheduled-OT requests.
+  const canRequestOt = req.currentUser!.role !== "management";
+  const type = !canRequestOt || req.query.type === "offload" ? "offload" : "scheduled_ot";
   res.render("requests/new", {
     title: "New request · " + res.locals.company,
     active: "/requests",
     workers,
     type,
+    canRequestOt,
   });
 });
 
@@ -67,6 +70,10 @@ router.post("/requests", requireCapability("create_request"), async (req: Reques
   if (!(REQUEST_TYPES as readonly string[]).includes(type)) {
     flash(req, "danger", "Invalid request type.");
     return res.redirect("/requests/new");
+  }
+  if (type === "scheduled_ot" && u.role === "management") {
+    flash(req, "danger", "Management raises offload suggestions, not OT requests.");
+    return res.redirect("/requests/new?type=offload");
   }
   const workerId = String(req.body.workerId ?? "");
   if (!Types.ObjectId.isValid(workerId)) {

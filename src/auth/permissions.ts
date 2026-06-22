@@ -47,7 +47,7 @@ const ALL: Role[] = [...ROLES];
 
 const CAPABILITY_ROLES: Record<Capability, Role[]> = {
   view_dashboard: ALL,
-  mark_attendance: ALL,
+  mark_attendance: ["hr", "pm", "supervisor"], // who LOGS attendance; Management verifies, not logs
   enroll_worker: ALL,
   add_designation: ALL,
   view_overtime: ["management", "hr", "pm"], // PM = view-only
@@ -64,7 +64,7 @@ const CAPABILITY_ROLES: Record<Capability, Role[]> = {
   recommend_request: ["pm"],
   decide_request: ["management", "hr"], // the admin approval group
   // Daily attendance regularization chain (submit → recommend → approve).
-  submit_attendance: ["management", "hr", "pm", "supervisor"],
+  submit_attendance: ["hr", "pm", "supervisor"], // Management verifies/approves, doesn't submit
   view_regularization: ["management", "hr", "pm"],
   recommend_attendance: ["management", "pm"],
   approve_attendance: ["management", "hr"],
