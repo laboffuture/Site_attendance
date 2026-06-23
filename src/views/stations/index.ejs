@@ -1,56 +1,69 @@
 <%- include('../partials/app-top', { title: title, active: active }) %>
+<% function ts(d) { return d ? new Date(d).toLocaleString('en-GB', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' }) : '—'; } %>
 
-<div class="oh-page-header">
-  <h1 class="oh-page-title">Site Stations</h1>
-  <p class="oh-page-subtitle">Each capture laptop is bound to one site. Sign in on the laptop at <code>/station/login</code> with its key.</p>
+<div class="oh-page-header oh-page-header--row">
+  <div>
+    <h1 class="oh-page-title">Stations</h1>
+    <p class="oh-page-subtitle">Capture laptops bound to a site. Sign in at <code>/station/login</code> with the station key.</p>
+  </div>
+  <% if (hasSites) { %><a class="oh-btn oh-btn--accent oh-only-desktop" href="/stations/new"><span class="material-icons">add</span> Register station</a><% } %>
 </div>
 
-<div class="oh-card oh-stack">
-  <% if (sites.length) { %>
-  <form class="oh-form-inline" method="post" action="/stations">
-    <div class="oh-input-group oh-grow">
-      <label class="oh-label" for="stationName">Station name</label>
-      <input class="oh-input" id="stationName" name="stationName" placeholder="e.g. VBW Gate Laptop" required />
-    </div>
-    <div class="oh-input-group">
-      <label class="oh-label" for="projectSiteId">Bound site</label>
-      <select class="oh-select" id="projectSiteId" name="projectSiteId" required>
-        <% sites.forEach(function (s) { %>
-        <option value="<%= s._id %>"><%= s.name %> (<%= s.code %>)</option>
-        <% }); %>
-      </select>
-    </div>
-    <button class="oh-btn oh-btn--secondary" type="submit">Register station</button>
-  </form>
-  <% } else { %>
-  <p class="oh-muted">Add a project site first, then register a station for it.</p>
-  <% } %>
+<div class="oh-statstrip">
+  <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= summary.total %></span><span class="oh-statstrip__label">Stations</span></div>
+  <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= summary.active %></span><span class="oh-statstrip__label">Active</span></div>
+  <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= summary.inactive %></span><span class="oh-statstrip__label">Inactive</span></div>
+  <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= summary.sitesCovered %></span><span class="oh-statstrip__label">Sites covered</span></div>
+</div>
 
+<!-- mobile -->
+<div class="oh-only-mobile">
   <% if (stations.length) { %>
-  <table class="oh-table oh-table--cards">
-    <thead>
-      <tr><th>Station</th><th>Site</th><th>Status</th><th>Last seen</th><th class="oh-col-action"></th></tr>
-    </thead>
+  <div class="oh-m-section"><div class="oh-m-list">
+    <% stations.forEach(function (st) { %>
+    <div class="oh-m-card oh-m-row" style="--spine: <%= st.active ? 'var(--c-accent)' : 'var(--c-border)' %>">
+      <span class="oh-m-grow">
+        <span class="oh-m-name"><%= st.stationName %></span>
+        <span class="oh-m-sub"><%= siteNameById.get(String(st.projectSiteId)) || '—' %> &middot; last seen <%= ts(st.lastSeen) %></span>
+      </span>
+      <span class="oh-actions">
+        <form method="post" action="/stations/<%= st._id %>/toggle"><button class="oh-icon-btn" type="submit" title="<%= st.active ? 'Deactivate' : 'Activate' %>"><span class="material-icons"><%= st.active ? 'toggle_on' : 'toggle_off' %></span></button></form>
+        <form method="post" action="/stations/<%= st._id %>/regenerate" onsubmit="return confirm('Regenerate this station key? The old key stops working.')"><button class="oh-icon-btn" type="submit" title="Regenerate key"><span class="material-icons">vpn_key</span></button></form>
+        <form method="post" action="/stations/<%= st._id %>/delete" onsubmit="return confirm('Delete this station? Its key stops working.')"><button class="oh-icon-btn oh-icon-btn--danger" type="submit" title="Delete"><span class="material-icons">delete</span></button></form>
+      </span>
+    </div>
+    <% }); %>
+  </div></div>
+  <% } else { %><div class="oh-m-section"><p class="oh-muted"><%= hasSites ? 'No stations yet.' : 'Add a site first.' %></p></div><% } %>
+  <% if (hasSites) { %><a class="oh-m-fab" href="/stations/new"><span class="material-icons">add</span> Register station</a><% } %>
+</div>
+
+<!-- desktop ledger -->
+<div class="oh-card oh-card--flush oh-only-desktop">
+  <% if (stations.length) { %>
+  <table class="oh-people">
+    <thead><tr><th class="oh-people__spinecol"></th><th>Station</th><th>Site</th><th>Status</th><th>Last seen</th><th class="oh-people__actcol"></th></tr></thead>
     <tbody>
       <% stations.forEach(function (st) { %>
-      <tr>
-        <td><%= st.stationName %></td>
-        <td data-label="Site"><%= siteNameById.get(String(st.projectSiteId)) || "—" %></td>
-        <td data-label="Status">
-          <span class="oh-badge oh-badge--<%= st.active ? 'success' : 'muted' %>"><%= st.active ? "active" : "inactive" %></span>
-        </td>
-        <td data-label="Last seen"><%= st.lastSeen ? new Date(st.lastSeen).toLocaleString() : "—" %></td>
-        <td class="oh-col-action">
-          <form method="post" action="/stations/<%= st._id %>/toggle" style="margin:0">
-            <button class="oh-btn oh-btn--small" type="submit"><%= st.active ? "Deactivate" : "Activate" %></button>
-          </form>
-        </td>
+      <tr style="--spine: <%= st.active ? 'var(--c-accent)' : 'var(--c-border)' %>">
+        <td class="oh-people__spine"></td>
+        <td><span class="oh-person__name" style="font-weight:600"><%= st.stationName %></span></td>
+        <td><%= siteNameById.get(String(st.projectSiteId)) || '—' %></td>
+        <td><span class="oh-stat"><span class="oh-stat__dot" style="background: <%= st.active ? 'var(--c-success)' : 'var(--c-text-muted)' %>"></span><%= st.active ? 'Active' : 'Inactive' %></span></td>
+        <td><%= ts(st.lastSeen) %></td>
+        <td class="oh-people__actcol"><span class="oh-row-actions">
+          <form method="post" action="/stations/<%= st._id %>/toggle"><button class="oh-icon-btn" type="submit" title="<%= st.active ? 'Deactivate' : 'Activate' %>"><span class="material-icons"><%= st.active ? 'toggle_on' : 'toggle_off' %></span></button></form>
+          <form method="post" action="/stations/<%= st._id %>/regenerate" onsubmit="return confirm('Regenerate this station key? The old key stops working.')"><button class="oh-icon-btn" type="submit" title="Regenerate key"><span class="material-icons">vpn_key</span></button></form>
+          <form method="post" action="/stations/<%= st._id %>/delete" onsubmit="return confirm('Delete this station? Its key stops working.')"><button class="oh-icon-btn oh-icon-btn--danger" type="submit" title="Delete"><span class="material-icons">delete</span></button></form>
+        </span></td>
       </tr>
       <% }); %>
     </tbody>
   </table>
+  <% } else if (!hasSites) { %>
+  <div class="oh-empty"><span class="material-icons">desktop_windows</span><p>Add a project site first, then register a station for it.</p><a class="oh-btn oh-btn--small" href="/org/sites/new">Add a site</a></div>
   <% } else { %>
-  <p class="oh-muted">No stations registered yet.</p>
+  <div class="oh-empty"><span class="material-icons">desktop_windows</span><p>No stations yet.</p><a class="oh-btn oh-btn--accent" href="/stations/new"><span class="material-icons">add</span> Register your first station</a></div>
   <% } %>
 </div>
 

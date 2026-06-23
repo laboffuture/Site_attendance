@@ -1,14 +1,15 @@
 <%- include('../partials/app-top', { title: title, active: active }) %>
 
+<%- include('../partials/breadcrumb', { back: '/stations', trail: [ { label: 'Stations', href: '/stations' }, { label: regenerated ? 'Key regenerated' : 'Station registered' } ] }) %>
 <div class="oh-page-header">
-  <h1 class="oh-page-title">Station registered</h1>
+  <h1 class="oh-page-title"><%= regenerated ? 'Station key regenerated' : 'Station registered' %></h1>
   <p class="oh-page-subtitle"><%= stationName %> · <%= siteLabel %></p>
 </div>
 
 <div class="oh-card oh-form-card">
   <div class="oh-alert oh-alert--warning">
-    Copy this station key now — it is shown only once and cannot be recovered.
-    Generate a new one by re-registering if it is lost.
+    Copy this station key now — it's shown only once and can't be recovered.
+    <%= regenerated ? 'The previous key no longer works.' : 'Regenerate it from the stations list if it is lost.' %>
   </div>
   <label class="oh-label">Station key</label>
   <pre class="oh-keybox"><%= stationKey %></pre>
@@ -17,7 +18,7 @@
     laptop then captures attendance for <strong><%= siteLabel %></strong> only.
   </p>
   <div class="oh-form-actions">
-    <a class="oh-btn oh-btn--secondary" href="/stations">Done</a>
+    <a class="oh-btn oh-btn--accent" href="/stations">Done</a>
   </div>
 </div>
 

@@ -1,0 +1,37 @@
+<%- include('../partials/app-top', { title: title, active: active }) %>
+<%- include('../partials/breadcrumb', { back: '/stations', trail: [ { label: 'Stations', href: '/stations' }, { label: 'Register Station' } ] }) %>
+<div class="oh-page-header">
+  <h1 class="oh-page-title">Register Station</h1>
+  <p class="oh-page-subtitle">Bind a capture laptop to one site. You'll get a one-time key to sign it in.</p>
+</div>
+
+<% if (!sites.length) { %>
+<div class="oh-card oh-form-card"><p class="oh-muted">Add a project site first, then register a station for it. <a href="/org/sites/new">Add a site</a></p></div>
+<% } else { %>
+<form method="post" action="/stations">
+  <div class="oh-card oh-form-card oh-form-card--full">
+    <div class="oh-form-section">
+      <h3 class="oh-kv-section__title">Station</h3>
+      <div class="oh-frow">
+        <label class="oh-frow__label" for="stationName">Station name</label>
+        <div class="oh-frow__field"><input class="oh-input" id="stationName" name="stationName" placeholder="e.g. VBW Gate Laptop" required /></div>
+      </div>
+      <div class="oh-frow">
+        <label class="oh-frow__label" for="projectSiteId">Bound site</label>
+        <div class="oh-frow__field">
+          <select class="oh-select" id="projectSiteId" name="projectSiteId" required>
+            <option value="">— select —</option>
+            <% sites.forEach(function (s) { %><option value="<%= s._id %>"><%= s.name %> (<%= s.code %>)</option><% }); %>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="oh-form-actions">
+      <a class="oh-btn oh-btn--small" href="/stations">Cancel</a>
+      <button class="oh-btn oh-btn--accent" type="submit">Register station</button>
+    </div>
+  </div>
+</form>
+<% } %>
+
+<%- include('../partials/app-bottom') %>

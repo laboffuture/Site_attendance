@@ -111,6 +111,21 @@ async function main(): Promise<void> {
   assert("unknown face when no worker matches", (await scan(kiosk, faceDataUrl())).body.status === "unknown");
   assert("no-face image reported", (await scan(kiosk, blankDataUrl())).body.status === "no_face");
 
+  // ---- Ledger + key lifecycle (regenerate / delete) ----
+  const list = await admin.get("/stations");
+  assert("stations ledger shows the summary strip", list.text.includes("oh-statstrip"));
+  assert("stations ledger lists the station", list.text.includes(`QA Station ${S}`));
+  const stationDoc = await SiteStationModel.findOne({ stationName: `QA Station ${S}` });
+  const regen = await admin.post(`/stations/${stationDoc!._id}/regenerate`).type("form").send({});
+  const newKey = (/oh-keybox">([A-Za-z0-9_\-]+)</.exec(regen.text) || [])[1] || "";
+  assert("regenerate shows a new key (differs from old)", newKey.length > 20 && newKey !== stationKey);
+  const oldLogin = await request.agent(app).post("/station/login").type("form").send({ stationKey });
+  assert("old key no longer logs in", !(oldLogin.status === 302 && oldLogin.headers.location === "/station"));
+  const newLogin = await request.agent(app).post("/station/login").type("form").send({ stationKey: newKey });
+  assert("regenerated key logs in", newLogin.status === 302 && newLogin.headers.location === "/station");
+  await admin.post(`/stations/${stationDoc!._id}/delete`).type("form").send({});
+  assert("station deleted", !(await SiteStationModel.findById(stationDoc!._id)));
+
   // Cleanup
   await Promise.all([
     SiteStationModel.deleteMany({ stationName: `QA Station ${S}` }),
