@@ -52,6 +52,14 @@ function permissionsForRole(role: Role) {
   }));
 }
 
+// Permission matrices for every assignable role — so the Add/Edit form can
+// preview "what this role grants" live (consistent with the View page).
+function permsByRoleMap(roles: Role[]): Record<string, ReturnType<typeof permissionsForRole>> {
+  const m: Record<string, ReturnType<typeof permissionsForRole>> = {};
+  for (const r of roles) m[r] = permissionsForRole(r);
+  return m;
+}
+
 function flash(req: Request, type: "success" | "danger", text: string): void {
   req.session.flash = { type, text };
 }
@@ -128,11 +136,13 @@ router.get("/users", requireCapability("manage_users"), async (req: Request, res
 
 // ---- New ----
 router.get("/users/new", requireCapability("manage_users"), async (req: Request, res: Response) => {
+  const roles = assignableRoles(req.currentUser!);
   res.render("users/form", {
     title: "Add user · " + res.locals.company,
     active: "/users",
     mode: "new",
-    roles: assignableRoles(req.currentUser!),
+    roles,
+    permsByRole: permsByRoleMap(roles),
     sites: await siteList(),
     user: null,
   });
@@ -202,11 +212,13 @@ router.get("/users/:id/edit", requireCapability("manage_users"), async (req: Req
     flash(req, "danger", "User not found or out of your authority.");
     return res.redirect("/users");
   }
+  const roles = assignableRoles(req.currentUser!);
   res.render("users/form", {
     title: "Edit user · " + res.locals.company,
     active: "/users",
     mode: "edit",
-    roles: assignableRoles(req.currentUser!),
+    roles,
+    permsByRole: permsByRoleMap(roles),
     sites: await siteList(),
     user,
     isSelf: String(user._id) === req.currentUser!.id,

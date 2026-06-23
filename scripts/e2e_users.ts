@@ -59,6 +59,8 @@ async function main(): Promise<void> {
   assert("detail shows the role-permission matrix", hrView.text.includes("Role permissions") && hrView.text.includes("oh-perm"));
   const usersList = await admin.get("/users");
   assert("users ledger has summary strip + search", usersList.text.includes("oh-statstrip") && usersList.text.includes('name="q"'));
+  const addForm = await admin.get("/users/new");
+  assert("add-user form previews role permissions (parity with View)", addForm.text.includes("Role permissions") && addForm.text.includes("data-role-perm"));
   // Edit can change the phone.
   await admin.post(`/users/${hr!._id}`).type("form").send({ name: "QA HR", email: HR, role: "hr", phone: "555 0199" });
   assert("phone updated on edit", (await UserModel.findById(hr!._id))?.phone === "555 0199");

@@ -48,6 +48,22 @@
     </div>
 
     <div class="oh-form-section">
+      <h3 class="oh-kv-section__title">Role permissions <span class="oh-muted" style="text-transform:none;letter-spacing:0;font-weight:400">— granted by the role above</span></h3>
+      <% Object.keys(permsByRole).forEach(function (rn) { %>
+      <div class="oh-perm" data-role-perm="<%= rn %>" <%= (u.role || roles[0]) === rn ? '' : 'hidden' %>>
+        <% permsByRole[rn].forEach(function (g) { %>
+        <div class="oh-perm__group">
+          <div class="oh-perm__gtitle"><%= g.group %></div>
+          <% g.caps.forEach(function (c) { %>
+          <div class="oh-perm__row <%= c.granted ? 'is-on' : '' %>"><span class="material-icons"><%= c.granted ? 'check_circle' : 'remove' %></span><span><%= c.label %></span></div>
+          <% }); %>
+        </div>
+        <% }); %>
+      </div>
+      <% }); %>
+    </div>
+
+    <div class="oh-form-section">
       <h3 class="oh-kv-section__title">Site scope</h3>
       <div class="oh-frow">
         <label class="oh-frow__label" for="assignedSiteIds">Assigned sites<span class="oh-muted">PM / Supervisor only. Management & HR see all sites.</span></label>
@@ -65,5 +81,17 @@
     </div>
   </div>
 </form>
+
+<script>
+  // Live role-permission preview: show the matrix for the selected role.
+  (function () {
+    var sel = document.getElementById('role');
+    var blocks = document.querySelectorAll('[data-role-perm]');
+    if (!sel || !blocks.length) return;
+    function sync() { blocks.forEach(function (b) { b.hidden = b.getAttribute('data-role-perm') !== sel.value; }); }
+    sel.addEventListener('change', sync);
+    sync();
+  })();
+</script>
 
 <%- include('../partials/app-bottom') %>
