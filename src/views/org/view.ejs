@@ -35,14 +35,20 @@
     </div>
   </div>
 
+  <%
+    var poly = site.geofencePolygon && site.geofencePolygon.length >= 3;
+    var coverage = poly ? ('Polygon · ' + site.geofencePolygon.length + ' points')
+      : (site.geofenceRadiusMeters ? ('Circle · ' + site.geofenceRadiusMeters + ' m radius')
+      : (geo ? 'Point only (no enforced fence)' : 'Not set'));
+  %>
   <div class="oh-kv-section">
-    <h3 class="oh-kv-section__title">Location</h3>
+    <h3 class="oh-kv-section__title">Coverage area</h3>
     <div class="oh-kv">
+      <div class="oh-kv__label">Geofence</div><div class="oh-kv__value"><%= coverage %></div>
       <div class="oh-kv__label">Coordinates</div><div class="oh-kv__value"><%= geo ? (site.latitude + ', ' + site.longitude) : '—' %></div>
-      <div class="oh-kv__label">Geofence radius</div><div class="oh-kv__value"><%= site.geofenceRadiusMeters != null ? site.geofenceRadiusMeters + ' m' : '—' %></div>
       <div class="oh-kv__label">Address</div><div class="oh-kv__value"><%= site.address || '—' %></div>
     </div>
-    <% if (geo) { %><div id="site-map-view" class="oh-map" style="margin-top:0.6rem" data-lat="<%= site.latitude %>" data-lng="<%= site.longitude %>" data-radius="<%= site.geofenceRadiusMeters || 0 %>"></div><% } %>
+    <% if (geo) { %><div id="site-map-view" class="oh-map" style="margin-top:0.6rem" data-lat="<%= site.latitude %>" data-lng="<%= site.longitude %>" data-radius="<%= site.geofenceRadiusMeters || 0 %>" data-polygon='<%= poly ? JSON.stringify(site.geofencePolygon) : "" %>'></div><% } %>
   </div>
 
   <div class="oh-kv-section">
@@ -65,8 +71,15 @@
     var lat = parseFloat(el.dataset.lat), lng = parseFloat(el.dataset.lng), r = parseFloat(el.dataset.radius) || 0;
     var map = L.map(el).setView([lat, lng], 15);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
-    L.marker([lat, lng]).addTo(map);
-    if (r > 0) L.circle([lat, lng], { radius: r, color: '#1c4d8c', fillOpacity: 0.08 }).addTo(map);
+    var poly = [];
+    try { poly = JSON.parse(el.dataset.polygon || '[]'); } catch (e) { poly = []; }
+    if (Array.isArray(poly) && poly.length >= 3) {
+      var pg = L.polygon(poly, { color: '#1c4d8c', fillOpacity: 0.08 }).addTo(map);
+      map.fitBounds(pg.getBounds().pad(0.3));
+    } else {
+      L.marker([lat, lng]).addTo(map);
+      if (r > 0) L.circle([lat, lng], { radius: r, color: '#1c4d8c', fillOpacity: 0.08 }).addTo(map);
+    }
     setTimeout(function () { map.invalidateSize(); }, 120);
   })();
 </script>

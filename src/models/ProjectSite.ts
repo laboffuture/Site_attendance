@@ -59,6 +59,10 @@ const projectSiteSchema = new Schema(
     latitude: { type: Number, default: null },
     longitude: { type: Number, default: null },
     geofenceRadiusMeters: { type: Number, default: null },
+    // Polygon geofence (drawn rectangle/shape) as [[lat, lng], ...]. When set
+    // (>= 3 points), enforcement uses point-in-polygon; otherwise the circle
+    // (lat/lng + radius) is used. Empty = no polygon.
+    geofencePolygon: { type: [[Number]], default: [] },
 
     // Site profile (optional, captured at create/edit).
     address: { type: String, default: null, trim: true },

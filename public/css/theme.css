@@ -1567,7 +1567,24 @@ tr > .oh-att-row {
 /* Grouped form sections (Add/Edit pages) */
 .oh-form-section { padding-bottom: 1.25rem; margin-bottom: 1.25rem; border-bottom: 1px solid var(--c-border-light); }
 .oh-form-section:last-of-type { border-bottom: 0; margin-bottom: 0; padding-bottom: 0; }
-.oh-form-section .oh-kv-section__title { margin-bottom: 0.85rem; }
+.oh-form-section .oh-kv-section__title { margin-bottom: 0.5rem; }
+
+/* Label-left / field-right form rows (reference grammar, in our skin) */
+.oh-form-card--full { max-width: 100%; }
+.oh-frow { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 1.25rem; align-items: flex-start; padding: 0.8rem 0; border-bottom: 1px solid var(--c-border-light); }
+.oh-frow:last-child { border-bottom: 0; padding-bottom: 0; }
+.oh-frow__label { font-size: 0.85rem; font-weight: 500; color: var(--c-text); padding-top: 0.5rem; display: flex; flex-direction: column; gap: 0.15rem; }
+.oh-frow__label .oh-muted { font-weight: 400; font-size: 0.74rem; line-height: 1.3; }
+.oh-frow__field { min-width: 0; }
+.oh-frow__field > .oh-input, .oh-frow__field > .oh-select { width: 100%; }
+.oh-frow__pair { display: flex; gap: 0.75rem; }
+.oh-frow__pair > .oh-input { flex: 1 1 0; min-width: 0; width: auto; }
+.oh-map-tools { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.5rem 0; }
+.oh-map-tools .oh-btn .material-icons { font-size: 1rem; }
+@media (max-width: 760px) {
+  .oh-frow { grid-template-columns: 1fr; gap: 0.35rem; padding: 0.7rem 0; }
+  .oh-frow__label { padding-top: 0; }
+}
 .oh-detail-head__name { font-size: 1.15rem; font-weight: 600; margin: 0; }
 .oh-detail-head__meta { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; margin-top: 0.35rem; }
 .oh-kv-section { margin-bottom: 1.1rem; }

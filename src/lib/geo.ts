@@ -31,6 +31,19 @@ function toNum(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/** Ray-casting point-in-polygon. `polygon` is [[lat, lng], ...]; treats lat as
+ *  y and lng as x (planar approximation — fine at a single site's scale). */
+export function pointInPolygon(lat: number, lng: number, polygon: number[][]): boolean {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const yi = polygon[i][0], xi = polygon[i][1];
+    const yj = polygon[j][0], xj = polygon[j][1];
+    const intersect = (yi > lat) !== (yj > lat) && lng < ((xj - xi) * (lat - yi)) / (yj - yi) + xi;
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
 export type GeofenceResult = "off" | "inside" | "outside" | "no_fix";
 
 /**
@@ -43,16 +56,24 @@ export type GeofenceResult = "off" | "inside" | "outside" | "no_fix";
  * are all set; otherwise enforcement stays off (capture-only).
  */
 export function checkGeofence(
-  site: { latitude?: number | null; longitude?: number | null; geofenceRadiusMeters?: number | null },
-  geo: { available: boolean; distanceMeters: number | null },
+  site: { latitude?: number | null; longitude?: number | null; geofenceRadiusMeters?: number | null; geofencePolygon?: unknown },
+  geo: { available: boolean; lat?: number | null; lng?: number | null; distanceMeters: number | null },
 ): GeofenceResult {
-  const configured =
+  const polygon = Array.isArray(site.geofencePolygon) ? (site.geofencePolygon as number[][]) : null;
+  const hasPolygon = !!polygon && polygon.length >= 3;
+  const hasCircle =
     typeof site.latitude === "number" &&
     typeof site.longitude === "number" &&
     typeof site.geofenceRadiusMeters === "number" &&
     site.geofenceRadiusMeters > 0;
-  if (!configured) return "off";
-  if (!geo.available || geo.distanceMeters == null) return "no_fix";
+  if (!hasPolygon && !hasCircle) return "off";
+  if (!geo.available) return "no_fix";
+  // A drawn polygon takes precedence — needs the device's lat/lng.
+  if (hasPolygon) {
+    if (geo.lat == null || geo.lng == null) return "no_fix";
+    return pointInPolygon(geo.lat, geo.lng, polygon as number[][]) ? "inside" : "outside";
+  }
+  if (geo.distanceMeters == null) return "no_fix";
   return geo.distanceMeters <= (site.geofenceRadiusMeters as number) ? "inside" : "outside";
 }
 

@@ -13,7 +13,7 @@ import { createApp } from "../src/app";
 import { connectDb } from "../src/db";
 import * as db from "../src/db";
 import { encodeFace } from "../src/lib/face";
-import { haversineMeters } from "../src/lib/geo";
+import { haversineMeters, checkGeofence, pointInPolygon } from "../src/lib/geo";
 import { generateStationKey, hashStationKey } from "../src/lib/stationKey";
 import {
   WorkerModel, AttendanceModel, ProjectSiteModel, DesignationModel, SiteStationModel,
@@ -100,14 +100,29 @@ async function main(): Promise<void> {
   assert("outGeo recorded as unavailable", !!rec2?.outGeo && rec2.outGeo.available === false);
   assert("inGeo preserved across the out scan", !!rec2?.inGeo && rec2.inGeo.available === true);
 
+  // 4) Polygon geofence: a drawn rectangle saves via the form + enforces by point-in-polygon.
+  const SQUARE = [[13.0400, 80.2330], [13.0400, 80.2345], [13.0412, 80.2345], [13.0412, 80.2330]];
+  await admin.post(`/org/sites/${vbw._id}`).type("form").send({
+    branchId: String(vbw.branchId), name: vbw.name, code: vbw.code,
+    standardStartTime: vbw.standardStartTime, standardEndTime: vbw.standardEndTime,
+    geofencePolygon: JSON.stringify(SQUARE),
+  });
+  const polySite = await ProjectSiteModel.findById(vbw._id).lean();
+  assert("polygon geofence saved (4 points)", Array.isArray(polySite?.geofencePolygon) && polySite!.geofencePolygon.length === 4);
+  assert("point-in-polygon: inside point is inside", pointInPolygon(13.0406, 80.2338, SQUARE) === true);
+  assert("point-in-polygon: far point is outside", pointInPolygon(13.0500, 80.2500, SQUARE) === false);
+  assert("checkGeofence polygon → inside", checkGeofence(polySite!, { available: true, lat: 13.0406, lng: 80.2338, distanceMeters: 10 }) === "inside");
+  assert("checkGeofence polygon → outside", checkGeofence(polySite!, { available: true, lat: 13.0500, lng: 80.2500, distanceMeters: 5000 }) === "outside");
+  assert("checkGeofence polygon → no_fix without GPS", checkGeofence(polySite!, { available: false, lat: null, lng: null, distanceMeters: null }) === "no_fix");
+
   // Cleanup
   await Promise.all([
     AttendanceModel.deleteMany({ workerId: w._id }),
     WorkerModel.deleteOne({ _id: w._id }),
     SiteStationModel.deleteOne({ _id: station._id }),
   ]);
-  // Clear the test coordinates off the shared seed site.
-  await ProjectSiteModel.findByIdAndUpdate(vbw._id, { latitude: null, longitude: null, geofenceRadiusMeters: null });
+  // Clear the test coordinates + polygon off the shared seed site.
+  await ProjectSiteModel.findByIdAndUpdate(vbw._id, { latitude: null, longitude: null, geofenceRadiusMeters: null, geofencePolygon: [] });
 
   await mongoose.connection.close();
   console.log(process.exitCode ? "\nE2E GEO FAILED" : "\nE2E GEO PASSED");

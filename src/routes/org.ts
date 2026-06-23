@@ -157,6 +157,7 @@ interface ParsedSite {
   latitude: number | null;
   longitude: number | null;
   radius: number | null;
+  geofencePolygon: number[][];
   address: string | null;
   inChargeName: string | null;
   inChargePhone: string | null;
@@ -181,6 +182,20 @@ function parseSite(req: Request): ParsedSite {
   const allowedNum = parseFloat(allowedRaw);
   const allowedValid = allowedRaw === "" || (Number.isFinite(allowedNum) && allowedNum >= 0 && allowedNum <= 24);
 
+  // Drawn polygon geofence — [[lat, lng], ...] sent as JSON in a hidden field.
+  let geofencePolygon: number[][] = [];
+  try {
+    const raw = JSON.parse(String(req.body.geofencePolygon ?? "[]"));
+    if (Array.isArray(raw)) {
+      geofencePolygon = raw
+        .filter((p: unknown): p is number[] => Array.isArray(p) && p.length === 2 && Number.isFinite(p[0]) && Number.isFinite(p[1]) && p[0] >= -90 && p[0] <= 90 && p[1] >= -180 && p[1] <= 180)
+        .map((p: number[]) => [p[0], p[1]]);
+      if (geofencePolygon.length < 3) geofencePolygon = [];
+    }
+  } catch {
+    geofencePolygon = [];
+  }
+
   let error: string | undefined;
   if (!branchId || !name || !code) error = "Branch, name, and code are required.";
   else if (!isValidTime(start) || !isValidTime(end)) error = "Day shift times must be valid HH:MM (24-hour).";
@@ -203,6 +218,7 @@ function parseSite(req: Request): ParsedSite {
     latitude: lat === undefined ? null : lat,
     longitude: lng === undefined ? null : lng,
     radius: rad === undefined ? null : rad,
+    geofencePolygon,
     address: String(req.body.address ?? "").trim() || null,
     inChargeName: String(req.body.inChargeName ?? "").trim() || null,
     inChargePhone: String(req.body.inChargePhone ?? "").trim() || null,
@@ -250,6 +266,7 @@ router.post("/org/sites", requireCapability("manage_sites"), async (req: Request
       latitude: p.latitude,
       longitude: p.longitude,
       geofenceRadiusMeters: p.radius,
+      geofencePolygon: p.geofencePolygon,
       address: p.address,
       inChargeName: p.inChargeName,
       inChargePhone: p.inChargePhone,
@@ -335,6 +352,7 @@ router.post("/org/sites/:id", requireCapability("manage_sites"), async (req: Req
       latitude: p.latitude,
       longitude: p.longitude,
       geofenceRadiusMeters: p.radius,
+      geofencePolygon: p.geofencePolygon,
       address: p.address,
       inChargeName: p.inChargeName,
       inChargePhone: p.inChargePhone,

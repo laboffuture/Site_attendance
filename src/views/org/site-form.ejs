@@ -5,6 +5,7 @@
   var action = isEdit ? ('/org/sites/' + s._id) : '/org/sites';
   function val(v) { return v == null ? '' : v; }
   var night = (s.shifts && s.shifts.night) || {};
+  var polyJson = (s.geofencePolygon && s.geofencePolygon.length) ? JSON.stringify(s.geofencePolygon) : '';
 %>
 <%- include('../partials/breadcrumb', { back: '/org', trail: [ { label: 'Sites', href: '/org' }, { label: isEdit ? s.name : 'Add Site' } ] }) %>
 <div class="oh-page-header oh-page-header--row">
@@ -16,69 +17,103 @@
 </div>
 
 <form method="post" action="<%= action %>">
-  <div class="oh-card oh-form-card oh-form-card--wide">
+  <div class="oh-card oh-form-card oh-form-card--full">
 
     <div class="oh-form-section">
       <h3 class="oh-kv-section__title">Identity</h3>
-      <div class="oh-row-2">
-        <div class="oh-input-group">
-          <label class="oh-label" for="branchId">Branch</label>
+      <div class="oh-frow">
+        <label class="oh-frow__label" for="branchId">Branch</label>
+        <div class="oh-frow__field">
           <select class="oh-select" id="branchId" name="branchId" required>
             <option value="">— select —</option>
             <% branches.forEach(function (b) { %><option value="<%= b._id %>" <%= isEdit && String(s.branchId) === String(b._id) ? 'selected' : '' %>><%= b.name %></option><% }); %>
           </select>
         </div>
-        <div class="oh-input-group">
-          <label class="oh-label" for="code">Site code</label>
-          <input class="oh-input oh-input--code" id="code" name="code" value="<%= val(s.code) %>" placeholder="e.g. ANM" required />
-        </div>
       </div>
-      <div class="oh-input-group">
-        <label class="oh-label" for="name">Site name</label>
-        <input class="oh-input" id="name" name="name" value="<%= val(s.name) %>" placeholder="e.g. Anna Nagar Mall" required />
+      <div class="oh-frow">
+        <label class="oh-frow__label" for="name">Site name</label>
+        <div class="oh-frow__field"><input class="oh-input" id="name" name="name" value="<%= val(s.name) %>" placeholder="e.g. Anna Nagar Mall" required /></div>
+      </div>
+      <div class="oh-frow">
+        <label class="oh-frow__label" for="code">Site code</label>
+        <div class="oh-frow__field"><input class="oh-input oh-input--code" id="code" name="code" value="<%= val(s.code) %>" placeholder="e.g. ANM" required /></div>
       </div>
     </div>
 
     <div class="oh-form-section">
       <h3 class="oh-kv-section__title">Shifts &amp; overtime</h3>
-      <div class="oh-row-2">
-        <div class="oh-input-group"><label class="oh-label" for="standardStartTime">Day shift start</label><input class="oh-input" id="standardStartTime" name="standardStartTime" type="time" value="<%= s.standardStartTime || '09:00' %>" required /></div>
-        <div class="oh-input-group"><label class="oh-label" for="standardEndTime">Day shift end</label><input class="oh-input" id="standardEndTime" name="standardEndTime" type="time" value="<%= s.standardEndTime || '18:00' %>" required /></div>
+      <div class="oh-frow">
+        <label class="oh-frow__label">Day shift <span class="oh-muted">(start – end)</span></label>
+        <div class="oh-frow__field oh-frow__pair">
+          <input class="oh-input" name="standardStartTime" type="time" aria-label="Day shift start" value="<%= s.standardStartTime || '09:00' %>" required />
+          <input class="oh-input" name="standardEndTime" type="time" aria-label="Day shift end" value="<%= s.standardEndTime || '18:00' %>" required />
+        </div>
       </div>
-      <label class="oh-check"><input type="checkbox" name="nightShiftEnabled" id="nightShiftEnabled" <%= s.nightShiftEnabled ? 'checked' : '' %> /> This site runs a night shift</label>
-      <div class="oh-row-2">
-        <div class="oh-input-group"><label class="oh-label" for="nightStartTime">Night shift start</label><input class="oh-input" id="nightStartTime" name="nightStartTime" type="time" value="<%= night.startTime || '' %>" /></div>
-        <div class="oh-input-group"><label class="oh-label" for="nightEndTime">Night shift end</label><input class="oh-input" id="nightEndTime" name="nightEndTime" type="time" value="<%= night.endTime || '' %>" /></div>
+      <div class="oh-frow">
+        <label class="oh-frow__label">Night shift</label>
+        <div class="oh-frow__field">
+          <label class="oh-check"><input type="checkbox" name="nightShiftEnabled" id="nightShiftEnabled" <%= s.nightShiftEnabled ? 'checked' : '' %> /> This site runs a night shift</label>
+          <div class="oh-frow__pair" style="margin-top:0.5rem">
+            <input class="oh-input" name="nightStartTime" type="time" aria-label="Night shift start" value="<%= night.startTime || '' %>" />
+            <input class="oh-input" name="nightEndTime" type="time" aria-label="Night shift end" value="<%= night.endTime || '' %>" />
+          </div>
+        </div>
       </div>
-      <div class="oh-input-group" style="max-width:260px">
-        <label class="oh-label" for="allowedOtHours">Allowed OT hours / day <span class="oh-muted">(optional)</span></label>
-        <input class="oh-input" id="allowedOtHours" name="allowedOtHours" type="number" min="0" max="24" step="0.5" value="<%= s.allowedOtHours != null ? s.allowedOtHours : '' %>" placeholder="e.g. 4" />
+      <div class="oh-frow">
+        <label class="oh-frow__label" for="allowedOtHours">Allowed OT hours / day <span class="oh-muted">(optional)</span></label>
+        <div class="oh-frow__field"><input class="oh-input" id="allowedOtHours" name="allowedOtHours" type="number" min="0" max="24" step="0.5" value="<%= s.allowedOtHours != null ? s.allowedOtHours : '' %>" placeholder="e.g. 4" style="max-width:160px" /></div>
       </div>
     </div>
 
     <div class="oh-form-section">
-      <h3 class="oh-kv-section__title">Location &amp; geofence</h3>
-      <p class="oh-muted">Search or click the map to set the coordinates. When set, each scan records its distance from the site and the geofence is enforced.</p>
-      <div class="oh-map-search">
-        <input class="oh-input" id="site-map-search" type="text" placeholder="Search address / place (e.g. Vadapalani, Chennai)" />
-        <button class="oh-btn oh-btn--small" type="button" id="site-map-search-btn">Search</button>
+      <h3 class="oh-kv-section__title">Coverage area &amp; geofence</h3>
+      <div class="oh-frow">
+        <label class="oh-frow__label">Coverage area<span class="oh-muted">Search, drop a pin, or draw the boundary. When set, scans are checked against it.</span></label>
+        <div class="oh-frow__field">
+          <div class="oh-map-search">
+            <input class="oh-input" id="site-map-search" type="text" placeholder="Search address / place (e.g. Vadapalani, Chennai)" />
+            <button class="oh-btn oh-btn--small" type="button" id="site-map-search-btn">Search</button>
+          </div>
+          <div class="oh-map-tools">
+            <button class="oh-btn oh-btn--small" type="button" id="map-draw-circle"><span class="material-icons">radio_button_unchecked</span> Draw circle</button>
+            <button class="oh-btn oh-btn--small" type="button" id="map-draw-rect"><span class="material-icons">crop_square</span> Draw rectangle</button>
+            <button class="oh-btn oh-btn--small" type="button" id="map-my-location"><span class="material-icons">my_location</span> My location</button>
+            <button class="oh-btn oh-btn--small" type="button" id="map-clear"><span class="material-icons">close</span> Clear</button>
+          </div>
+          <div id="site-map" class="oh-map"></div>
+          <input type="hidden" name="geofencePolygon" value="<%= polyJson %>" />
+        </div>
       </div>
-      <div id="site-map" class="oh-map"></div>
-      <div class="oh-row-2" style="margin-top:0.6rem">
-        <div class="oh-input-group"><label class="oh-label" for="latitude">Latitude</label><input class="oh-input" id="latitude" name="latitude" value="<%= s.latitude != null ? s.latitude : '' %>" placeholder="13.0405" /></div>
-        <div class="oh-input-group"><label class="oh-label" for="longitude">Longitude</label><input class="oh-input" id="longitude" name="longitude" value="<%= s.longitude != null ? s.longitude : '' %>" placeholder="80.2337" /></div>
+      <div class="oh-frow">
+        <label class="oh-frow__label">Coordinates</label>
+        <div class="oh-frow__field oh-frow__pair">
+          <input class="oh-input" name="latitude" aria-label="Latitude" value="<%= s.latitude != null ? s.latitude : '' %>" placeholder="Latitude (13.0405)" />
+          <input class="oh-input" name="longitude" aria-label="Longitude" value="<%= s.longitude != null ? s.longitude : '' %>" placeholder="Longitude (80.2337)" />
+        </div>
       </div>
-      <div class="oh-input-group" style="max-width:260px"><label class="oh-label" for="geofenceRadiusMeters">Geofence radius (m)</label><input class="oh-input" id="geofenceRadiusMeters" name="geofenceRadiusMeters" type="number" min="1" value="<%= s.geofenceRadiusMeters != null ? s.geofenceRadiusMeters : '' %>" placeholder="e.g. 150" /></div>
+      <div class="oh-frow">
+        <label class="oh-frow__label" for="geofenceRadiusMeters">Geofence radius <span class="oh-muted">(circle, metres)</span></label>
+        <div class="oh-frow__field"><input class="oh-input" id="geofenceRadiusMeters" name="geofenceRadiusMeters" type="number" min="1" value="<%= s.geofenceRadiusMeters != null ? s.geofenceRadiusMeters : '' %>" placeholder="e.g. 150" style="max-width:160px" /></div>
+      </div>
     </div>
 
     <div class="oh-form-section">
       <h3 class="oh-kv-section__title">Profile</h3>
-      <div class="oh-input-group"><label class="oh-label" for="address">Address <span class="oh-muted">(optional)</span></label><input class="oh-input" id="address" name="address" value="<%= val(s.address) %>" placeholder="street, area" /></div>
-      <div class="oh-row-2">
-        <div class="oh-input-group"><label class="oh-label" for="inChargeName">In-charge</label><input class="oh-input" id="inChargeName" name="inChargeName" value="<%= val(s.inChargeName) %>" list="incharge-list" placeholder="name" /></div>
-        <div class="oh-input-group"><label class="oh-label" for="inChargePhone">In-charge phone</label><input class="oh-input" id="inChargePhone" name="inChargePhone" type="tel" value="<%= val(s.inChargePhone) %>" placeholder="+91…" /></div>
+      <div class="oh-frow">
+        <label class="oh-frow__label" for="address">Address <span class="oh-muted">(optional)</span></label>
+        <div class="oh-frow__field"><input class="oh-input" id="address" name="address" value="<%= val(s.address) %>" placeholder="street, area" /></div>
       </div>
-      <div class="oh-input-group"><label class="oh-label" for="clientName">Client / project <span class="oh-muted">(optional)</span></label><input class="oh-input" id="clientName" name="clientName" value="<%= val(s.clientName) %>" placeholder="optional" /></div>
+      <div class="oh-frow">
+        <label class="oh-frow__label" for="inChargeName">In-charge</label>
+        <div class="oh-frow__field oh-frow__pair">
+          <input class="oh-input" id="inChargeName" name="inChargeName" value="<%= val(s.inChargeName) %>" list="incharge-list" placeholder="name" />
+          <input class="oh-input" id="inChargePhone" name="inChargePhone" type="tel" value="<%= val(s.inChargePhone) %>" placeholder="+91… phone" />
+        </div>
+      </div>
+      <div class="oh-frow">
+        <label class="oh-frow__label" for="clientName">Client / project <span class="oh-muted">(optional)</span></label>
+        <div class="oh-frow__field"><input class="oh-input" id="clientName" name="clientName" value="<%= val(s.clientName) %>" placeholder="optional" /></div>
+      </div>
     </div>
 
     <div class="oh-form-actions">
@@ -90,7 +125,9 @@
 
 <datalist id="incharge-list"><% (inCharges || []).forEach(function (n) { %><option value="<%= n %>"></option><% }); %></datalist>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
 <script src="/static/js/site-map.js"></script>
 
 <%- include('../partials/app-bottom') %>
