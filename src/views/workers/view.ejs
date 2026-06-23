@@ -1,0 +1,101 @@
+<%- include('../partials/app-top', { title: title, active: active }) %>
+<%
+  function fmtDate(d) { return d ? new Date(d).toLocaleDateString('en-GB', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric' }) : '—'; }
+  function fmtDt(d) { return d ? new Date(d).toLocaleString('en-GB', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' }) : ''; }
+  var statusBadge = { active: 'success', inactive: 'muted', pending: 'warning', deleted: 'danger' };
+  var hasBank = worker.bank && (worker.bank.accountNumber || worker.bank.accountHolderName || worker.bank.ifsc || worker.bank.bankName);
+%>
+<div class="oh-detail-topbar">
+  <%- include('../partials/breadcrumb', { back: '/workers', trail: [ { label: 'Employees', href: '/workers' }, { label: 'View Employee' } ] }) %>
+  <div class="oh-actions">
+    <% if (!hasFace) { %>
+    <a class="oh-btn oh-btn--small" href="/workers/<%= worker._id %>/face"><span class="material-icons">face</span> Register face</a>
+    <% } %>
+    <a class="oh-btn oh-btn--small oh-btn--secondary" href="/workers/<%= worker._id %>/edit"><span class="material-icons">edit</span> Edit</a>
+  </div>
+</div>
+
+<div class="oh-card oh-form-card oh-form-card--wide">
+  <div class="oh-detail-head">
+    <% if (worker.photoUrl) { %>
+    <img class="oh-detail-head__photo" src="<%= worker.photoUrl %>" alt="" />
+    <% } else { %><span class="oh-detail-head__photo"></span><% } %>
+    <div>
+      <h2 class="oh-detail-head__name"><%= worker.name %></h2>
+      <div class="oh-detail-head__meta">
+        <span class="oh-badge oh-badge--muted"><%= worker.empRegNo %></span>
+        <span class="oh-badge oh-badge--<%= statusBadge[worker.status] || 'muted' %>"><%= worker.status %></span>
+        <span class="oh-badge oh-badge--<%= hasFace ? 'success' : 'warning' %>"><%= hasFace ? 'Face registered' : 'No face' %></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="oh-kv-section">
+    <h3 class="oh-kv-section__title">Identity</h3>
+    <div class="oh-kv">
+      <div class="oh-kv__label">Designation</div>
+      <div class="oh-kv__value"><%= worker.designationName %></div>
+      <div class="oh-kv__label">Site(s)</div>
+      <div class="oh-kv__value">
+        <% if (siteList && siteList.length) { siteList.forEach(function (s, i) { %><%= s.name %> (<%= s.code %>)<%= i === 0 ? ' · primary' : '' %><%= i < siteList.length - 1 ? ', ' : '' %><% }); } else { %><%= worker.siteName %><% } %>
+      </div>
+      <div class="oh-kv__label">Date joined</div>
+      <div class="oh-kv__value"><%= fmtDate(worker.dateJoined) %></div>
+    </div>
+  </div>
+
+  <div class="oh-kv-section">
+    <h3 class="oh-kv-section__title">Contact</h3>
+    <div class="oh-kv">
+      <div class="oh-kv__label">Phone</div>
+      <div class="oh-kv__value"><%= worker.phone || '—' %></div>
+      <div class="oh-kv__label">Emergency phone</div>
+      <div class="oh-kv__value"><%= worker.emergencyPhone || '—' %></div>
+      <div class="oh-kv__label">Email</div>
+      <div class="oh-kv__value"><%= worker.email || '—' %></div>
+    </div>
+  </div>
+
+  <div class="oh-kv-section">
+    <h3 class="oh-kv-section__title">Pay</h3>
+    <div class="oh-kv">
+      <div class="oh-kv__label">Daily wage</div>
+      <div class="oh-kv__value"><%= worker.dailyWage != null ? '₹ ' + worker.dailyWage : '—' %></div>
+      <div class="oh-kv__label">Food allowance</div>
+      <div class="oh-kv__value"><%= worker.foodAllowance && worker.foodAllowance.applicable ? '₹ ' + (worker.foodAllowance.amount != null ? worker.foodAllowance.amount : 0) + ' / day' : '—' %></div>
+    </div>
+  </div>
+
+  <% if (hasBank) { %>
+  <div class="oh-kv-section">
+    <h3 class="oh-kv-section__title">Bank</h3>
+    <div class="oh-kv">
+      <div class="oh-kv__label">Account holder</div>
+      <div class="oh-kv__value"><%= worker.bank.accountHolderName || '—' %></div>
+      <div class="oh-kv__label">Account number</div>
+      <div class="oh-kv__value"><%= worker.bank.accountNumber || '—' %></div>
+      <div class="oh-kv__label">IFSC</div>
+      <div class="oh-kv__value"><%= worker.bank.ifsc || '—' %></div>
+      <div class="oh-kv__label">Bank</div>
+      <div class="oh-kv__value"><%= worker.bank.bankName || '—' %></div>
+    </div>
+  </div>
+  <% } %>
+
+  <% if (worker.remarks && worker.remarks.length) { %>
+  <div class="oh-kv-section">
+    <h3 class="oh-kv-section__title">Remarks &amp; audit</h3>
+    <ul class="oh-timeline">
+      <% worker.remarks.forEach(function (r) { %>
+      <li class="oh-timeline__item<%= r.cleared ? ' is-cleared' : '' %>">
+        <span class="oh-badge oh-badge--muted"><%= r.type %></span>
+        <span><%= r.text %></span>
+        <span class="oh-muted">— <%= r.authorName || 'system' %>, <%= fmtDt(r.at) %></span>
+      </li>
+      <% }); %>
+    </ul>
+  </div>
+  <% } %>
+</div>
+
+<%- include('../partials/app-bottom') %>

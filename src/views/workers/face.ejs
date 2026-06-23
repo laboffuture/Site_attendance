@@ -1,11 +1,11 @@
 <%- include('../partials/app-top', { title: title, active: active }) %>
 
+<%- include('../partials/breadcrumb', { back: '/workers?face=unregistered', trail: [ { label: 'Employees', href: '/workers' }, { label: worker.name, href: '/workers/' + worker._id }, { label: 'Register Face' } ] }) %>
 <div class="oh-page-header oh-page-header--row">
   <div>
     <h1 class="oh-page-title">Register face</h1>
     <p class="oh-page-subtitle"><%= worker.name %> · <%= worker.empRegNo %> · <%= worker.siteName %></p>
   </div>
-  <a class="oh-btn oh-btn--small" href="/workers?face=unregistered">&larr; Back to list</a>
 </div>
 
 <div class="oh-card oh-form-card oh-form-card--wide">

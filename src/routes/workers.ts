@@ -135,11 +135,14 @@ const STATUS_TABS: Record<string, string[]> = {
 router.get("/workers", requireCapability("enroll_worker"), async (req: Request, res: Response) => {
   const tab = STATUS_TABS[String(req.query.status)] ? String(req.query.status) : "active";
   const faceFilter = String(req.query.face) === "unregistered" ? "unregistered" : "all";
+  const q = String(req.query.q ?? "").trim();
   // Workers can be assigned to many sites, so scope by `siteIds` overlap.
   const scope = workerScopeFilter(req.currentUser!);
   const listQuery: Record<string, unknown> = { ...scope, status: { $in: STATUS_TABS[tab] } };
   // "faceEncoding.0" exists ⇒ at least one descriptor ⇒ enrolled.
   if (faceFilter === "unregistered") listQuery["faceEncoding.0"] = { $exists: false };
+  // Free-text search across name + Employee ID (case-insensitive).
+  if (q) listQuery.$or = [{ name: new RegExp(escapeRegex(q), "i") }, { empRegNo: new RegExp(escapeRegex(q), "i") }];
   const [workers, active, pending, archived, faceRegistered] = await Promise.all([
     WorkerModel.find(listQuery).sort({ createdAt: -1 }).lean(),
     WorkerModel.countDocuments({ ...scope, status: { $in: ["active", "inactive"] } }),
@@ -160,6 +163,7 @@ router.get("/workers", requireCapability("enroll_worker"), async (req: Request, 
     workers: rows,
     tab,
     faceFilter,
+    q,
     counts: { active, pending, archived },
     face: { registered: faceRegistered, total: active },
   });
@@ -266,6 +270,32 @@ router.post("/workers", requireCapability("enroll_worker"), async (req: Request,
 
   flash(req, "success", `Enrolled ${name} (${empRegNo}).`);
   res.redirect("/workers");
+});
+
+// ---- View (read-only detail) — registered AFTER /workers/new so "new" wins ----
+router.get("/workers/:id", requireCapability("enroll_worker"), async (req: Request, res: Response) => {
+  if (!Types.ObjectId.isValid(req.params.id)) {
+    flash(req, "danger", "Employee not found.");
+    return res.redirect("/workers");
+  }
+  const worker = await WorkerModel.findById(req.params.id).lean();
+  if (!worker || !canUseWorker(req.currentUser!, worker)) {
+    flash(req, "danger", "Employee not found.");
+    return res.redirect("/workers");
+  }
+  // Resolve site names (multi-site), keeping order so the first is the primary.
+  const ids = worker.siteIds && worker.siteIds.length ? worker.siteIds : [worker.siteId];
+  const sites = await ProjectSiteModel.find({ _id: { $in: ids } }).lean();
+  const byId = new Map(sites.map((s) => [String(s._id), s]));
+  const siteList = ids.map((id) => byId.get(String(id))).filter(Boolean);
+  res.render("workers/view", {
+    title: worker.name + " · " + res.locals.company,
+    active: "/workers",
+    worker,
+    siteList,
+    hasFace: Array.isArray(worker.faceEncoding) && worker.faceEncoding.length > 0,
+    canDelete: can(req.currentUser!.role, "delete_worker"),
+  });
 });
 
 // ---- Edit ----

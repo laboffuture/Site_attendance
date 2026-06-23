@@ -83,9 +83,13 @@ async function main(): Promise<void> {
 
   const admin = await login(app, ADMIN_EMAIL, ADMIN_PW);
 
-  assert("admin GET /workers → 200", (await admin.get("/workers")).status === 200);
+  const list0 = await admin.get("/workers");
+  assert("admin GET /workers → 200", list0.status === 200);
+  assert("employees landing shows action cards + Add Employee", list0.text.includes("oh-action-card") && list0.text.includes("Add Employee"));
+  assert("employees list has a search box", list0.text.includes('name="q"'));
   const form = await admin.get("/workers/new");
   assert("enroll form lists a seeded site (VBW)", form.text.includes("VBW"));
+  assert("add form shows a breadcrumb", form.text.includes("oh-breadcrumb"));
 
   // Enroll with a real face photo + a manual Employee ID + contact/bank fields.
   const enroll = await admin.post("/workers").type("form").send({
@@ -113,6 +117,19 @@ async function main(): Promise<void> {
   assert("phone + emergency stored", w?.phone === "9000000001" && w?.emergencyPhone === "9000000002");
   assert("bank details stored (IFSC uppercased)", !!w?.bank && w.bank.ifsc === "HDFC0001234");
   assert("photo file written (by _id)", !!w && fs.existsSync(path.join(UPLOAD_DIR, `${w._id}.jpg`)));
+
+  // ---- View detail page (template D) ----
+  const view = await admin.get(`/workers/${w!._id}`);
+  assert("employee View page → 200", view.status === 200);
+  assert("View page shows the breadcrumb (View Employee)", view.text.includes("oh-breadcrumb") && view.text.includes("View Employee"));
+  assert("View page shows employee + Employee ID", view.text.includes(WORKER) && view.text.includes(EMPID));
+  assert("View page uses label-value detail (designation)", view.text.includes("oh-kv") && view.text.includes("Carpenter"));
+
+  // ---- Search across name + Employee ID ----
+  const hit = await admin.get(`/workers?q=${encodeURIComponent(WORKER)}`);
+  assert("search finds the employee by name", hit.text.includes(EMPID));
+  const miss = await admin.get("/workers?q=zzznotanemployeezzz");
+  assert("search with no match excludes the employee", !miss.text.includes(EMPID));
 
   // Duplicate Employee ID rejected.
   const beforeDup = await WorkerModel.countDocuments();
@@ -144,6 +161,8 @@ async function main(): Promise<void> {
   const sup = await login(app, SUP_EMAIL, SUP_PW);
   const supList = await sup.get("/workers");
   assert("supervisor list excludes other-site worker", !supList.text.includes(w!.empRegNo));
+  const supView = await sup.get(`/workers/${w!._id}`);
+  assert("supervisor cannot view out-of-scope employee (redirect)", supView.status === 302);
   const supForm = await sup.get("/workers/new");
   assert("supervisor enroll form shows only own site", supForm.text.includes("PVM") && !supForm.text.includes("VBW"));
   await sup.post("/workers").type("form").send({

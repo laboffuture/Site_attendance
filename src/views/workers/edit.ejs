@@ -1,8 +1,12 @@
 <%- include('../partials/app-top', { title: title, active: active }) %>
 
-<div class="oh-page-header">
-  <h1 class="oh-page-title">Edit employee</h1>
-  <p class="oh-page-subtitle"><%= worker.empRegNo %> · <%= worker.designationName %></p>
+<%- include('../partials/breadcrumb', { back: '/workers', trail: [ { label: 'Employees', href: '/workers' }, { label: worker.name, href: '/workers/' + worker._id }, { label: 'Edit' } ] }) %>
+<div class="oh-page-header oh-page-header--row">
+  <div>
+    <h1 class="oh-page-title">Edit Employee</h1>
+    <p class="oh-page-subtitle"><%= worker.empRegNo %> · <%= worker.designationName %></p>
+  </div>
+  <a class="oh-btn oh-btn--small oh-btn--secondary oh-only-desktop" href="/workers/<%= worker._id %>"><span class="material-icons">visibility</span> View</a>
 </div>
 
 <div class="oh-card oh-form-card">

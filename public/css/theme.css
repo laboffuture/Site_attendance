@@ -1408,3 +1408,184 @@ tr > .oh-att-row {
     width: 100%;
   }
 }
+
+/* ============================================================
+   Reference-structure templates (B/C/D) — shared & reusable.
+   Adopt the Manpower-Management page grammar (breadcrumb, action
+   cards, list actions, label-value detail) in OUR skin: flat,
+   sharp corners (radius 0), 1px borders, Poppins, accent #1c4d8c.
+   First used by Employees; reused by every module after.
+   ============================================================ */
+
+/* Breadcrumb (top of form / detail pages) */
+.oh-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.oh-breadcrumb__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--c-text);
+  text-decoration: none;
+  border: 1px solid var(--c-border);
+  padding: 0.3rem 0.6rem 0.3rem 0.4rem;
+  background: var(--c-surface);
+}
+.oh-breadcrumb__back:hover { border-color: var(--c-accent); color: var(--c-accent); }
+.oh-breadcrumb__back .material-icons { font-size: 1.05rem; }
+.oh-breadcrumb__trail {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.82rem;
+  flex-wrap: wrap;
+}
+.oh-breadcrumb__item { display: inline-flex; align-items: center; gap: 0.45rem; }
+.oh-breadcrumb__trail a { color: var(--c-text-muted); text-decoration: none; }
+.oh-breadcrumb__trail a:hover { color: var(--c-accent); }
+.oh-breadcrumb__sep { color: var(--c-placeholder); }
+.oh-breadcrumb__current { color: var(--c-accent); font-weight: 600; }
+
+/* Action cards (module-landing row) */
+.oh-action-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.85rem;
+  margin-bottom: 1.25rem;
+}
+.oh-action-card {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.95rem 1rem;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  text-decoration: none;
+  color: var(--c-text);
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+.oh-action-card:hover { border-color: var(--c-accent); box-shadow: var(--shadow-card); }
+.oh-action-card__icon {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  background: var(--c-accent);
+  color: #fff;
+  font-size: 1.3rem;
+}
+.oh-action-card__text { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+.oh-action-card__title { font-weight: 600; font-size: 0.92rem; }
+.oh-action-card__desc { font-size: 0.78rem; color: var(--c-text-muted); }
+
+/* List toolbar (filters/tabs on the left, search on the right) */
+.oh-list-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+.oh-search { display: flex; align-items: stretch; max-width: 280px; }
+.oh-search input {
+  border: 1px solid var(--c-border);
+  border-right: 0;
+  padding: 0.4rem 0.6rem;
+  font: inherit;
+  font-size: 0.85rem;
+  background: var(--c-surface);
+  width: 100%;
+}
+.oh-search button {
+  border: 1px solid var(--c-accent);
+  background: var(--c-accent);
+  color: #fff;
+  padding: 0.4rem 0.6rem;
+  cursor: pointer;
+  display: inline-grid;
+  place-items: center;
+}
+.oh-search .material-icons { font-size: 1.1rem; }
+
+/* Row action icons (view / edit / delete / restore) */
+.oh-actions { display: inline-flex; gap: 0.3rem; align-items: center; }
+.oh-actions form { margin: 0; display: inline; }
+.oh-icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--c-border);
+  background: var(--c-surface);
+  color: var(--c-icon);
+  cursor: pointer;
+  text-decoration: none;
+  padding: 0;
+}
+.oh-icon-btn:hover { border-color: var(--c-accent); color: var(--c-accent); }
+.oh-icon-btn .material-icons { font-size: 1.05rem; }
+.oh-icon-btn--danger:hover { border-color: var(--c-danger); color: var(--c-danger); }
+
+/* Detail / View — header + label-value rows */
+.oh-detail-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.oh-detail-head {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+}
+.oh-detail-head__photo {
+  width: 72px;
+  height: 72px;
+  flex: 0 0 72px;
+  object-fit: cover;
+  border: 1px solid var(--c-border);
+  background: var(--c-canvas);
+  display: inline-block;
+}
+.oh-detail-head__name { font-size: 1.15rem; font-weight: 600; margin: 0; }
+.oh-detail-head__meta { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; margin-top: 0.35rem; }
+.oh-kv-section { margin-bottom: 1.1rem; }
+.oh-kv-section__title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--c-text-muted);
+  border-bottom: 1px solid var(--c-border-light);
+  padding-bottom: 0.35rem;
+  margin: 0 0 0.5rem;
+}
+.oh-kv {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 0.1rem 1rem;
+}
+.oh-kv__label { color: var(--c-text-muted); font-size: 0.85rem; padding: 0.35rem 0; }
+.oh-kv__value { font-size: 0.9rem; padding: 0.35rem 0; }
+.oh-timeline { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.oh-timeline__item { font-size: 0.85rem; display: flex; gap: 0.4rem; align-items: baseline; flex-wrap: wrap; }
+.oh-timeline__item.is-cleared { text-decoration: line-through; color: var(--c-text-muted); }
+@media (max-width: 640px) {
+  .oh-kv { grid-template-columns: 1fr; gap: 0; }
+  .oh-kv__label { padding-bottom: 0; }
+  .oh-kv__value { padding-top: 0.1rem; font-weight: 500; }
+}

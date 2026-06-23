@@ -1,42 +1,56 @@
 <%- include('../partials/app-top', { title: title, active: active }) %>
 <%
   var statusBadge = { active: "success", inactive: "muted", pending: "warning", deleted: "danger" };
+  var unreg = face.total - face.registered;
+  var tabQs = tab !== 'active' ? ('status=' + tab) : '';
+  // Action cards = the primary things you can do in this module (template B).
+  var cards = [
+    { href: '/workers/new', icon: 'person_add', title: 'Add Employee', desc: 'Enroll a new employee with a face photo' },
+    { href: '/workers?face=unregistered', icon: 'face', title: 'Register Faces', desc: unreg + ' employee(s) need a face' },
+  ];
+  if (can('add_designation')) cards.push({ href: '/designations', icon: 'badge', title: 'Designations', desc: 'Manage trades & roles' });
 %>
 <div class="oh-page-header oh-page-header--row">
   <div>
     <h1 class="oh-page-title">Employees</h1>
-    <p class="oh-page-subtitle"><%= { active: 'Active employees', pending: 'Pending approval', archived: 'Archived employees' }[tab] || 'Employees' %> (<%= workers.length %>).</p>
-    <p class="oh-page-subtitle">Face registered: <%= face.registered %> / <%= face.total %> — capture a face before a worker can be scanned.</p>
+    <p class="oh-page-subtitle">Manage your workforce &middot; Face registered: <%= face.registered %> / <%= face.total %></p>
   </div>
-  <a class="oh-btn oh-btn--secondary oh-only-desktop" href="/workers/new">
-    <span class="material-icons">person_add</span> Enroll worker
-  </a>
+</div>
+
+<%- include('../partials/action-cards', { cards: cards }) %>
+
+<div class="oh-list-toolbar">
+  <div class="oh-filter-tabs">
+    <a class="oh-filter-tab <%= tab === 'active' ? 'oh-filter-tab--active' : '' %>" href="/workers">Active (<%= counts.active %>)</a>
+    <a class="oh-filter-tab <%= tab === 'pending' ? 'oh-filter-tab--active' : '' %>" href="/workers?status=pending">Pending (<%= counts.pending %>)</a>
+    <a class="oh-filter-tab <%= tab === 'archived' ? 'oh-filter-tab--active' : '' %>" href="/workers?status=archived">Archived (<%= counts.archived %>)</a>
+  </div>
+  <form class="oh-search" method="get" action="/workers">
+    <% if (tab !== 'active') { %><input type="hidden" name="status" value="<%= tab %>" /><% } %>
+    <% if (faceFilter === 'unregistered') { %><input type="hidden" name="face" value="unregistered" /><% } %>
+    <input type="text" name="q" value="<%= q %>" placeholder="Search name or ID…" aria-label="Search employees" />
+    <button type="submit" aria-label="Search"><span class="material-icons">search</span></button>
+  </form>
 </div>
 
 <div class="oh-filter-tabs">
-  <a class="oh-filter-tab <%= tab === 'active' ? 'oh-filter-tab--active' : '' %>" href="/workers">Active (<%= counts.active %>)</a>
-  <a class="oh-filter-tab <%= tab === 'pending' ? 'oh-filter-tab--active' : '' %>" href="/workers?status=pending">Pending (<%= counts.pending %>)</a>
-  <a class="oh-filter-tab <%= tab === 'archived' ? 'oh-filter-tab--active' : '' %>" href="/workers?status=archived">Archived (<%= counts.archived %>)</a>
+  <a class="oh-filter-tab <%= faceFilter === 'all' ? 'oh-filter-tab--active' : '' %>" href="/workers<%= tabQs ? '?' + tabQs : '' %>">All</a>
+  <a class="oh-filter-tab <%= faceFilter === 'unregistered' ? 'oh-filter-tab--active' : '' %>" href="/workers?face=unregistered<%= tabQs ? '&' + tabQs : '' %>">Not registered (<%= unreg %>)</a>
 </div>
 
-<div class="oh-filter-tabs">
-  <a class="oh-filter-tab <%= faceFilter === 'all' ? 'oh-filter-tab--active' : '' %>" href="/workers">All</a>
-  <a class="oh-filter-tab <%= faceFilter === 'unregistered' ? 'oh-filter-tab--active' : '' %>" href="/workers?face=unregistered">Not registered (<%= face.total - face.registered %>)</a>
-</div>
-
-<!-- mobile: worker cards + floating enroll -->
+<!-- mobile: employee cards + floating add -->
 <div class="oh-only-mobile">
   <% if (workers.length) { %>
   <div class="oh-m-section">
     <div class="oh-m-list">
       <% workers.forEach(function (w) { %>
-      <a class="oh-m-card oh-m-row oh-m-link" href="/workers/<%= w._id %>/<%= w.hasFace ? 'edit' : 'face' %>">
+      <a class="oh-m-card oh-m-row oh-m-link" href="/workers/<%= w._id %>">
         <span class="oh-m-avatar">
           <% if (w.photoUrl) { %><img src="<%= w.photoUrl %>" alt="" /><% } else { %><%= w.name.split(' ').map(function (x) { return x[0]; }).join('').slice(0, 2).toUpperCase() %><% } %>
         </span>
         <span class="oh-m-grow">
           <span class="oh-m-name"><%= w.name %></span>
-          <span class="oh-m-sub"><%= w.empRegNo %> · <%= w.designationName %> · <%= w.siteName %></span>
+          <span class="oh-m-sub"><%= w.empRegNo %> &middot; <%= w.designationName %> &middot; <%= w.siteName %></span>
         </span>
         <span style="display:flex;flex-direction:column;gap:0.3rem;align-items:flex-end">
           <span class="oh-m-badge oh-badge--<%= statusBadge[w.status] || 'muted' %>"><%= w.status %></span>
@@ -47,9 +61,9 @@
     </div>
   </div>
   <% } else { %>
-  <div class="oh-m-section"><p class="oh-muted">No workers enrolled yet.</p></div>
+  <div class="oh-m-section"><p class="oh-muted">No employees found.</p></div>
   <% } %>
-  <a class="oh-m-fab" href="/workers/new"><span class="material-icons">person_add</span> Enroll worker</a>
+  <a class="oh-m-fab" href="/workers/new"><span class="material-icons">person_add</span> Add employee</a>
 </div>
 
 <div class="oh-card oh-only-desktop">
@@ -57,8 +71,8 @@
   <table class="oh-table">
     <thead>
       <tr>
-        <th></th><th>Reg No</th><th>Name</th><th>Designation</th>
-        <th>Site</th><th>Status</th><th>Face</th><th class="oh-col-action"></th>
+        <th></th><th>Emp ID</th><th>Name</th><th>Designation</th>
+        <th>Site</th><th>Status</th><th>Face</th><th class="oh-col-action">Actions</th>
       </tr>
     </thead>
     <tbody>
@@ -70,26 +84,40 @@
           <% } else { %><span class="oh-thumb"></span><% } %>
         </td>
         <td><span class="oh-badge oh-badge--muted"><%= w.empRegNo %></span></td>
-        <td><%= w.name %></td>
+        <td><a href="/workers/<%= w._id %>"><%= w.name %></a></td>
         <td><%= w.designationName %></td>
         <td><%= w.siteName %></td>
-        <td>
-          <span class="oh-badge oh-badge--<%= statusBadge[w.status] || 'muted' %>"><%= w.status %></span>
-        </td>
+        <td><span class="oh-badge oh-badge--<%= statusBadge[w.status] || 'muted' %>"><%= w.status %></span></td>
         <td>
           <% if (w.hasFace) { %><span class="oh-badge oh-badge--success">Registered</span>
-          <% } else { %><span class="oh-badge oh-badge--warning">Not registered</span>
-          <a class="oh-btn oh-btn--small oh-btn--secondary" href="/workers/<%= w._id %>/face" style="margin-left:0.4rem">Register face</a><% } %>
+          <% } else { %><span class="oh-badge oh-badge--warning">Not registered</span><% } %>
         </td>
         <td class="oh-col-action">
-          <a class="oh-btn oh-btn--small" href="/workers/<%= w._id %>/edit">Edit</a>
+          <span class="oh-actions">
+            <a class="oh-icon-btn" href="/workers/<%= w._id %>" title="View"><span class="material-icons">visibility</span></a>
+            <a class="oh-icon-btn" href="/workers/<%= w._id %>/edit" title="Edit"><span class="material-icons">edit</span></a>
+            <% if (!w.hasFace) { %>
+            <a class="oh-icon-btn" href="/workers/<%= w._id %>/face" title="Register face"><span class="material-icons">face</span></a>
+            <% } %>
+            <% if (can('delete_worker') && w.status !== 'deleted') { %>
+            <form method="post" action="/workers/<%= w._id %>/delete" onsubmit="var r=prompt('Reason for deleting this employee?'); if(!r){return false;} this.reason.value=r; return true;">
+              <input type="hidden" name="reason" />
+              <button class="oh-icon-btn oh-icon-btn--danger" type="submit" title="Delete"><span class="material-icons">delete</span></button>
+            </form>
+            <% } %>
+            <% if (can('delete_worker') && w.status === 'deleted') { %>
+            <form method="post" action="/workers/<%= w._id %>/restore">
+              <button class="oh-icon-btn" type="submit" title="Restore"><span class="material-icons">restore_from_trash</span></button>
+            </form>
+            <% } %>
+          </span>
         </td>
       </tr>
       <% }); %>
     </tbody>
   </table>
   <% } else { %>
-  <p class="oh-muted">No workers enrolled yet. Use “Enroll worker” to add the first.</p>
+  <p class="oh-muted">No employees found. Use the “Add Employee” card to enroll the first.</p>
   <% } %>
 </div>
 

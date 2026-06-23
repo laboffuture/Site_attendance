@@ -1,0 +1,15 @@
+<%
+  // Reusable module-landing action cards. Param:
+  //   cards — [{ href, icon (Material Icons name), title, desc }]
+%>
+<div class="oh-action-cards">
+  <% cards.forEach(function (c) { %>
+  <a class="oh-action-card" href="<%= c.href %>">
+    <span class="oh-action-card__icon material-icons"><%= c.icon %></span>
+    <span class="oh-action-card__text">
+      <span class="oh-action-card__title"><%= c.title %></span>
+      <span class="oh-action-card__desc"><%= c.desc %></span>
+    </span>
+  </a>
+  <% }); %>
+</div>

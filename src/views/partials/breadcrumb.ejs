@@ -1,0 +1,20 @@
+<%
+  // Reusable breadcrumb. Params:
+  //   back  — href for the "‹ Back" button
+  //   trail — [{ label, href? }]; the last item renders as the current page.
+%>
+<nav class="oh-breadcrumb" aria-label="Breadcrumb">
+  <a class="oh-breadcrumb__back" href="<%= back %>"><span class="material-icons">chevron_left</span> Back</a>
+  <ol class="oh-breadcrumb__trail">
+    <% trail.forEach(function (item, i) { %>
+    <li class="oh-breadcrumb__item">
+      <% if (item.href && i < trail.length - 1) { %>
+      <a href="<%= item.href %>"><%= item.label %></a>
+      <span class="oh-breadcrumb__sep">&rsaquo;</span>
+      <% } else { %>
+      <span class="oh-breadcrumb__current"><%= item.label %></span>
+      <% } %>
+    </li>
+    <% }); %>
+  </ol>
+</nav>

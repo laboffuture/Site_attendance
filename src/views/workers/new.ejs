@@ -1,8 +1,12 @@
 <%- include('../partials/app-top', { title: title, active: active }) %>
 
-<div class="oh-page-header">
-  <h1 class="oh-page-title">Enroll employee</h1>
-  <p class="oh-page-subtitle">Capture one clear, front-facing photo. A face must be detected to enroll.</p>
+<%- include('../partials/breadcrumb', { back: '/workers', trail: [ { label: 'Employees', href: '/workers' }, { label: 'Add Employee' } ] }) %>
+<div class="oh-page-header oh-page-header--row">
+  <div>
+    <h1 class="oh-page-title">Add Employee</h1>
+    <p class="oh-page-subtitle">Capture one clear, front-facing photo. A face must be detected to enroll.</p>
+  </div>
+  <a class="oh-btn oh-btn--small oh-btn--secondary oh-only-desktop" href="/workers"><span class="material-icons">list</span> View Employees</a>
 </div>
 
 <div class="oh-card oh-form-card oh-form-card--wide">
