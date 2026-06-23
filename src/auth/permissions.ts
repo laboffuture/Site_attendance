@@ -74,6 +74,19 @@ export function can(role: Role, capability: Capability): boolean {
   return CAPABILITY_ROLES[capability].includes(role);
 }
 
+/** Every capability key, in matrix order — used to render permission editors. */
+export const ALL_CAPABILITIES = Object.keys(CAPABILITY_ROLES) as Capability[];
+
+/** Effective permission for a specific user: an explicit per-user capability
+ *  list (when set) overrides the role; otherwise the role's defaults apply. */
+export function userCan(
+  user: { role: Role; capabilities?: string[] | null },
+  capability: Capability,
+): boolean {
+  if (user.capabilities && user.capabilities.length) return user.capabilities.includes(capability);
+  return can(user.role, capability);
+}
+
 /** Roles that see every site and store no assignedSiteIds (top admins). */
 export function seesAllSites(role: Role): boolean {
   return role === "management" || role === "hr";

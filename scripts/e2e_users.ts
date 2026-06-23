@@ -56,11 +56,11 @@ async function main(): Promise<void> {
   const hrView = await admin.get(`/users/${hr!._id}`);
   assert("user detail page → 200", hrView.status === 200);
   assert("detail shows email + phone", hrView.text.includes(HR) && hrView.text.includes("+1 555 0100"));
-  assert("detail shows the role-permission matrix", hrView.text.includes("Role permissions") && hrView.text.includes("oh-perm"));
+  assert("detail shows the permission matrix", hrView.text.includes("Permissions") && hrView.text.includes("oh-perm"));
   const usersList = await admin.get("/users");
   assert("users ledger has summary strip + search", usersList.text.includes("oh-statstrip") && usersList.text.includes('name="q"'));
   const addForm = await admin.get("/users/new");
-  assert("add-user form previews role permissions (parity with View)", addForm.text.includes("Role permissions") && addForm.text.includes("data-role-perm"));
+  assert("add-user form has editable permission checkboxes", addForm.text.includes('name="capabilities"') && addForm.text.includes("data-cap"));
   // Edit can change the phone.
   await admin.post(`/users/${hr!._id}`).type("form").send({ name: "QA HR", email: HR, role: "hr", phone: "555 0199" });
   assert("phone updated on edit", (await UserModel.findById(hr!._id))?.phone === "555 0199");
@@ -98,6 +98,22 @@ async function main(): Promise<void> {
   // Supervisor has no access to user management.
   const supAgent = await login(app, SUP, PW);
   assert("Supervisor GET /users → 403", (await supAgent.get("/users")).status === 403);
+
+  // ---- Per-user permission override (manual permissions) + enforcement ----
+  // A Supervisor's role lacks view_overtime, so /overtime is denied...
+  assert("normal supervisor GET /overtime → 403", (await supAgent.get("/overtime")).status === 403);
+  // ...until Management grants it on top of the supervisor defaults.
+  const supUser = await UserModel.findOne({ email: SUP });
+  const supDefaults = ["view_dashboard", "mark_attendance", "enroll_worker", "add_designation", "view_org", "view_requests", "create_request", "submit_attendance"];
+  await mgmtAgent.post(`/users/${supUser!._id}`).type("form").send({
+    name: "QA Sup", email: SUP, role: "supervisor", assignedSiteIds: String(vbw._id),
+    capabilities: [...supDefaults, "view_overtime"],
+  });
+  const supAfter = await UserModel.findById(supUser!._id);
+  assert("granted capability persisted (view_overtime)", !!supAfter && (supAfter.capabilities as string[]).includes("view_overtime"));
+  const supAgent2 = await login(app, SUP, PW);
+  assert("supervisor WITH granted view_overtime → /overtime 200", (await supAgent2.get("/overtime")).status === 200);
+  assert("supervisor keeps role caps (still no /users)", (await supAgent2.get("/users")).status === 403);
 
   // Cleanup.
   await UserModel.deleteMany({ email: { $in: [MGMT, HR, PM, SUP, SUPER, `qa-m2-${S}@trgbi.com`] } });

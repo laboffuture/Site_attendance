@@ -2,7 +2,7 @@ import { RequestHandler } from "express";
 
 import * as db from "../db";
 import { UserModel, Role } from "../models/User";
-import { Capability, can } from "./permissions";
+import { Capability, userCan } from "./permissions";
 
 /**
  * Loads the signed-in user fresh from the DB on each request (so role/scope
@@ -20,9 +20,10 @@ export const loadCurrentUser: RequestHandler = async (req, res, next) => {
           email: u.email,
           role: u.role as Role,
           assignedSiteIds: (u.assignedSiteIds ?? []).map(String),
+          capabilities: (u.capabilities ?? []).map(String),
         };
         res.locals.currentUser = req.currentUser;
-        res.locals.can = (cap: Capability) => can(req.currentUser!.role, cap);
+        res.locals.can = (cap: Capability) => userCan(req.currentUser!, cap);
       } else {
         // Account deleted or deactivated mid-session → drop the session.
         req.session.destroy(() => undefined);
@@ -61,7 +62,7 @@ export function requireRole(...roles: Role[]): RequestHandler {
 export function requireCapability(capability: Capability): RequestHandler {
   return (req, res, next) => {
     if (!req.currentUser) return res.redirect("/");
-    if (!can(req.currentUser.role, capability)) return deny(res);
+    if (!userCan(req.currentUser, capability)) return deny(res);
     next();
   };
 }

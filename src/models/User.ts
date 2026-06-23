@@ -20,6 +20,9 @@ const userSchema = new Schema(
       ref: "ProjectSite",
       default: [],
     },
+    // Per-user capability overrides. Empty = follow the role's defaults
+    // (CAPABILITY_ROLES); a non-empty list is the user's exact granted set.
+    capabilities: { type: [String], default: [] },
     active: { type: Boolean, default: true },
   },
   { timestamps: true },

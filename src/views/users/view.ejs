@@ -46,7 +46,7 @@
   </div>
 
   <div class="oh-kv-section">
-    <h3 class="oh-kv-section__title">Role permissions</h3>
+    <h3 class="oh-kv-section__title">Permissions<% if (typeof customized !== 'undefined' && customized) { %> <span class="oh-badge oh-badge--warning" style="text-transform:none;letter-spacing:0;margin-left:0.4rem">Customised</span><% } else { %> <span class="oh-muted" style="text-transform:none;letter-spacing:0;font-weight:400">— role defaults</span><% } %></h3>
     <div class="oh-perm">
       <% permissions.forEach(function (g) { %>
       <div class="oh-perm__group">

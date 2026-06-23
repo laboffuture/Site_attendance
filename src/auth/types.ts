@@ -7,4 +7,5 @@ export interface CurrentUser {
   email: string;
   role: Role;
   assignedSiteIds: string[];
+  capabilities: string[]; // explicit per-user overrides; [] = follow role
 }

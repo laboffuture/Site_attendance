@@ -48,19 +48,20 @@
     </div>
 
     <div class="oh-form-section">
-      <h3 class="oh-kv-section__title">Role permissions <span class="oh-muted" style="text-transform:none;letter-spacing:0;font-weight:400">— granted by the role above</span></h3>
-      <% Object.keys(permsByRole).forEach(function (rn) { %>
-      <div class="oh-perm" data-role-perm="<%= rn %>" <%= (u.role || roles[0]) === rn ? '' : 'hidden' %>>
-        <% permsByRole[rn].forEach(function (g) { %>
+      <h3 class="oh-kv-section__title">Permissions <span class="oh-muted" style="text-transform:none;letter-spacing:0;font-weight:400">— starts from the role's defaults; tick to customise. You can only grant permissions you hold.</span></h3>
+      <div class="oh-perm">
+        <% permGroups.forEach(function (g) { %>
         <div class="oh-perm__group">
           <div class="oh-perm__gtitle"><%= g.group %></div>
-          <% g.caps.forEach(function (c) { %>
-          <div class="oh-perm__row <%= c.granted ? 'is-on' : '' %>"><span class="material-icons"><%= c.granted ? 'check_circle' : 'remove' %></span><span><%= c.label %></span></div>
+          <% g.caps.forEach(function (c) { var on = checkedCaps.indexOf(c.cap) >= 0; var canGrant = grantable.indexOf(c.cap) >= 0; %>
+          <label class="oh-perm__check <%= canGrant ? '' : 'is-locked' %>" title="<%= canGrant ? '' : 'You do not hold this permission, so you cannot grant it.' %>">
+            <input type="checkbox" name="capabilities" value="<%= c.cap %>" data-cap <%= on ? 'checked' : '' %> <%= canGrant ? '' : 'disabled' %> />
+            <span><%= c.label %></span>
+          </label>
           <% }); %>
         </div>
         <% }); %>
       </div>
-      <% }); %>
     </div>
 
     <div class="oh-form-section">
@@ -83,14 +84,25 @@
 </form>
 
 <script>
-  // Live role-permission preview: show the matrix for the selected role.
+  // Changing the role resets the permission checkboxes to that role's defaults
+  // (a starting point), and re-computes which are grantable: a cap is grantable
+  // if it's in the role's defaults OR the admin personally holds it.
   (function () {
     var sel = document.getElementById('role');
-    var blocks = document.querySelectorAll('[data-role-perm]');
-    if (!sel || !blocks.length) return;
-    function sync() { blocks.forEach(function (b) { b.hidden = b.getAttribute('data-role-perm') !== sel.value; }); }
-    sel.addEventListener('change', sync);
-    sync();
+    var defaults = <%- JSON.stringify(roleDefaults) %>;
+    var actorCaps = <%- JSON.stringify(actorCaps) %>;
+    var boxes = document.querySelectorAll('input[data-cap]');
+    if (!sel || !boxes.length) return;
+    sel.addEventListener('change', function () {
+      var def = defaults[sel.value] || [];
+      boxes.forEach(function (b) {
+        var grant = def.indexOf(b.value) >= 0 || actorCaps.indexOf(b.value) >= 0;
+        b.disabled = !grant;
+        var lab = b.closest('.oh-perm__check');
+        if (lab) lab.classList.toggle('is-locked', !grant);
+        b.checked = grant && def.indexOf(b.value) >= 0;
+      });
+    });
   })();
 </script>
 

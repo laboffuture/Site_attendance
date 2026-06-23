@@ -1589,6 +1589,9 @@ tr > .oh-att-row {
 .oh-perm__row .material-icons { font-size: 1.05rem; color: var(--c-border); }
 .oh-perm__row.is-on { color: var(--c-text); }
 .oh-perm__row.is-on .material-icons { color: var(--c-success); }
+.oh-perm__check { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; padding: 0.2rem 0; cursor: pointer; }
+.oh-perm__check input { accent-color: var(--c-accent); width: 15px; height: 15px; }
+.oh-perm__check.is-locked { color: var(--c-placeholder); cursor: not-allowed; }
 @media (max-width: 760px) {
   .oh-frow { grid-template-columns: 1fr; gap: 0.35rem; padding: 0.7rem 0; }
   .oh-frow__label { padding-top: 0; }

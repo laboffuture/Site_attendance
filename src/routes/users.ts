@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 import { Types } from "mongoose";
 
 import { requireCapability } from "../auth/middleware";
-import { seesAllSites, roleLabel, can, Capability } from "../auth/permissions";
+import { seesAllSites, roleLabel, can, userCan, ALL_CAPABILITIES, Capability } from "../auth/permissions";
 import type { CurrentUser } from "../auth/types";
 import { hashPassword } from "../auth/password";
 import { isDuplicateKeyError, escapeRegex } from "../lib/validate";
@@ -45,19 +45,44 @@ const PERMISSION_GROUPS: { group: string; caps: { cap: Capability; label: string
   ] },
 ];
 
-function permissionsForRole(role: Role) {
+// A user's EFFECTIVE permissions (per-user overrides, else role) for the View page.
+function permissionsForUser(user: { role: Role; capabilities?: string[] }) {
   return PERMISSION_GROUPS.map((g) => ({
     group: g.group,
-    caps: g.caps.map((c) => ({ label: c.label, granted: can(role, c.cap) })),
+    caps: g.caps.map((c) => ({ label: c.label, granted: userCan(user, c.cap) })),
   }));
 }
 
-// Permission matrices for every assignable role — so the Add/Edit form can
-// preview "what this role grants" live (consistent with the View page).
-function permsByRoleMap(roles: Role[]): Record<string, ReturnType<typeof permissionsForRole>> {
-  const m: Record<string, ReturnType<typeof permissionsForRole>> = {};
-  for (const r of roles) m[r] = permissionsForRole(r);
+// Each role's default-granted capabilities — the JS resets the form's checkboxes
+// to these when the Role dropdown changes.
+function roleDefaultsMap(roles: Role[]): Record<string, Capability[]> {
+  const m: Record<string, Capability[]> = {};
+  for (const r of roles) m[r] = ALL_CAPABILITIES.filter((c) => can(r, c));
   return m;
+}
+
+// Capability keys submitted by the form (multi-valued), validated.
+function parseCapabilities(body: Record<string, unknown>): string[] {
+  const raw = body.capabilities;
+  const arr = Array.isArray(raw) ? raw : raw != null && raw !== "" ? [raw] : [];
+  return arr.map(String).filter((c) => (ALL_CAPABILITIES as string[]).includes(c));
+}
+
+/** Resolve the capability set to store, with an anti-escalation guard:
+ *  - the actor can only GRANT capabilities the actor itself has;
+ *  - caps the actor can't touch (but the user already had) are preserved;
+ *  - if the result equals the role's defaults exactly, store [] (follow role). */
+function resolveCapabilities(actor: CurrentUser, role: Role, submitted: string[], existing: string[]): string[] {
+  const roleDef = (ALL_CAPABILITIES.filter((c) => can(role, c)) as string[]);
+  const actorCaps = ALL_CAPABILITIES.filter((c) => userCan(actor, c)) as string[];
+  // Grantable = the target role's own defaults (never escalation) ∪ powers the
+  // actor personally holds (delegation). You can't grant a power you lack.
+  const grantable = new Set([...roleDef, ...actorCaps]);
+  const preserved = existing.filter((c) => !grantable.has(c));
+  const chosen = submitted.filter((c) => grantable.has(c));
+  const final = [...new Set([...preserved, ...chosen])];
+  const isDefault = final.length === roleDef.length && final.every((c) => roleDef.includes(c));
+  return isDefault ? [] : final;
 }
 
 function flash(req: Request, type: "success" | "danger", text: string): void {
@@ -136,13 +161,21 @@ router.get("/users", requireCapability("manage_users"), async (req: Request, res
 
 // ---- New ----
 router.get("/users/new", requireCapability("manage_users"), async (req: Request, res: Response) => {
-  const roles = assignableRoles(req.currentUser!);
+  const actor = req.currentUser!;
+  const roles = assignableRoles(actor);
+  const roleDefaults = roleDefaultsMap(roles);
+  const actorCaps = ALL_CAPABILITIES.filter((c) => userCan(actor, c));
+  const initialRole = roles[0];
   res.render("users/form", {
     title: "Add user · " + res.locals.company,
     active: "/users",
     mode: "new",
     roles,
-    permsByRole: permsByRoleMap(roles),
+    permGroups: PERMISSION_GROUPS,
+    roleDefaults,
+    actorCaps,
+    grantable: [...new Set([...(roleDefaults[initialRole] || []), ...actorCaps])],
+    checkedCaps: roleDefaults[initialRole] || [],
     sites: await siteList(),
     user: null,
   });
@@ -171,8 +204,9 @@ router.post("/users", requireCapability("manage_users"), async (req: Request, re
     return res.redirect("/users/new");
   }
   const assignedSiteIds = seesAllSites(role) ? [] : siteIds.map((s) => new Types.ObjectId(s));
+  const capabilities = resolveCapabilities(actor, role, parseCapabilities(req.body), []);
   try {
-    await UserModel.create({ name, email, phone, passwordHash: await hashPassword(password), role, assignedSiteIds, active: true });
+    await UserModel.create({ name, email, phone, passwordHash: await hashPassword(password), role, assignedSiteIds, capabilities, active: true });
     flash(req, "success", `User ${name} created.`);
     res.redirect("/users");
   } catch (err) {
@@ -200,7 +234,8 @@ router.get("/users/:id", requireCapability("manage_users"), async (req: Request,
     active: "/users",
     user,
     siteList: siteNames,
-    permissions: permissionsForRole(user.role as Role),
+    permissions: permissionsForUser(user as { role: Role; capabilities?: string[] }),
+    customized: !!(user.capabilities && user.capabilities.length),
     isSelf: String(user._id) === req.currentUser!.id,
   });
 });
@@ -212,13 +247,21 @@ router.get("/users/:id/edit", requireCapability("manage_users"), async (req: Req
     flash(req, "danger", "User not found or out of your authority.");
     return res.redirect("/users");
   }
-  const roles = assignableRoles(req.currentUser!);
+  const actor = req.currentUser!;
+  const roles = assignableRoles(actor);
+  const roleDefaults = roleDefaultsMap(roles);
+  const actorCaps = ALL_CAPABILITIES.filter((c) => userCan(actor, c));
+  const checkedCaps = (user.capabilities && user.capabilities.length) ? user.capabilities : (roleDefaults[user.role] || []);
   res.render("users/form", {
     title: "Edit user · " + res.locals.company,
     active: "/users",
     mode: "edit",
     roles,
-    permsByRole: permsByRoleMap(roles),
+    permGroups: PERMISSION_GROUPS,
+    roleDefaults,
+    actorCaps,
+    grantable: [...new Set([...(roleDefaults[user.role] || []), ...actorCaps])],
+    checkedCaps,
     sites: await siteList(),
     user,
     isSelf: String(user._id) === req.currentUser!.id,
@@ -258,6 +301,7 @@ router.post("/users/:id", requireCapability("manage_users"), async (req: Request
   user.phone = String(req.body.phone ?? "").trim() || null;
   user.role = role;
   user.assignedSiteIds = seesAllSites(role) ? [] : (siteIds.map((s) => new Types.ObjectId(s)) as never);
+  user.capabilities = resolveCapabilities(actor, role, parseCapabilities(req.body), (user.capabilities ?? []).map(String)) as never;
   if (!isSelf && typeof req.body.active !== "undefined") user.active = req.body.active === "on" || req.body.active === "true";
   const newPassword = String(req.body.password ?? "");
   if (newPassword) user.passwordHash = await hashPassword(newPassword);
