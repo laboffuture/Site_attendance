@@ -1,0 +1,82 @@
+<%- include('../partials/app-top', { title: title, active: active }) %>
+<% function inr(n) { return "₹ " + (n || 0).toLocaleString('en-IN'); } var filtering = filters.dateFrom || filters.dateTo || filters.siteId; %>
+<%- include('../partials/breadcrumb', { back: '/reports', trail: [ { label: 'Reports', href: '/reports' }, { label: 'Overtime' } ] }) %>
+<div class="oh-page-header oh-page-header--row">
+  <div>
+    <h1 class="oh-page-title">Overtime report</h1>
+    <p class="oh-page-subtitle">OT hours &amp; cost by site. Cost = OT hours × hourly rate × <%= otMultiplier %> (configurable).</p>
+  </div>
+  <a class="oh-btn oh-btn--small oh-btn--secondary" href="/reports/overtime/export.csv<%= query %>"><span class="material-icons">download</span> Export CSV</a>
+</div>
+
+<div class="oh-statstrip">
+  <div class="oh-statstrip__item"><span class="oh-statstrip__num is-warn"><%= summary.pendingHours %></span><span class="oh-statstrip__label">Pending OT hrs</span></div>
+  <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= summary.approvedHours %></span><span class="oh-statstrip__label">Approved OT hrs</span></div>
+  <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= inr(summary.cost) %></span><span class="oh-statstrip__label">OT cost (<%= otMultiplier %>×)</span></div>
+  <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= summary.sites %></span><span class="oh-statstrip__label">Sites with OT</span></div>
+</div>
+
+<div class="oh-card oh-stack">
+  <form class="oh-form-inline" method="get" action="/reports/overtime">
+    <div class="oh-input-group"><label class="oh-label" for="dateFrom">From</label><input class="oh-input" id="dateFrom" type="date" name="dateFrom" value="<%= filters.dateFrom || '' %>" /></div>
+    <div class="oh-input-group"><label class="oh-label" for="dateTo">To</label><input class="oh-input" id="dateTo" type="date" name="dateTo" value="<%= filters.dateTo || '' %>" /></div>
+    <div class="oh-input-group">
+      <label class="oh-label" for="siteId">Site</label>
+      <select class="oh-select" id="siteId" name="siteId"><option value="">All sites</option>
+        <% sites.forEach(function (s) { %><option value="<%= s._id %>" <%= String(filters.siteId) === String(s._id) ? "selected" : "" %>><%= s.name %> (<%= s.code %>)</option><% }); %>
+      </select>
+    </div>
+    <button class="oh-btn oh-btn--secondary" type="submit">Filter</button>
+    <a class="oh-btn oh-btn--small" href="/reports/overtime">Reset</a>
+  </form>
+</div>
+
+<% if (summary.missingWage > 0) { %>
+<div class="oh-alert oh-alert--warning"><%= summary.missingWage %> OT record(s) have no daily wage set on the employee, so their ₹ cost is counted as 0. Set wages on those employees for an accurate total.</div>
+<% } %>
+
+<% if (groups.length) { %>
+<div class="oh-card"><div class="oh-card__label">Overtime hours by site — pending vs approved</div><div class="oh-rpt-chart" id="rpt-ot" style="min-height:280px"></div></div>
+
+<div class="oh-card oh-card--flush">
+  <table class="oh-people">
+    <thead><tr><th class="oh-people__spinecol"></th><th>Site</th><th>Pending OT</th><th>Approved OT</th><th>OT cost</th></tr></thead>
+    <tbody>
+      <% groups.forEach(function (g) { %>
+      <tr style="--spine: <%= g.pending > 0 ? 'var(--c-warning)' : 'var(--c-accent)' %>">
+        <td class="oh-people__spine"></td>
+        <td><span class="oh-person__name" style="font-weight:600"><%= g.site %></span></td>
+        <td><span class="oh-ot-pending"><%= g.pending %>h</span></td>
+        <td><span class="oh-ot-approved"><%= g.approved %>h</span></td>
+        <td><span class="oh-person__id"><%= inr(g.cost) %></span></td>
+      </tr>
+      <% }); %>
+    </tbody>
+  </table>
+</div>
+<% } else { %>
+<div class="oh-empty"><span class="material-icons">more_time</span><p><%= filtering ? 'No overtime in this range.' : 'No pending or approved overtime yet.' %></p></div>
+<% } %>
+
+<% if (groups.length) { %>
+<script>window.__OT_RPT__ = <%- JSON.stringify(charts) %>;</script>
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
+<script>
+  (function () {
+    if (typeof ApexCharts === "undefined" || !window.__OT_RPT__) return;
+    var d = window.__OT_RPT__, el = document.getElementById("rpt-ot");
+    if (!el) return;
+    new ApexCharts(el, {
+      chart: { type: "bar", height: 280, stacked: true, fontFamily: "Poppins, Inter, sans-serif", toolbar: { show: false } },
+      colors: ["#f5b438", "#21c06b"], dataLabels: { enabled: false },
+      plotOptions: { bar: { columnWidth: "55%" } },
+      series: [{ name: "Pending", data: d.pending }, { name: "Approved", data: d.approved }],
+      xaxis: { categories: d.labels, labels: { rotate: -35, hideOverlappingLabels: true, style: { fontSize: "10px" } } },
+      yaxis: { labels: { formatter: function (v) { return v + "h"; }, style: { fontSize: "10px" } } },
+      legend: { position: "bottom", fontSize: "11px" },
+    }).render();
+  })();
+</script>
+<% } %>
+
+<%- include('../partials/app-bottom') %>

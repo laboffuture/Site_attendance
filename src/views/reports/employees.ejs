@@ -1,0 +1,99 @@
+<%- include('../partials/app-top', { title: title, active: active }) %>
+<% var STATUS = { active: 'success', inactive: 'muted', pending: 'warning', deleted: 'danger' }; var filtering = filters.siteId || filters.designation || filters.status; %>
+<%- include('../partials/breadcrumb', { back: '/reports', trail: [ { label: 'Reports', href: '/reports' }, { label: 'Employee' } ] }) %>
+<div class="oh-page-header oh-page-header--row">
+  <div>
+    <h1 class="oh-page-title">Employee report</h1>
+    <p class="oh-page-subtitle">Workforce headcount by designation &amp; site.</p>
+  </div>
+  <a class="oh-btn oh-btn--small oh-btn--secondary" href="/reports/employees/export.csv<%= query %>"><span class="material-icons">download</span> Export CSV</a>
+</div>
+
+<div class="oh-statstrip">
+  <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= summary.total.toLocaleString('en-IN') %></span><span class="oh-statstrip__label">Employees</span></div>
+  <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= summary.active.toLocaleString('en-IN') %></span><span class="oh-statstrip__label">Active</span></div>
+  <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= summary.faceRegistered %><span class="oh-statstrip__of">/<%= summary.total %></span></span><span class="oh-statstrip__label">Faces registered</span></div>
+  <div class="oh-statstrip__item"><span class="oh-statstrip__num <%= summary.facePending ? 'is-warn' : '' %>"><%= summary.facePending %></span><span class="oh-statstrip__label">Face pending</span></div>
+</div>
+
+<div class="oh-card oh-stack">
+  <form class="oh-form-inline" method="get" action="/reports/employees">
+    <div class="oh-input-group">
+      <label class="oh-label" for="siteId">Site</label>
+      <select class="oh-select" id="siteId" name="siteId"><option value="">All sites</option>
+        <% sites.forEach(function (s) { %><option value="<%= s._id %>" <%= String(filters.siteId) === String(s._id) ? "selected" : "" %>><%= s.name %> (<%= s.code %>)</option><% }); %>
+      </select>
+    </div>
+    <div class="oh-input-group">
+      <label class="oh-label" for="designation">Designation</label>
+      <select class="oh-select" id="designation" name="designation"><option value="">All</option>
+        <% designations.forEach(function (d) { %><option value="<%= d.name %>" <%= filters.designation === d.name ? "selected" : "" %>><%= d.name %></option><% }); %>
+      </select>
+    </div>
+    <div class="oh-input-group">
+      <label class="oh-label" for="status">Status</label>
+      <select class="oh-select" id="status" name="status">
+        <option value="">Active + inactive</option>
+        <option value="active" <%= filters.status === 'active' ? 'selected' : '' %>>Active</option>
+        <option value="inactive" <%= filters.status === 'inactive' ? 'selected' : '' %>>Inactive</option>
+        <option value="pending" <%= filters.status === 'pending' ? 'selected' : '' %>>Pending</option>
+      </select>
+    </div>
+    <button class="oh-btn oh-btn--secondary" type="submit">Filter</button>
+    <a class="oh-btn oh-btn--small" href="/reports/employees">Reset</a>
+  </form>
+</div>
+
+<% if (workers.length) { %>
+<div class="oh-chart-grid">
+  <div class="oh-card"><div class="oh-card__label">Headcount by designation</div><div class="oh-rpt-chart" id="rpt-desig"></div></div>
+  <div class="oh-card"><div class="oh-card__label">Headcount by site</div><div class="oh-rpt-chart" id="rpt-site"></div></div>
+</div>
+
+<div class="oh-card oh-card--flush">
+  <table class="oh-people">
+    <thead><tr><th class="oh-people__spinecol"></th><th>Emp ID</th><th>Name</th><th>Designation</th><th>Site</th><th>Status</th></tr></thead>
+    <tbody>
+      <% workers.forEach(function (w) { %>
+      <tr style="--spine: <%= w.status === 'active' ? 'var(--c-accent)' : 'var(--c-border)' %>">
+        <td class="oh-people__spine"></td>
+        <td><span class="oh-person__id"><%= w.empRegNo %></span></td>
+        <td><span class="oh-person__name" style="font-weight:600"><%= w.name %></span></td>
+        <td><%= w.designationName %></td>
+        <td><%= w.siteName %></td>
+        <td><span class="oh-stat"><span class="oh-stat__dot" style="background: <%= w.status === 'active' ? 'var(--c-success)' : 'var(--c-text-muted)' %>"></span><%= w.status %></span></td>
+      </tr>
+      <% }); %>
+    </tbody>
+  </table>
+</div>
+<% } else { %>
+<div class="oh-empty"><span class="material-icons">groups</span><p><%= filtering ? 'No employees match these filters.' : 'No employees yet.' %></p></div>
+<% } %>
+
+<% if (workers.length) { %>
+<script>window.__EMP_RPT__ = <%- JSON.stringify(charts) %>;</script>
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
+<script>
+  (function () {
+    if (typeof ApexCharts === "undefined" || !window.__EMP_RPT__) return;
+    var d = window.__EMP_RPT__, font = "Poppins, Inter, sans-serif";
+    var PALETTE = ["#1c4d8c", "#21c06b", "#f5b438", "#2e97db", "#8e44ad", "#16a085", "#ff3b38", "#6F1E51"];
+    function bar(id, labels, data) {
+      var el = document.getElementById(id); if (!el) return;
+      new ApexCharts(el, {
+        chart: { type: "bar", height: 240, fontFamily: font, toolbar: { show: false } },
+        colors: PALETTE, plotOptions: { bar: { columnWidth: "55%", distributed: true } },
+        dataLabels: { enabled: false }, legend: { show: false },
+        series: [{ name: "Employees", data: data }],
+        xaxis: { categories: labels, labels: { rotate: -35, hideOverlappingLabels: true, style: { fontSize: "10px" } } },
+        yaxis: { labels: { style: { fontSize: "10px" } } },
+      }).render();
+    }
+    bar("rpt-desig", d.byDesignation.labels, d.byDesignation.data);
+    bar("rpt-site", d.bySite.labels, d.bySite.data);
+  })();
+</script>
+<% } %>
+
+<%- include('../partials/app-bottom') %>

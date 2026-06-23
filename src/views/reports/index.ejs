@@ -1,149 +1,29 @@
 <%- include('../partials/app-top', { title: title, active: active }) %>
-<%
-  function t(d) { return d ? new Date(d).toLocaleTimeString("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" }) : "—"; }
-  var badgeFor = { pending: "warning", approved: "success", rejected: "danger", none: "muted" };
-  // OT text color: pending/unapproved = red, approved = green (per spec).
-  function otClass(s) { return s === "approved" ? "oh-ot-approved" : (s === "pending" ? "oh-ot-pending" : ""); }
-%>
 
 <div class="oh-page-header oh-page-header--row">
   <div>
     <h1 class="oh-page-title">Reports</h1>
-    <p class="oh-page-subtitle">Attendance, grouped by branch → site. Showing <%= rowCount %><%= rowCount >= maxRows ? " (capped)" : "" %> rows.</p>
-  </div>
-  <div class="oh-form-actions">
-    <a class="oh-btn oh-btn--small" href="/reports/export.xlsx<%= query %>">Export Excel</a>
-    <a class="oh-btn oh-btn--small" href="/reports/export.pdf<%= query %>">Export PDF</a>
+    <p class="oh-page-subtitle">Workforce, attendance and overtime analytics — with exports.</p>
   </div>
 </div>
 
-<div class="oh-card oh-stack">
-  <form class="oh-form-inline" method="get" action="/reports">
-    <div class="oh-input-group">
-      <label class="oh-label" for="dateFrom">From</label>
-      <input class="oh-input" id="dateFrom" type="date" name="dateFrom" value="<%= filters.dateFrom || '' %>" />
-    </div>
-    <div class="oh-input-group">
-      <label class="oh-label" for="dateTo">To</label>
-      <input class="oh-input" id="dateTo" type="date" name="dateTo" value="<%= filters.dateTo || '' %>" />
-    </div>
-    <div class="oh-input-group">
-      <label class="oh-label" for="siteId">Site</label>
-      <select class="oh-select" id="siteId" name="siteId">
-        <option value="">All sites</option>
-        <% sites.forEach(function (s) { %>
-        <option value="<%= s._id %>" <%= String(filters.siteId) === String(s._id) ? "selected" : "" %>><%= s.name %> (<%= s.code %>)</option>
-        <% }); %>
-      </select>
-    </div>
-    <div class="oh-input-group">
-      <label class="oh-label" for="designation">Designation</label>
-      <select class="oh-select" id="designation" name="designation">
-        <option value="">All</option>
-        <% designations.forEach(function (d) { %>
-        <option value="<%= d.name %>" <%= filters.designation === d.name ? "selected" : "" %>><%= d.name %></option>
-        <% }); %>
-      </select>
-    </div>
-    <div class="oh-input-group oh-grow">
-      <label class="oh-label" for="q">Worker</label>
-      <input class="oh-input" id="q" name="q" placeholder="name or reg no" value="<%= filters.q || '' %>" />
-    </div>
-    <button class="oh-btn oh-btn--secondary" type="submit">Filter</button>
-    <a class="oh-btn oh-btn--small" href="/reports">Reset</a>
-  </form>
-</div>
-
-<% if (rowCount > 0) { %>
-<div class="oh-chart-grid">
-  <div class="oh-card"><div class="oh-card__label">Attendance by day</div><div class="oh-rpt-chart" id="rpt-byday"></div></div>
-  <div class="oh-card"><div class="oh-card__label">Records by site</div><div class="oh-rpt-chart" id="rpt-bysite"></div></div>
-  <div class="oh-card"><div class="oh-card__label">OT hours by site</div><div class="oh-rpt-chart" id="rpt-otsite"></div></div>
-</div>
-<% } %>
-
-<% if (groups.length) { %>
-<% groups.forEach(function (b) { %>
-<div class="oh-card oh-stack">
-  <div class="oh-section-header"><span class="oh-section-title"><%= b.branchName %></span></div>
-  <% b.sites.forEach(function (s) { %>
-  <div>
-    <div class="oh-report-site"><%= s.siteName %> · <%= s.rows.length %> record(s)</div>
-    <!-- mobile: record cards -->
-    <div class="oh-only-mobile oh-m-list">
-      <% s.rows.forEach(function (r) { var h = hoursBreakdown(r); %>
-      <div class="oh-m-card">
-        <div class="oh-m-row" style="justify-content:space-between;align-items:flex-start;">
-          <span class="oh-m-grow">
-            <span class="oh-m-name"><%= r.workerName %><% if (r.source === "manual") { %> <span class="oh-m-badge oh-badge--warning">M</span><% } %></span>
-            <span class="oh-m-sub"><%= r.empRegNo %> · <%= r.designationName %></span>
-          </span>
-          <span class="oh-m-sub"><%= r.date %></span>
-        </div>
-        <div class="oh-m-boxes" style="margin-top:0.6rem;">
-          <div class="oh-m-box"><div class="oh-m-box__k">Standard</div><div class="oh-m-box__v"><%= h.worked != null ? h.standard + "h" : "—" %></div></div>
-          <div class="oh-m-box"><div class="oh-m-box__k">OT</div><div class="oh-m-box__v <%= otClass(h.otStatus) %>"><%= h.otComputed > 0 ? h.otComputed + "h" : "—" %></div></div>
-          <div class="oh-m-box"><div class="oh-m-box__k">Total</div><div class="oh-m-box__v"><%= h.payableTotal != null ? h.payableTotal + "h" : "—" %></div></div>
-        </div>
-        <div style="margin-top:0.5rem;display:flex;align-items:center;gap:8px;">
-          <span class="oh-m-badge oh-badge--<%= badgeFor[h.otStatus] %>"><%= h.otStatus %></span>
-          <% if (h.otStatus === "pending" && h.otComputed > 0) { %><span class="oh-m-sub oh-ot-pending">+<%= h.otComputed %>h pending</span><% } %>
-          <% var g = r.inGeo; if (g && g.available && g.lat != null) { %>
-          <a class="oh-m-sub" href="https://maps.google.com/?q=<%= g.lat %>,<%= g.lng %>" target="_blank" rel="noopener">📍<%= g.distanceMeters != null ? " " + g.distanceMeters + "m" : "" %></a>
-          <% } %>
-        </div>
-      </div>
-      <% }); %>
-    </div>
-
-    <table class="oh-table oh-only-desktop">
-      <thead>
-        <tr><th>Date</th><th>Reg No</th><th>Name</th><th>Designation</th><th>Standard</th><th>OT</th><th>Total</th><th>Status</th><th>Location</th></tr>
-      </thead>
-      <tbody>
-        <% s.rows.forEach(function (r) { var h = hoursBreakdown(r); %>
-        <tr>
-          <td><%= r.date %></td>
-          <td><%= r.empRegNo %></td>
-          <td>
-            <%= r.workerName %>
-            <% if (r.source === "manual") { %><span class="oh-badge oh-badge--warning" title="Marked manually">M</span><% } %>
-          </td>
-          <td><%= r.designationName %></td>
-          <td><%= h.worked != null ? h.standard + "h" : "—" %></td>
-          <td>
-            <% if (h.otComputed > 0) { %>
-            <span class="<%= otClass(h.otStatus) %>"><%= h.otComputed %>h</span>
-            <% } else { %>—<% } %>
-          </td>
-          <td><strong><%= h.payableTotal != null ? h.payableTotal + "h" : "—" %></strong><% if (h.otStatus === "pending" && h.otComputed > 0) { %><br /><span class="oh-muted oh-ot-pending">+<%= h.otComputed %>h pending</span><% } %></td>
-          <td><span class="oh-badge oh-badge--<%= badgeFor[h.otStatus] %>"><%= h.otStatus %></span></td>
-          <td>
-            <% var g = r.inGeo; %>
-            <% if (g && g.available && g.lat != null) { %>
-            <a href="https://maps.google.com/?q=<%= g.lat %>,<%= g.lng %>" target="_blank" rel="noopener" title="In-scan location">📍<%= g.distanceMeters != null ? " " + g.distanceMeters + "m" : "" %></a>
-            <% } else if (g && !g.available) { %>
-            <span class="oh-muted" title="No GPS captured">—</span>
-            <% } else { %>
-            <span class="oh-muted">—</span>
-            <% } %>
-          </td>
-        </tr>
-        <% }); %>
-      </tbody>
-    </table>
-  </div>
+<div class="oh-action-cards">
+  <% reports.forEach(function (r) { %>
+  <a class="oh-action-card" href="<%= r.href %>">
+    <span class="oh-action-card__icon material-icons"><%= r.icon %></span>
+    <span class="oh-action-card__text">
+      <span class="oh-action-card__title"><%= r.title %></span>
+      <span class="oh-action-card__desc"><%= r.desc %></span>
+    </span>
+  </a>
   <% }); %>
+  <div class="oh-action-card is-soon" aria-disabled="true">
+    <span class="oh-action-card__icon material-icons">inventory_2</span>
+    <span class="oh-action-card__text">
+      <span class="oh-action-card__title">Asset &amp; Allocation reports <span class="oh-badge oh-badge--muted">soon</span></span>
+      <span class="oh-action-card__desc">Arrive with the Assets / Manpower-allocation modules.</span>
+    </span>
+  </div>
 </div>
-<% }); %>
-<% } else { %>
-<div class="oh-card"><p class="oh-muted">No attendance records match these filters.</p></div>
-<% } %>
-
-<% if (rowCount > 0) { %>
-<script>window.__REPORT_CHARTS__ = <%- JSON.stringify(reportCharts) %>;</script>
-<script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
-<script src="/static/js/report-charts.js"></script>
-<% } %>
 
 <%- include('../partials/app-bottom') %>

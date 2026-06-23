@@ -1474,6 +1474,7 @@ tr > .oh-att-row {
   transition: border-color 0.12s, box-shadow 0.12s;
 }
 .oh-action-card:hover { border-color: var(--c-accent); box-shadow: var(--shadow-card); }
+.oh-action-card.is-soon { opacity: 0.6; pointer-events: none; }
 .oh-action-card__icon {
   display: inline-grid;
   place-items: center;

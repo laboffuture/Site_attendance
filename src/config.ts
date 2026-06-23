@@ -16,6 +16,9 @@ export const config = {
   companyName: process.env.COMPANY_NAME || "TRG-Attendance",
   // Daily missed-clock-out sweep fires at this IST "HH:MM".
   sweepTime: process.env.SWEEP_TIME || "23:00",
+  // Overtime is paid at this multiple of the normal hourly rate (2× = the
+  // Indian Factories Act default). Used to cost OT in ₹ on reports.
+  otMultiplier: Number(process.env.OT_MULTIPLIER) || 2,
   // Where worker enrollment photos are stored. Point this at a persistent
   // volume in production so uploads survive redeploys; served at /static/uploads.
   uploadDir: process.env.UPLOAD_DIR || path.join(process.cwd(), "public", "uploads"),

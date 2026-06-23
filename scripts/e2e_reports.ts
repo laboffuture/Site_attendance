@@ -91,20 +91,35 @@ async function main(): Promise<void> {
   assert("dashboard embeds chart data", dash.text.includes("window.__CHARTS__"));
   assert("dashboard shows a flag", dash.text.includes(`QA Flag ${S}`));
 
-  // Reports
-  const rep = await admin.get("/reports");
-  assert("reports 200", rep.status === 200);
-  assert("reports shows VBW site", rep.text.includes(vbw.name));
-  assert("reports shows seeded worker", rep.text.includes(`QA-RPT-${S}-a`));
-  assert("reports adds the visuals (ApexCharts) on top", rep.text.includes('id="rpt-byday"') && rep.text.includes('id="rpt-otsite"') && rep.text.includes("apexcharts"));
-  const filtered = await admin.get("/reports?q=nonexistentworkerxyz");
+  // Reports hub
+  const hub = await admin.get("/reports");
+  assert("reports hub 200", hub.status === 200);
+  assert("reports hub lists the typed reports", hub.text.includes("Attendance report") && hub.text.includes("Employee report") && hub.text.includes("Overtime report"));
+
+  // Attendance report
+  const rep = await admin.get("/reports/attendance");
+  assert("attendance report 200", rep.status === 200);
+  assert("attendance report shows VBW site", rep.text.includes(vbw.name));
+  assert("attendance report shows seeded worker", rep.text.includes(`QA-RPT-${S}-a`));
+  assert("attendance report has summary strip + charts", rep.text.includes("oh-statstrip") && rep.text.includes('id="rpt-byday"') && rep.text.includes("apexcharts"));
+  const filtered = await admin.get("/reports/attendance?q=nonexistentworkerxyz");
   assert("filter with no match shows empty state", filtered.text.includes("No attendance records"));
 
-  // Exports
-  const xlsx = await admin.get(`/reports/export.xlsx?dateFrom=${today}&dateTo=${today}`).buffer().parse(binaryParser);
+  // Employee report
+  const emp = await admin.get("/reports/employees");
+  assert("employee report 200 + summary strip", emp.status === 200 && emp.text.includes("oh-statstrip") && emp.text.includes("Employee report"));
+  const empCsv = await admin.get("/reports/employees/export.csv");
+  assert("employee CSV export", (empCsv.headers["content-type"] || "").includes("text/csv") && empCsv.text.includes("Employee ID"));
+
+  // Overtime report
+  const ot = await admin.get("/reports/overtime");
+  assert("overtime report 200 + cost summary", ot.status === 200 && ot.text.includes("oh-statstrip") && ot.text.includes("OT cost"));
+
+  // Attendance exports
+  const xlsx = await admin.get(`/reports/attendance/export.xlsx?dateFrom=${today}&dateTo=${today}`).buffer().parse(binaryParser);
   assert("xlsx content-type", (xlsx.headers["content-type"] || "").includes("spreadsheetml"));
   assert("xlsx is a real workbook (PK header)", Buffer.isBuffer(xlsx.body) && xlsx.body.slice(0, 2).toString() === "PK");
-  const pdf = await admin.get(`/reports/export.pdf?dateFrom=${today}&dateTo=${today}`).buffer().parse(binaryParser);
+  const pdf = await admin.get(`/reports/attendance/export.pdf?dateFrom=${today}&dateTo=${today}`).buffer().parse(binaryParser);
   assert("pdf content-type", (pdf.headers["content-type"] || "").includes("application/pdf"));
   assert("pdf has %PDF header", Buffer.isBuffer(pdf.body) && pdf.body.slice(0, 4).toString() === "%PDF");
 
