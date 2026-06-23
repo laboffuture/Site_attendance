@@ -56,7 +56,8 @@ async function main(): Promise<void> {
   const list = await ha.get("/overtime");
   assert("HR GET /overtime → 200", list.status === 200);
   assert("queue shows a pending record + approve control", list.text.includes(`QA-OT-${S}-adjust`) && /formaction="\/overtime\/[^"]+\/approve"/.test(list.text));
-  assert("OT records grouped under their site header", list.text.includes("oh-ot-group") && list.text.includes(site.name));
+  assert("OT records grouped under their site header", list.text.includes("oh-section-title") && list.text.includes(site.name));
+  assert("overtime shows the status counter band", list.text.includes("oh-qband"));
 
   // Approve with an adjusted value.
   await ha.post(`/overtime/${id1}/approve`).type("form").send({ approvedHours: "1.5", notes: "trimmed" });

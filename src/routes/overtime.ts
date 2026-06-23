@@ -22,17 +22,22 @@ router.get("/overtime", requireCapability("view_overtime"), async (req: Request,
     ? (req.query.status as string)
     : "pending";
 
-  const query: Record<string, unknown> = { ...siteScopeFilter(req.currentUser!) };
+  const scope = siteScopeFilter(req.currentUser!);
+  const query: Record<string, unknown> = { ...scope };
   if (filter === "all") {
     query["overtime.status"] = { $in: ["pending", "approved", "rejected"] };
   } else {
     query["overtime.status"] = filter;
   }
 
-  const records = await AttendanceModel.find(query)
-    .sort({ siteName: 1, date: -1 })
-    .limit(500)
-    .lean();
+  const [records, countAgg] = await Promise.all([
+    AttendanceModel.find(query).sort({ siteName: 1, date: -1 }).limit(500).lean(),
+    AttendanceModel.aggregate([
+      { $match: { ...scope, "overtime.status": { $in: ["pending", "approved", "rejected"] } } },
+      { $group: { _id: "$overtime.status", n: { $sum: 1 } } },
+    ]),
+  ]);
+  const byStatus = new Map<string, number>(countAgg.map((c) => [c._id as string, c.n as number]));
 
   // Group by site so Management scans per location with a clear breaker, and
   // can approve/decline a whole site's OT at a glance.
@@ -55,6 +60,11 @@ router.get("/overtime", requireCapability("view_overtime"), async (req: Request,
     groups,
     total: records.length,
     filter,
+    counts: {
+      pending: byStatus.get("pending") ?? 0,
+      approved: byStatus.get("approved") ?? 0,
+      rejected: byStatus.get("rejected") ?? 0,
+    },
     canApprove: res.locals.can("approve_overtime"),
   });
 });

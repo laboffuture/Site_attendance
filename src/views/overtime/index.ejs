@@ -1,69 +1,63 @@
 <%- include('../partials/app-top', { title: title, active: active }) %>
 <%
-  function t(d) {
-    return d ? new Date(d).toLocaleTimeString("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" }) : "—";
-  }
+  function t(d) { return d ? new Date(d).toLocaleTimeString("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" }) : "—"; }
   var badgeFor = { pending: "warning", approved: "success", rejected: "danger", none: "muted" };
-  var tabs = ["pending", "approved", "rejected", "all"];
+  var dot = { pending: "var(--c-warning)", approved: "var(--c-success)", rejected: "var(--c-danger)", none: "var(--c-border)" };
+  var bands = [
+    { key: "pending", label: "Pending", n: counts.pending, cls: "oh-qband__item--warn" },
+    { key: "approved", label: "Approved", n: counts.approved, cls: "oh-qband__item--ok" },
+    { key: "rejected", label: "Rejected", n: counts.rejected, cls: "oh-qband__item--danger" },
+    { key: "all", label: "All", n: counts.pending + counts.approved + counts.rejected, cls: "" },
+  ];
 %>
 
 <div class="oh-page-header">
   <h1 class="oh-page-title">Overtime</h1>
   <p class="oh-page-subtitle">
-    <% if (canApprove) { %>Approve, adjust, or reject overtime — only approved hours reach payroll. Grouped by site; approving a day in <a href="/regularization">Regularization</a> also clears that day's OT.<% } else { %>Overtime status (view only), grouped by site.<% } %>
+    <% if (canApprove) { %>Approve, adjust, or reject overtime — only approved hours reach payroll. Grouped by site; approving a day in <a href="/regularization">Attendance corrections</a> also clears that day's OT.<% } else { %>Overtime status (view only), grouped by site.<% } %>
   </p>
 </div>
 
-<div class="oh-filter-tabs">
-  <% tabs.forEach(function (tb) { %>
-  <a class="oh-filter-tab <%= filter === tb ? 'oh-filter-tab--active' : '' %>" href="/overtime?status=<%= tb %>"><%= tb %></a>
+<div class="oh-qband">
+  <% bands.forEach(function (b) { %>
+  <a class="oh-qband__item <%= b.cls %> <%= filter === b.key ? 'is-active' : '' %>" href="/overtime?status=<%= b.key %>">
+    <span class="oh-qband__num"><%= b.n %></span>
+    <span class="oh-qband__label"><%= b.label %></span>
+  </a>
   <% }); %>
 </div>
 
 <% if (!total) { %>
-<div class="oh-card"><p class="oh-muted">No <%= filter === "all" ? "" : filter %> overtime records.</p></div>
+<div class="oh-empty"><span class="material-icons">more_time</span><p>No <%= filter === "all" ? "" : filter %> overtime records.</p></div>
 <% } else { %>
 <% groups.forEach(function (g) { %>
-<div class="oh-card oh-stack oh-ot-group">
-  <div class="oh-section-header">
+<div class="oh-card oh-card--flush" style="margin-bottom:1rem">
+  <div class="oh-section-header" style="padding:0.8rem 1rem;border-bottom:1px solid var(--c-border)">
     <span class="oh-section-title"><%= g.siteName %></span>
     <span class="oh-muted"><%= g.records.length %> record<%= g.records.length === 1 ? "" : "s" %> · OT <%= g.otTotal %>h</span>
   </div>
 
-  <!-- desktop table (Site is the group header, so it's dropped from the row) -->
-  <table class="oh-table oh-only-desktop">
-    <thead>
-      <tr>
-        <th>Date</th><th>Worker</th><th>In–Out</th><th>Total</th><th>Std</th><th>OT</th><th>Status</th>
-        <% if (canApprove) { %><th class="oh-col-action">Action</th><% } %>
-      </tr>
-    </thead>
+  <table class="oh-people oh-only-desktop">
+    <thead><tr><th class="oh-people__spinecol"></th><th>Date</th><th>Worker</th><th>In–Out</th><th>Total</th><th>OT</th><th>Status</th><% if (canApprove) { %><th class="oh-people__actcol">Action</th><% } %></tr></thead>
     <tbody>
       <% g.records.forEach(function (r) { %>
-      <tr>
+      <tr style="--spine: <%= dot[r.overtime.status] || 'var(--c-border)' %>">
+        <td class="oh-people__spine"></td>
         <td><%= r.date %></td>
-        <td><%= r.workerName %><br /><span class="oh-muted"><%= r.empRegNo %></span></td>
+        <td><span class="oh-person__txt"><span class="oh-person__name"><%= r.workerName %></span><span class="oh-person__id"><%= r.empRegNo %></span></span></td>
         <td><%= t(r.inTime) %>–<%= t(r.outTime) %></td>
         <td><%= r.totalHours != null ? r.totalHours + "h" : "—" %></td>
-        <td><%= r.standardHours != null ? r.standardHours + "h" : "—" %></td>
-        <td>
-          <%= r.overtime.computedHours %>h
-          <% if (r.overtime.status === "approved" && r.overtime.approvedHours != null && r.overtime.approvedHours !== r.overtime.computedHours) { %>
-          <br /><span class="oh-muted">→ <%= r.overtime.approvedHours %>h approved</span>
-          <% } %>
-        </td>
-        <td><span class="oh-badge oh-badge--<%= badgeFor[r.overtime.status] %>"><%= r.overtime.status %></span></td>
+        <td><%= r.overtime.computedHours %>h<% if (r.overtime.status === "approved" && r.overtime.approvedHours != null && r.overtime.approvedHours !== r.overtime.computedHours) { %> <span class="oh-muted">→ <%= r.overtime.approvedHours %>h</span><% } %></td>
+        <td><span class="oh-stat"><span class="oh-stat__dot" style="background: <%= dot[r.overtime.status] || 'var(--c-text-muted)' %>"></span><%= r.overtime.status %></span></td>
         <% if (canApprove) { %>
-        <td class="oh-col-action">
+        <td class="oh-people__actcol">
           <% if (r.overtime.status === "pending") { %>
           <form method="post" class="oh-ot-actions">
             <input class="oh-input oh-input--xs" type="number" step="0.25" min="0" name="approvedHours" value="<%= r.overtime.computedHours %>" title="Approved hours" />
-            <button class="oh-btn oh-btn--small oh-btn--success" formaction="/overtime/<%= r._id %>/approve">Approve</button>
-            <button class="oh-btn oh-btn--small oh-btn--danger" formaction="/overtime/<%= r._id %>/reject">Reject</button>
+            <button class="oh-icon-btn" style="color:var(--c-success)" formaction="/overtime/<%= r._id %>/approve" title="Approve"><span class="material-icons">check</span></button>
+            <button class="oh-icon-btn oh-icon-btn--danger" formaction="/overtime/<%= r._id %>/reject" title="Reject"><span class="material-icons">close</span></button>
           </form>
-          <% } else { %>
-          <span class="oh-muted">decided</span>
-          <% } %>
+          <% } else { %><span class="oh-muted">decided</span><% } %>
         </td>
         <% } %>
       </tr>
@@ -71,23 +65,16 @@
     </tbody>
   </table>
 
-  <!-- mobile: cards -->
-  <div class="oh-only-mobile oh-m-list">
+  <div class="oh-only-mobile oh-m-list" style="padding:0.5rem">
     <% g.records.forEach(function (r) { %>
-    <div class="oh-m-card">
-      <div class="oh-m-row">
-        <span class="oh-m-avatar"><%= r.workerName.split(' ').map(function (x) { return x[0]; }).join('').slice(0, 2).toUpperCase() %></span>
-        <span class="oh-m-grow">
-          <span class="oh-m-name"><%= r.workerName %></span>
-          <span class="oh-m-sub"><%= r.empRegNo %> · <%= r.date %></span>
-        </span>
+    <div class="oh-m-card" style="border-left:3px solid <%= dot[r.overtime.status] || 'var(--c-border)' %>">
+      <div class="oh-m-row" style="justify-content:space-between;align-items:flex-start">
+        <span class="oh-m-grow"><span class="oh-m-name"><%= r.workerName %></span><span class="oh-m-sub"><%= r.empRegNo %> · <%= r.date %></span></span>
         <span class="oh-m-badge oh-badge--<%= badgeFor[r.overtime.status] %>"><%= r.overtime.status %></span>
       </div>
-      <div class="oh-m-sub" style="margin-top:0.5rem;">
-        <%= t(r.inTime) %>–<%= t(r.outTime) %> · Total <%= r.totalHours != null ? r.totalHours + "h" : "—" %> · OT <%= r.overtime.computedHours %>h<% if (r.overtime.status === "approved" && r.overtime.approvedHours != null && r.overtime.approvedHours !== r.overtime.computedHours) { %> → <%= r.overtime.approvedHours %>h<% } %>
-      </div>
+      <div class="oh-m-sub" style="margin-top:0.45rem"><%= t(r.inTime) %>–<%= t(r.outTime) %> · Total <%= r.totalHours != null ? r.totalHours + "h" : "—" %> · OT <%= r.overtime.computedHours %>h<% if (r.overtime.status === "approved" && r.overtime.approvedHours != null && r.overtime.approvedHours !== r.overtime.computedHours) { %> → <%= r.overtime.approvedHours %>h<% } %></div>
       <% if (canApprove && r.overtime.status === "pending") { %>
-      <form method="post" class="oh-ot-actions" style="margin-top:0.6rem;">
+      <form method="post" class="oh-ot-actions" style="margin-top:0.6rem">
         <input class="oh-input oh-input--xs" type="number" step="0.25" min="0" name="approvedHours" value="<%= r.overtime.computedHours %>" title="Approved hours" />
         <button class="oh-btn oh-btn--small oh-btn--success" formaction="/overtime/<%= r._id %>/approve">Approve</button>
         <button class="oh-btn oh-btn--small oh-btn--danger" formaction="/overtime/<%= r._id %>/reject">Reject</button>
