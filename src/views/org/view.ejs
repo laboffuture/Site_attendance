@@ -1,0 +1,75 @@
+<%- include('../partials/app-top', { title: title, active: active }) %>
+<%
+  var night = (site.shifts && site.shifts.night) || {};
+  var geo = site.latitude != null && site.longitude != null;
+%>
+<div class="oh-detail-topbar">
+  <%- include('../partials/breadcrumb', { back: '/org', trail: [ { label: 'Sites', href: '/org' }, { label: 'View Site' } ] }) %>
+  <% if (canManage) { %>
+  <div class="oh-actions">
+    <a class="oh-btn oh-btn--small oh-btn--secondary" href="/org/sites/<%= site._id %>/edit"><span class="material-icons">edit</span> Edit</a>
+    <form method="post" action="/org/sites/<%= site._id %>/delete" onsubmit="return confirm('Delete this site?')" style="margin:0"><button class="oh-btn oh-btn--small oh-btn--danger" type="submit">Delete</button></form>
+  </div>
+  <% } %>
+</div>
+
+<div class="oh-card oh-form-card oh-form-card--wide">
+  <div class="oh-detail-head">
+    <span class="oh-detail-head__photo oh-detail-head__photo--ph"><span class="material-icons">location_city</span></span>
+    <div>
+      <h2 class="oh-detail-head__name"><%= site.name %></h2>
+      <div class="oh-detail-head__meta">
+        <span class="oh-badge oh-badge--muted"><%= site.code %></span>
+        <span class="oh-badge oh-badge--secondary"><%= branchName %></span>
+        <span class="oh-stat"><span class="oh-stat__dot" style="background: <%= geo ? 'var(--c-success)' : 'var(--c-border)' %>"></span><%= geo ? 'Geofenced' : 'No geofence' %></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="oh-kv-section">
+    <h3 class="oh-kv-section__title">Shifts &amp; overtime</h3>
+    <div class="oh-kv">
+      <div class="oh-kv__label">Day shift</div><div class="oh-kv__value"><%= site.standardStartTime %> – <%= site.standardEndTime %></div>
+      <div class="oh-kv__label">Night shift</div><div class="oh-kv__value"><%= site.nightShiftEnabled ? ((night.startTime || '—') + ' – ' + (night.endTime || '—')) : 'Not run' %></div>
+      <div class="oh-kv__label">Allowed OT</div><div class="oh-kv__value"><%= site.allowedOtHours != null ? site.allowedOtHours + ' hrs / day' : '—' %></div>
+    </div>
+  </div>
+
+  <div class="oh-kv-section">
+    <h3 class="oh-kv-section__title">Location</h3>
+    <div class="oh-kv">
+      <div class="oh-kv__label">Coordinates</div><div class="oh-kv__value"><%= geo ? (site.latitude + ', ' + site.longitude) : '—' %></div>
+      <div class="oh-kv__label">Geofence radius</div><div class="oh-kv__value"><%= site.geofenceRadiusMeters != null ? site.geofenceRadiusMeters + ' m' : '—' %></div>
+      <div class="oh-kv__label">Address</div><div class="oh-kv__value"><%= site.address || '—' %></div>
+    </div>
+    <% if (geo) { %><div id="site-map-view" class="oh-map" style="margin-top:0.6rem" data-lat="<%= site.latitude %>" data-lng="<%= site.longitude %>" data-radius="<%= site.geofenceRadiusMeters || 0 %>"></div><% } %>
+  </div>
+
+  <div class="oh-kv-section">
+    <h3 class="oh-kv-section__title">Profile</h3>
+    <div class="oh-kv">
+      <div class="oh-kv__label">In-charge</div><div class="oh-kv__value"><%= site.inChargeName || '—' %><% if (site.inChargePhone) { %> · <%= site.inChargePhone %><% } %></div>
+      <div class="oh-kv__label">Client / project</div><div class="oh-kv__value"><%= site.clientName || '—' %></div>
+      <div class="oh-kv__label">Employees assigned</div><div class="oh-kv__value"><%= workers %></div>
+    </div>
+  </div>
+</div>
+
+<% if (geo) { %>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  (function () {
+    var el = document.getElementById('site-map-view');
+    if (!el || typeof L === 'undefined') return;
+    var lat = parseFloat(el.dataset.lat), lng = parseFloat(el.dataset.lng), r = parseFloat(el.dataset.radius) || 0;
+    var map = L.map(el).setView([lat, lng], 15);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
+    L.marker([lat, lng]).addTo(map);
+    if (r > 0) L.circle([lat, lng], { radius: r, color: '#1c4d8c', fillOpacity: 0.08 }).addTo(map);
+    setTimeout(function () { map.invalidateSize(); }, 120);
+  })();
+</script>
+<% } %>
+
+<%- include('../partials/app-bottom') %>

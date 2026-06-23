@@ -1,5 +1,6 @@
 <%- include('../partials/app-top', { title: title, active: active }) %>
 
+<%- include('../partials/breadcrumb', { back: '/org/branches', trail: [ { label: 'Sites', href: '/org' }, { label: 'Branches', href: '/org/branches' }, { label: 'Edit' } ] }) %>
 <div class="oh-page-header">
   <h1 class="oh-page-title">Edit branch</h1>
 </div>
@@ -11,8 +12,8 @@
       <input class="oh-input" id="name" name="name" value="<%= branch.name %>" required />
     </div>
     <div class="oh-form-actions">
-      <a class="oh-btn oh-btn--small" href="/org">Cancel</a>
-      <button class="oh-btn oh-btn--secondary" type="submit">Save</button>
+      <a class="oh-btn oh-btn--small" href="/org/branches">Cancel</a>
+      <button class="oh-btn oh-btn--accent" type="submit">Save</button>
     </div>
   </form>
 </div>

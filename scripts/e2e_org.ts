@@ -60,8 +60,11 @@ async function main(): Promise<void> {
   // Org page loads and shows seeded data.
   const org = await admin.get("/org");
   assert("admin GET /org returns 200", org.status === 200);
-  assert("org page lists seeded 'Chennai' branch", org.text.includes("Chennai"));
-  assert("add-site form has the map picker + in-charge autocomplete", org.text.includes('id="site-map"') && org.text.includes("leaflet") && org.text.includes('id="incharge-list"'));
+  assert("sites ledger shows the summary strip", org.text.includes("oh-statstrip"));
+  assert("sites ledger lists the seeded 'Chennai' branch", org.text.includes("Chennai"));
+  const newSiteForm = await admin.get("/org/sites/new");
+  assert("add-site form has the map picker + in-charge autocomplete", newSiteForm.text.includes('id="site-map"') && newSiteForm.text.includes("leaflet") && newSiteForm.text.includes('id="incharge-list"'));
+  assert("add-site form exposes night-shift + allowed-OT fields", newSiteForm.text.includes('name="nightStartTime"') && newSiteForm.text.includes('name="allowedOtHours"'));
 
   // Create a branch.
   await admin.post("/org/branches").type("form").send({ name: BRANCH });
@@ -75,13 +78,21 @@ async function main(): Promise<void> {
     code: CODE,
     standardStartTime: "09:00",
     standardEndTime: "18:00",
+    nightShiftEnabled: "on", nightStartTime: "20:00", nightEndTime: "05:00", allowedOtHours: "4",
     address: "12 Mount Rd", inChargeName: "R. Kumar", inChargePhone: "+91 90000 00000",
-    clientName: "Acme Builders", nightShiftEnabled: "on",
+    clientName: "Acme Builders",
   });
   const siteDoc = await ProjectSiteModel.findOne({ code: CODE });
   assert("site created in DB", !!siteDoc);
   assert("site code stored uppercase", siteDoc?.code === CODE);
   assert("site profile fields stored", siteDoc?.address === "12 Mount Rd" && siteDoc?.inChargeName === "R. Kumar" && siteDoc?.clientName === "Acme Builders" && siteDoc?.nightShiftEnabled === true);
+  assert("night-shift times + allowed OT stored", siteDoc?.shifts?.night?.startTime === "20:00" && siteDoc?.shifts?.night?.endTime === "05:00" && siteDoc?.allowedOtHours === 4);
+
+  // Site detail page (template D) + the branches page.
+  const siteView = await admin.get(`/org/sites/${siteDoc!._id}`);
+  assert("site detail page → 200 with breadcrumb + code", siteView.status === 200 && siteView.text.includes("View Site") && siteView.text.includes(CODE));
+  const branchesPage = await admin.get("/org/branches");
+  assert("branches page → 200 and lists the QA branch", branchesPage.status === 200 && branchesPage.text.includes(BRANCH));
 
   // Duplicate site code is rejected (flash shows on the next render).
   await admin.post("/org/sites").type("form").send({

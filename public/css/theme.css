@@ -1562,6 +1562,12 @@ tr > .oh-att-row {
   display: inline-block;
 }
 .oh-detail-head__photo--ph { display: inline-grid; place-items: center; background: var(--c-border-light); color: var(--c-accent-dark); font-weight: 600; font-size: 1.4rem; }
+.oh-detail-head__photo--ph .material-icons { font-size: 1.7rem; }
+
+/* Grouped form sections (Add/Edit pages) */
+.oh-form-section { padding-bottom: 1.25rem; margin-bottom: 1.25rem; border-bottom: 1px solid var(--c-border-light); }
+.oh-form-section:last-of-type { border-bottom: 0; margin-bottom: 0; padding-bottom: 0; }
+.oh-form-section .oh-kv-section__title { margin-bottom: 0.85rem; }
 .oh-detail-head__name { font-size: 1.15rem; font-weight: 600; margin: 0; }
 .oh-detail-head__meta { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; margin-top: 0.35rem; }
 .oh-kv-section { margin-bottom: 1.1rem; }

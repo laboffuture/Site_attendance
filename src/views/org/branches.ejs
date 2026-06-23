@@ -1,0 +1,36 @@
+<%- include('../partials/app-top', { title: title, active: active }) %>
+<%- include('../partials/breadcrumb', { back: '/org', trail: [ { label: 'Sites', href: '/org' }, { label: 'Branches' } ] }) %>
+<div class="oh-page-header oh-page-header--row">
+  <div>
+    <h1 class="oh-page-title">Branches</h1>
+    <p class="oh-page-subtitle">Top-level grouping for your project sites.</p>
+  </div>
+</div>
+
+<form class="oh-emp-toolbar" method="post" action="/org/branches">
+  <label class="oh-search oh-search--lg"><span class="material-icons">add</span><input type="text" name="name" placeholder="New branch name (e.g. Madurai)" required /></label>
+  <button class="oh-btn oh-btn--accent" type="submit">Add branch</button>
+</form>
+
+<div class="oh-card oh-card--flush">
+  <% if (branches.length) { %>
+  <table class="oh-people">
+    <thead><tr><th class="oh-people__spinecol"></th><th>Branch</th><th>Sites</th><th class="oh-people__actcol"></th></tr></thead>
+    <tbody>
+      <% branches.forEach(function (b) { %>
+      <tr style="--spine: var(--c-accent)">
+        <td class="oh-people__spine"></td>
+        <td><span class="oh-person__name" style="font-weight:600"><%= b.name %></span></td>
+        <td><span class="oh-person__id"><%= b.sites %></span></td>
+        <td class="oh-people__actcol"><span class="oh-row-actions">
+          <a class="oh-icon-btn" href="/org/branches/<%= b._id %>/edit" title="Edit"><span class="material-icons">edit</span></a>
+          <form method="post" action="/org/branches/<%= b._id %>/delete" onsubmit="return confirm('Delete this branch?')"><button class="oh-icon-btn oh-icon-btn--danger" type="submit" title="Delete"><span class="material-icons">delete</span></button></form>
+        </span></td>
+      </tr>
+      <% }); %>
+    </tbody>
+  </table>
+  <% } else { %><div class="oh-empty"><span class="material-icons">account_tree</span><p>No branches yet.</p></div><% } %>
+</div>
+
+<%- include('../partials/app-bottom') %>

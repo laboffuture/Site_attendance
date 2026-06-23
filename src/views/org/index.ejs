@@ -1,170 +1,92 @@
 <%- include('../partials/app-top', { title: title, active: active }) %>
+<% var filtering = q || selectedBranchId; %>
 
 <div class="oh-page-header oh-page-header--row">
   <div>
-    <h1 class="oh-page-title">Branches &amp; Sites</h1>
-    <p class="oh-page-subtitle">Locations where attendance is captured.</p>
+    <h1 class="oh-page-title">Sites</h1>
+    <p class="oh-page-subtitle">Project locations where attendance is captured.</p>
   </div>
-  <% if (!can('manage_sites')) { %>
-  <span class="oh-badge oh-badge--muted">View only</span>
-  <% } %>
+  <div class="oh-actions">
+    <% if (can('manage_org')) { %><a class="oh-btn oh-btn--small oh-btn--secondary oh-only-desktop" href="/org/branches"><span class="material-icons">account_tree</span> Branches</a><% } %>
+    <% if (can('manage_sites')) { %><a class="oh-btn oh-btn--accent oh-only-desktop" href="/org/sites/new"><span class="material-icons">add</span> Add site</a><% } %>
+  </div>
 </div>
 
-<!-- Branches -->
-<div class="oh-card oh-stack">
-  <div class="oh-section-header">
-    <span class="oh-section-title">Branches</span>
-    <span class="oh-muted"><%= branches.length %> total</span>
-  </div>
-
-  <% if (can('manage_org')) { %>
-  <form class="oh-form-inline" method="post" action="/org/branches">
-    <div class="oh-input-group oh-grow">
-      <label class="oh-label" for="branch-name">New branch</label>
-      <input class="oh-input" id="branch-name" name="name" placeholder="e.g. Madurai" required />
-    </div>
-    <button class="oh-btn oh-btn--secondary" type="submit">Add branch</button>
-  </form>
-  <% } %>
-
-  <% if (branches.length) { %>
-  <table class="oh-table oh-table--cards">
-    <thead>
-      <tr><th>Name</th><% if (can('manage_org')) { %><th class="oh-col-action"></th><% } %></tr>
-    </thead>
-    <tbody>
-      <% branches.forEach(function (b) { %>
-      <tr>
-        <td><%= b.name %></td>
-        <% if (can('manage_org')) { %>
-        <td class="oh-col-action oh-req-actions">
-          <a class="oh-btn oh-btn--small" href="/org/branches/<%= b._id %>/edit">Edit</a>
-          <form method="post" action="/org/branches/<%= b._id %>/delete" onsubmit="return confirm('Delete branch <%= b.name %>?')" style="display:inline;margin:0">
-            <button class="oh-btn oh-btn--small oh-btn--danger" type="submit">Delete</button>
-          </form>
-        </td>
-        <% } %>
-      </tr>
-      <% }); %>
-    </tbody>
-  </table>
-  <% } else { %>
-  <p class="oh-muted">No branches yet.</p>
-  <% } %>
+<div class="oh-statstrip">
+  <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= summary.sites %></span><span class="oh-statstrip__label">Sites</span></div>
+  <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= summary.branches %></span><span class="oh-statstrip__label">Branches</span></div>
+  <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= summary.geofenced %><span class="oh-statstrip__of">/<%= summary.sites %></span></span><span class="oh-statstrip__label">Geofenced</span></div>
+  <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= summary.nightShift %></span><span class="oh-statstrip__label">Night shift</span></div>
 </div>
 
-<!-- Project sites -->
-<div class="oh-card oh-stack">
-  <div class="oh-section-header">
-    <span class="oh-section-title">Project sites</span>
-    <span class="oh-muted"><%= sites.length %> total</span>
-  </div>
-
-  <% if (can('manage_sites')) { %>
-  <% if (branches.length) { %>
-  <form class="oh-form-inline" method="post" action="/org/sites">
-    <div class="oh-input-group">
-      <label class="oh-label" for="site-branch">Branch</label>
-      <select class="oh-select" id="site-branch" name="branchId" required>
-        <% branches.forEach(function (b) { %>
-        <option value="<%= b._id %>"><%= b.name %></option>
-        <% }); %>
-      </select>
-    </div>
-    <div class="oh-input-group oh-grow">
-      <label class="oh-label" for="site-name">Site name</label>
-      <input class="oh-input" id="site-name" name="name" placeholder="e.g. Anna Nagar Mall" required />
-    </div>
-    <div class="oh-input-group">
-      <label class="oh-label" for="site-code">Code</label>
-      <input class="oh-input oh-input--code" id="site-code" name="code" placeholder="ANM" required />
-    </div>
-    <div class="oh-input-group">
-      <label class="oh-label" for="site-start">Shift start</label>
-      <input class="oh-input" id="site-start" name="standardStartTime" type="time" value="09:00" required />
-    </div>
-    <div class="oh-input-group">
-      <label class="oh-label" for="site-end">Shift end</label>
-      <input class="oh-input" id="site-end" name="standardEndTime" type="time" value="18:00" required />
-    </div>
-    <div class="oh-input-group">
-      <label class="oh-label" for="site-lat">Latitude <span class="oh-muted">(optional)</span></label>
-      <input class="oh-input" id="site-lat" name="latitude" placeholder="13.0405" />
-    </div>
-    <div class="oh-input-group">
-      <label class="oh-label" for="site-lng">Longitude <span class="oh-muted">(optional)</span></label>
-      <input class="oh-input" id="site-lng" name="longitude" placeholder="80.2337" />
-    </div>
-    <div class="oh-input-group" style="flex:1 1 100%">
-      <label class="oh-label">Location — search or click the map to set the coordinates above</label>
-      <div class="oh-map-search">
-        <input class="oh-input" id="site-map-search" type="text" placeholder="Search address / place (e.g. Vadapalani, Chennai)" />
-        <button class="oh-btn oh-btn--small" type="button" id="site-map-search-btn">Search</button>
-      </div>
-      <div id="site-map" class="oh-map"></div>
-    </div>
-    <div class="oh-input-group oh-grow">
-      <label class="oh-label" for="site-address">Address <span class="oh-muted">(optional)</span></label>
-      <input class="oh-input" id="site-address" name="address" placeholder="street, area" />
-    </div>
-    <div class="oh-input-group">
-      <label class="oh-label" for="site-incharge">In-charge</label>
-      <input class="oh-input" id="site-incharge" name="inChargeName" placeholder="name" list="incharge-list" />
-    </div>
-    <div class="oh-input-group">
-      <label class="oh-label" for="site-inchargephone">In-charge phone</label>
-      <input class="oh-input" id="site-inchargephone" type="tel" name="inChargePhone" placeholder="+91…" />
-    </div>
-    <div class="oh-input-group">
-      <label class="oh-label" for="site-client">Client / project</label>
-      <input class="oh-input" id="site-client" name="clientName" placeholder="optional" />
-    </div>
-    <label class="oh-check"><input type="checkbox" name="nightShiftEnabled" /> Night shift</label>
-    <button class="oh-btn oh-btn--secondary" type="submit">Add site</button>
-  </form>
-  <p class="oh-muted">Tip: in Google Maps, right-click the site → the first row is “latitude, longitude”. Coordinates let each scan record its distance from the site.</p>
-  <% } else { %>
-  <p class="oh-muted">Add a branch first, then you can add sites under it.</p>
+<form class="oh-emp-toolbar" method="get" action="/org">
+  <label class="oh-search oh-search--lg">
+    <span class="material-icons">search</span>
+    <input type="text" name="q" value="<%= q %>" placeholder="Search by site name or code" aria-label="Search sites" />
+  </label>
+  <% if (branches.length > 1) { %>
+  <select class="oh-select oh-select--compact" name="branchId" onchange="this.form.submit()" aria-label="Filter by branch">
+    <option value="">All branches</option>
+    <% branches.forEach(function (b) { %><option value="<%= b._id %>" <%= selectedBranchId === String(b._id) ? 'selected' : '' %>><%= b.name %></option><% }); %>
+  </select>
   <% } %>
-  <% } %>
+  <button class="oh-btn oh-btn--small" type="submit">Search</button>
+</form>
 
+<!-- mobile -->
+<div class="oh-only-mobile">
   <% if (sites.length) { %>
-  <table class="oh-table oh-table--cards">
-    <thead>
-      <tr>
-        <th>Branch</th><th>Site</th><th>Code</th><th>Shift</th>
-        <% if (can('manage_sites')) { %><th class="oh-col-action"></th><% } %>
-      </tr>
-    </thead>
+  <div class="oh-m-section"><div class="oh-m-list">
+    <% sites.forEach(function (s) { var geo = s.latitude != null && s.longitude != null; %>
+    <a class="oh-m-card oh-m-row oh-m-link" href="/org/sites/<%= s._id %>" style="--spine: <%= geo ? 'var(--c-accent)' : 'var(--c-border)' %>">
+      <span class="oh-m-grow">
+        <span class="oh-m-name"><%= s.name %></span>
+        <span class="oh-m-sub"><%= s.code %> &middot; <%= branchNameById.get(String(s.branchId)) || '—' %> &middot; <%= s.workers %> workers</span>
+      </span>
+      <span class="oh-stat"><span class="oh-stat__dot" style="background: <%= geo ? 'var(--c-success)' : 'var(--c-border)' %>"></span></span>
+    </a>
+    <% }); %>
+  </div></div>
+  <% } else { %><div class="oh-m-section"><p class="oh-muted"><%= filtering ? 'No sites match.' : 'No sites yet.' %></p></div><% } %>
+  <% if (can('manage_sites')) { %><a class="oh-m-fab" href="/org/sites/new"><span class="material-icons">add</span> Add site</a><% } %>
+</div>
+
+<!-- desktop ledger -->
+<div class="oh-card oh-card--flush oh-only-desktop">
+  <% if (sites.length) { %>
+  <table class="oh-people">
+    <thead><tr>
+      <th class="oh-people__spinecol"></th>
+      <th>Code</th><th>Site</th><th>Branch</th><th>Day shift</th><th>Geofence</th><th>In-charge</th><th>Workers</th>
+      <% if (can('manage_sites')) { %><th class="oh-people__actcol"></th><% } %>
+    </tr></thead>
     <tbody>
-      <% sites.forEach(function (s) { %>
-      <tr>
-        <td><%= branchNameById.get(String(s.branchId)) || "—" %></td>
-        <td data-label="Site"><%= s.name %></td>
-        <td data-label="Code"><span class="oh-badge oh-badge--muted"><%= s.code %></span></td>
-        <td data-label="Shift"><%= s.standardStartTime %>–<%= s.standardEndTime %></td>
+      <% sites.forEach(function (s) { var geo = s.latitude != null && s.longitude != null; %>
+      <tr style="--spine: <%= geo ? 'var(--c-accent)' : 'var(--c-border)' %>">
+        <td class="oh-people__spine"></td>
+        <td><a href="/org/sites/<%= s._id %>" class="oh-person__id" style="font-weight:600"><%= s.code %></a></td>
+        <td><a class="oh-person" href="/org/sites/<%= s._id %>"><span class="oh-person__txt"><span class="oh-person__name"><%= s.name %></span></span></a></td>
+        <td><%= branchNameById.get(String(s.branchId)) || '—' %></td>
+        <td><%= s.standardStartTime %>–<%= s.standardEndTime %></td>
+        <td><% if (geo) { %><span class="oh-stat"><span class="oh-stat__dot" style="background:var(--c-success)"></span><%= s.geofenceRadiusMeters ? s.geofenceRadiusMeters + ' m' : 'Set' %></span><% } else { %><span class="oh-muted">Not set</span><% } %></td>
+        <td><%= s.inChargeName || '—' %></td>
+        <td><span class="oh-person__id"><%= s.workers %></span></td>
         <% if (can('manage_sites')) { %>
-        <td class="oh-col-action oh-req-actions">
-          <a class="oh-btn oh-btn--small" href="/org/sites/<%= s._id %>/edit">Edit</a>
-          <form method="post" action="/org/sites/<%= s._id %>/delete" onsubmit="return confirm('Delete site <%= s.name %>?')" style="display:inline;margin:0">
-            <button class="oh-btn oh-btn--small oh-btn--danger" type="submit">Delete</button>
-          </form>
-        </td>
+        <td class="oh-people__actcol"><span class="oh-row-actions">
+          <a class="oh-icon-btn" href="/org/sites/<%= s._id %>" title="View"><span class="material-icons">visibility</span></a>
+          <a class="oh-icon-btn" href="/org/sites/<%= s._id %>/edit" title="Edit"><span class="material-icons">edit</span></a>
+          <form method="post" action="/org/sites/<%= s._id %>/delete" onsubmit="return confirm('Delete this site?')"><button class="oh-icon-btn oh-icon-btn--danger" type="submit" title="Delete"><span class="material-icons">delete</span></button></form>
+        </span></td>
         <% } %>
       </tr>
       <% }); %>
     </tbody>
   </table>
+  <% } else if (filtering) { %>
+  <div class="oh-empty"><span class="material-icons">search_off</span><p>No sites match your filters.</p><a class="oh-btn oh-btn--small" href="/org">Clear filters</a></div>
   <% } else { %>
-  <p class="oh-muted">No project sites yet.</p>
+  <div class="oh-empty"><span class="material-icons">location_city</span><p>No sites yet.</p><% if (can('manage_sites')) { %><a class="oh-btn oh-btn--accent" href="/org/sites/new"><span class="material-icons">add</span> Add your first site</a><% } %></div>
   <% } %>
 </div>
-
-<% if (can('manage_sites')) { %>
-<datalist id="incharge-list"><% (typeof inCharges !== 'undefined' ? inCharges : []).forEach(function (n) { %><option value="<%= n %>"></option><% }); %></datalist>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="/static/js/site-map.js"></script>
-<% } %>
 
 <%- include('../partials/app-bottom') %>

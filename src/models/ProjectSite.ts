@@ -47,6 +47,8 @@ const projectSiteSchema = new Schema(
     code: { type: String, required: true, unique: true, trim: true, uppercase: true },
     standardStartTime: { type: String, default: "09:00" },
     standardEndTime: { type: String, default: "18:00" },
+    // Max overtime hours allowed per day (cap; null = no explicit cap).
+    allowedOtHours: { type: Number, default: null },
     designationOverrides: { type: [designationOverrideSchema], default: [] },
 
     // Per-site day/night/sunday shift definitions (matrix defaults on create).
