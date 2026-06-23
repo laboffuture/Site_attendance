@@ -1,37 +1,65 @@
 <%- include('../partials/app-top', { title: title, active: active }) %>
-<% var tabs = [["submitted", "Awaiting PM"], ["recommended", "Awaiting HR"], ["decided", "Decided"]]; %>
+<%
+  var bands = [
+    { key: "submitted", label: "To recommend", n: counts.submitted, cls: "oh-qband__item--warn" },
+    { key: "recommended", label: "To approve", n: counts.recommended, cls: "" },
+    { key: "approved", label: "Approved", n: counts.approved, cls: "oh-qband__item--ok" },
+    { key: "rejected", label: "Rejected", n: counts.rejected, cls: "oh-qband__item--danger" },
+  ];
+  var spine = { submitted: "var(--c-warning)", recommended: "var(--c-accent)", approved: "var(--c-success)", rejected: "var(--c-danger)" }[tab] || "var(--c-border)";
+%>
 
 <div class="oh-page-header">
-  <h1 class="oh-page-title">Regularization</h1>
+  <h1 class="oh-page-title">Attendance corrections</h1>
   <p class="oh-page-subtitle">Review a day's scanned attendance, then recommend (PM) and approve (HR). Approval also clears that day's overtime.</p>
 </div>
 
-<div class="oh-filter-tabs">
-  <% tabs.forEach(function (tb) { %>
-  <a class="oh-filter-tab <%= tab === tb[0] ? 'oh-filter-tab--active' : '' %>" href="/regularization?tab=<%= tb[0] %>"><%= tb[1] %></a>
+<div class="oh-qband">
+  <% bands.forEach(function (b) { %>
+  <a class="oh-qband__item <%= b.cls %> <%= tab === b.key ? 'is-active' : '' %>" href="/regularization?tab=<%= b.key %>">
+    <span class="oh-qband__num"><%= b.n %></span>
+    <span class="oh-qband__label"><%= b.label %></span>
+  </a>
   <% }); %>
 </div>
 
-<div class="oh-card">
+<!-- mobile -->
+<div class="oh-only-mobile">
   <% if (days.length) { %>
-  <table class="oh-table oh-table--cards">
-    <thead>
-      <tr><th>Date</th><th>Site</th><th>Workers</th><th>OT (h)</th><th class="oh-col-action"></th></tr>
-    </thead>
+  <div class="oh-m-section"><div class="oh-m-list">
+    <% days.forEach(function (d) { %>
+    <a class="oh-m-card oh-m-row oh-m-link" href="/regularization/<%= d.siteId %>/<%= d.date %>" style="--spine: <%= spine %>">
+      <span class="oh-m-grow">
+        <span class="oh-m-name"><%= d.siteName %></span>
+        <span class="oh-m-sub"><%= d.date %> &middot; <%= d.n %> records<%= d.ot > 0 ? ' · OT ' + d.ot.toFixed(1) + 'h' : '' %></span>
+      </span>
+      <span class="material-icons" style="color:var(--c-text-muted)">chevron_right</span>
+    </a>
+    <% }); %>
+  </div></div>
+  <% } else { %><div class="oh-m-section"><p class="oh-muted">Nothing in this queue.</p></div><% } %>
+</div>
+
+<!-- desktop ledger -->
+<div class="oh-card oh-card--flush oh-only-desktop">
+  <% if (days.length) { %>
+  <table class="oh-people">
+    <thead><tr><th class="oh-people__spinecol"></th><th>Site</th><th>Date</th><th>Records</th><th>OT (h)</th><th class="oh-people__actcol"></th></tr></thead>
     <tbody>
       <% days.forEach(function (d) { %>
-      <tr>
+      <tr style="--spine: <%= spine %>">
+        <td class="oh-people__spine"></td>
+        <td><span class="oh-person__name" style="font-weight:600"><%= d.siteName %></span></td>
         <td><%= d.date %></td>
-        <td data-label="Site"><%= d.siteName %></td>
-        <td data-label="Workers"><%= d.n %></td>
-        <td data-label="OT (h)"><%= d.ot > 0 ? d.ot.toFixed(2) : "—" %></td>
-        <td class="oh-col-action"><a class="oh-btn oh-btn--small oh-btn--secondary" href="/regularization/<%= d.siteId %>/<%= d.date %>">Open</a></td>
+        <td><span class="oh-person__id"><%= d.n %></span></td>
+        <td><%= d.ot > 0 ? d.ot.toFixed(2) : "—" %></td>
+        <td class="oh-people__actcol"><a class="oh-btn oh-btn--small oh-btn--secondary" href="/regularization/<%= d.siteId %>/<%= d.date %>">Review</a></td>
       </tr>
       <% }); %>
     </tbody>
   </table>
   <% } else { %>
-  <p class="oh-muted">Nothing in this queue.</p>
+  <div class="oh-empty"><span class="material-icons">fact_check</span><p>Nothing in this queue.</p></div>
   <% } %>
 </div>
 

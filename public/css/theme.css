@@ -1583,6 +1583,28 @@ tr > .oh-att-row {
 .oh-map-tools { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.5rem 0; }
 .oh-map-tools .oh-btn .material-icons { font-size: 1rem; }
 
+/* Approval-queue counter band (clickable status filters) */
+.oh-qband { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1.1rem; }
+.oh-qband__item {
+  flex: 1 1 150px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.85rem 1.1rem;
+  border: 1px solid var(--c-border);
+  border-bottom: 3px solid transparent;
+  background: var(--c-surface);
+  text-decoration: none;
+  color: var(--c-text);
+}
+.oh-qband__item:hover { border-color: var(--c-accent); }
+.oh-qband__item.is-active { border-bottom-color: var(--c-accent); background: var(--c-canvas); }
+.oh-qband__num { font-size: 1.6rem; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.oh-qband__label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--c-text-muted); }
+.oh-qband__item--warn .oh-qband__num { color: var(--c-warning); }
+.oh-qband__item--ok .oh-qband__num { color: var(--c-success); }
+.oh-qband__item--danger .oh-qband__num { color: var(--c-danger); }
+
 /* Role permission matrix (user detail) */
 .oh-perm { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 1rem 1.75rem; }
 .oh-perm__gtitle { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--c-text-muted); margin-bottom: 0.4rem; }

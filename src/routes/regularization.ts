@@ -16,23 +16,38 @@ function flash(req: Request, type: "success" | "danger", text: string): void {
 const TABS: Record<string, string[]> = {
   submitted: ["submitted"],
   recommended: ["recommended"],
-  decided: ["approved", "rejected"],
+  approved: ["approved"],
+  rejected: ["rejected"],
 };
 
-// ---- Queue: site-days grouped by status (scoped) ----
+// ---- Queue: site-days grouped by status (scoped) + status counters ----
 router.get("/regularization", requireCapability("view_regularization"), async (req: Request, res: Response) => {
   const tab = TABS[String(req.query.tab)] ? String(req.query.tab) : "submitted";
-  const days = await AttendanceModel.aggregate([
-    { $match: { ...siteScopeFilter(req.currentUser!), attendanceStatus: { $in: TABS[tab] } } },
-    { $group: { _id: { siteId: "$siteId", siteName: "$siteName", date: "$date" }, n: { $sum: 1 }, ot: { $sum: "$overtime.computedHours" } } },
-    { $sort: { "_id.date": -1, "_id.siteName": 1 } },
-    { $limit: 300 },
+  const scope = siteScopeFilter(req.currentUser!);
+  const [days, countAgg] = await Promise.all([
+    AttendanceModel.aggregate([
+      { $match: { ...scope, attendanceStatus: { $in: TABS[tab] } } },
+      { $group: { _id: { siteId: "$siteId", siteName: "$siteName", date: "$date" }, n: { $sum: 1 }, ot: { $sum: "$overtime.computedHours" } } },
+      { $sort: { "_id.date": -1, "_id.siteName": 1 } },
+      { $limit: 300 },
+    ]),
+    AttendanceModel.aggregate([
+      { $match: { ...scope, attendanceStatus: { $in: ["submitted", "recommended", "approved", "rejected"] } } },
+      { $group: { _id: "$attendanceStatus", n: { $sum: 1 } } },
+    ]),
   ]);
+  const byStatus = new Map<string, number>(countAgg.map((c) => [c._id as string, c.n as number]));
   res.render("regularization/index", {
-    title: "Regularization · " + res.locals.company,
+    title: "Attendance corrections · " + res.locals.company,
     active: "/regularization",
     tab,
     days: days.map((d) => ({ siteId: String(d._id.siteId), siteName: d._id.siteName, date: d._id.date, n: d.n, ot: d.ot })),
+    counts: {
+      submitted: byStatus.get("submitted") ?? 0,
+      recommended: byStatus.get("recommended") ?? 0,
+      approved: byStatus.get("approved") ?? 0,
+      rejected: byStatus.get("rejected") ?? 0,
+    },
   });
 });
 

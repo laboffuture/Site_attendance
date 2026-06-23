@@ -1,61 +1,80 @@
 <%- include('../partials/app-top', { title: title, active: active }) %>
-<% var badgeFor = { scanned: "muted", submitted: "warning", recommended: "info", approved: "success", rejected: "danger" }; %>
+<% var dot = { scanned: "var(--c-text-muted)", submitted: "var(--c-warning)", recommended: "var(--c-accent)", approved: "var(--c-success)", rejected: "var(--c-danger)" }; %>
+<%- include('../partials/breadcrumb', { back: '/regularization', trail: [ { label: 'Attendance corrections', href: '/regularization' }, { label: siteName + ' · ' + date } ] }) %>
 
 <div class="oh-page-header oh-page-header--row">
   <div>
     <h1 class="oh-page-title"><%= siteName %></h1>
-    <p class="oh-page-subtitle"><%= date %> · day status <span class="oh-badge oh-badge--<%= badgeFor[status] || 'muted' %>"><%= status %></span></p>
+    <p class="oh-page-subtitle"><%= date %> · <span class="oh-stat"><span class="oh-stat__dot" style="background: <%= dot[status] || 'var(--c-text-muted)' %>"></span><%= status %></span></p>
   </div>
-  <a class="oh-btn oh-btn--small" href="/regularization">&larr; Queue</a>
+  <div class="oh-actions">
+    <% if (canRecommend && status === "submitted") { %>
+    <form method="post" action="/regularization/<%= siteId %>/<%= date %>/recommend" onsubmit="return confirm('Recommend this day to HR?')" style="margin:0"><button class="oh-btn oh-btn--accent" type="submit"><span class="material-icons">thumb_up</span> Recommend day</button></form>
+    <% } %>
+    <% if (canApprove && status === "recommended") { %>
+    <form method="post" action="/regularization/<%= siteId %>/<%= date %>/approve" onsubmit="return confirm('Approve this day? This also approves the day\'s overtime.')" style="margin:0"><button class="oh-btn oh-btn--accent" type="submit"><span class="material-icons">check_circle</span> Approve day</button></form>
+    <% } %>
+  </div>
 </div>
 
-<div class="oh-card oh-stack">
+<% if (status === "approved") { %><div class="oh-alert oh-alert--success">Day approved — overtime cleared to payroll.</div><% } %>
+
+<!-- mobile -->
+<div class="oh-only-mobile">
+  <% if (!rows.length) { %><div class="oh-m-section"><p class="oh-muted">No attendance for this day.</p></div><% } else { %>
+  <div class="oh-m-section"><div class="oh-m-list">
+    <% rows.forEach(function (r) { %>
+    <div class="oh-m-card" style="--spine: <%= dot[r.status] || 'var(--c-border)' %>;border-left:3px solid var(--spine)">
+      <div class="oh-m-row" style="justify-content:space-between;align-items:flex-start">
+        <span class="oh-m-grow"><span class="oh-m-name"><%= r.workerName %></span><span class="oh-m-sub"><%= r.empRegNo %> · in <%= r.inHM || '—' %> · out <%= r.outHM || '—' %></span></span>
+        <span class="oh-m-badge oh-badge--muted"><%= r.status %></span>
+      </div>
+      <div class="oh-m-sub" style="margin-top:0.4rem"><%= r.totalHours != null ? r.totalHours + 'h total' : '—' %><%= r.otHours > 0 ? ' · OT ' + r.otHours + 'h' : '' %></div>
+      <% if (canReject && (r.status === "submitted" || r.status === "recommended")) { %>
+      <form method="post" action="/regularization/worker/<%= r.id %>/reject" onsubmit="var x=prompt('Reason for rejecting this worker?'); if(x===null){return false;} this.reason.value=x; return true;" style="margin-top:0.5rem">
+        <input type="hidden" name="reason" /><button class="oh-btn oh-btn--small oh-btn--danger" type="submit">Reject</button>
+      </form>
+      <% } %>
+    </div>
+    <% }); %>
+  </div></div>
+  <% } %>
+</div>
+
+<!-- desktop -->
+<div class="oh-card oh-card--flush oh-only-desktop">
   <% if (!rows.length) { %>
-  <p class="oh-muted">No attendance for this day.</p>
+  <div class="oh-empty"><span class="material-icons">event_busy</span><p>No attendance for this day.</p></div>
   <% } else { %>
-  <table class="oh-table oh-table--cards">
-    <thead>
-      <tr><th>Worker</th><th>In</th><th>Out</th><th>Total</th><th>OT</th><th>Remark</th><th>Status</th>
-        <% if (canReject) { %><th class="oh-col-action">Reject</th><% } %></tr>
-    </thead>
+  <table class="oh-people">
+    <thead><tr><th class="oh-people__spinecol"></th><th>Worker</th><th>In</th><th>Out</th><th>Total</th><th>OT</th><th>Status</th><% if (canReject) { %><th class="oh-people__actcol"></th><% } %></tr></thead>
     <tbody>
       <% rows.forEach(function (r) { %>
-      <tr>
-        <td><%= r.workerName %><br /><span class="oh-muted"><%= r.empRegNo %></span></td>
-        <td data-label="In"><%= r.inHM || "—" %></td>
-        <td data-label="Out"><%= r.outHM || "—" %></td>
-        <td data-label="Total"><%= r.totalHours != null ? r.totalHours + "h" : "—" %></td>
-        <td data-label="OT"><%= r.otHours > 0 ? r.otHours + "h" : "—" %></td>
-        <td data-label="Remark"><%= r.remark || "—" %><% if (r.status === "rejected" && r.rejectReason) { %><br /><span class="oh-muted">✕ <%= r.rejectReason %></span><% } %></td>
-        <td data-label="Status"><span class="oh-badge oh-badge--<%= badgeFor[r.status] || 'muted' %>"><%= r.status %></span></td>
+      <tr style="--spine: <%= dot[r.status] || 'var(--c-border)' %>">
+        <td class="oh-people__spine"></td>
+        <td>
+          <span class="oh-person__txt"><span class="oh-person__name"><%= r.workerName %></span><span class="oh-person__id"><%= r.empRegNo %></span></span>
+          <% if (r.status === "rejected" && r.rejectReason) { %><div class="oh-muted" style="font-size:0.78rem">✕ <%= r.rejectReason %></div><% } %>
+        </td>
+        <td><%= r.inHM || "—" %></td>
+        <td><%= r.outHM || "—" %></td>
+        <td><%= r.totalHours != null ? r.totalHours + "h" : "—" %></td>
+        <td><%= r.otHours > 0 ? r.otHours + "h" : "—" %></td>
+        <td><span class="oh-stat"><span class="oh-stat__dot" style="background: <%= dot[r.status] || 'var(--c-text-muted)' %>"></span><%= r.status %></span></td>
         <% if (canReject) { %>
-        <td class="oh-col-action">
+        <td class="oh-people__actcol">
           <% if (r.status === "submitted" || r.status === "recommended") { %>
-          <form method="post" action="/regularization/worker/<%= r.id %>/reject" class="oh-ot-actions" onsubmit="return confirm('Reject <%= r.workerName %>?')">
-            <input class="oh-input oh-input--xs" name="reason" placeholder="reason" />
-            <button class="oh-btn oh-btn--small oh-btn--danger" type="submit">Reject</button>
+          <form method="post" action="/regularization/worker/<%= r.id %>/reject" onsubmit="var x=prompt('Reason for rejecting this worker?'); if(x===null){return false;} this.reason.value=x; return true;" style="margin:0">
+            <input type="hidden" name="reason" />
+            <button class="oh-icon-btn oh-icon-btn--danger" type="submit" title="Reject"><span class="material-icons">close</span></button>
           </form>
-          <% } else { %>—<% } %>
+          <% } %>
         </td>
         <% } %>
       </tr>
       <% }); %>
     </tbody>
   </table>
-
-  <div class="oh-form-actions" style="margin-top:0.75rem;display:flex;gap:0.5rem">
-    <% if (canRecommend && status === "submitted") { %>
-    <form method="post" action="/regularization/<%= siteId %>/<%= date %>/recommend" onsubmit="return confirm('Recommend this day to HR?')">
-      <button class="oh-btn oh-btn--secondary" type="submit">Recommend day &rarr;</button>
-    </form>
-    <% } %>
-    <% if (canApprove && status === "recommended") { %>
-    <form method="post" action="/regularization/<%= siteId %>/<%= date %>/approve" onsubmit="return confirm('Approve this day? This also approves the day\'s overtime.')">
-      <button class="oh-btn oh-btn--success" type="submit">Approve day</button>
-    </form>
-    <% } %>
-    <% if (status === "approved") { %><span class="oh-muted">Day approved — overtime cleared to payroll.</span><% } %>
-  </div>
   <% } %>
 </div>
 
