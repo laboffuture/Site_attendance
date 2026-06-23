@@ -11,7 +11,7 @@ import { createApp } from "../src/app";
 import { connectDb } from "../src/db";
 import * as db from "../src/db";
 import { hashPassword } from "../src/auth/password";
-import { BranchModel, ProjectSiteModel, DesignationModel, UserModel } from "../src/models";
+import { BranchModel, ProjectSiteModel, DesignationModel, UserModel, WorkerModel } from "../src/models";
 
 const ADMIN_EMAIL = (process.env.SEED_ADMIN_EMAIL || "admin@trgbi.com").toLowerCase();
 const ADMIN_PW = process.env.SEED_ADMIN_PASSWORD || "ChangeMe123!";
@@ -133,6 +133,20 @@ async function main(): Promise<void> {
   assert("case-insensitive duplicate designation rejected", afterDesigDup.text.includes("already exists"));
   assert("no duplicate designation persisted", (await DesignationModel.countDocuments({ name: new RegExp(`^${TRADE}$`, "i") })) === 1);
   void dupDesig;
+  assert("designations ledger shows the summary strip", afterDesigDup.text.includes("oh-statstrip"));
+
+  // Designation delete guard: in use → blocked; unused → deletes.
+  const desigDoc = await DesignationModel.findOne({ name: TRADE });
+  const dWorker = await WorkerModel.create({
+    empRegNo: `QA-DZ-${S}`, name: `QA DZ ${S}`,
+    designationId: desigDoc!._id, designationName: TRADE,
+    siteId: vbwSite!._id, siteName: vbwSite!.name, status: "active",
+  });
+  await admin.post(`/designations/${desigDoc!._id}/delete`).type("form").send({});
+  assert("designation in use cannot be deleted", !!(await DesignationModel.findById(desigDoc!._id)));
+  await WorkerModel.deleteOne({ _id: dWorker._id });
+  await admin.post(`/designations/${desigDoc!._id}/delete`).type("form").send({});
+  assert("unused designation deleted", !(await DesignationModel.findById(desigDoc!._id)));
 
   // Delete guards (admin = management): a branch with sites is blocked; an empty
   // branch and an unstaffed site delete cleanly.
@@ -165,6 +179,7 @@ async function main(): Promise<void> {
     ProjectSiteModel.deleteMany({ code: new RegExp(`^${CODE}`) }),
     DesignationModel.deleteMany({ name: new RegExp(`^${TRADE}$`, "i") }),
     UserModel.deleteMany({ email: { $in: [SUP_EMAIL, `qa-orghr-${S}@trgbi.com`] } }),
+    WorkerModel.deleteMany({ empRegNo: new RegExp(`^QA-DZ-`) }),
   ]);
 
   await mongoose.connection.close();

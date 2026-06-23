@@ -1,7 +1,8 @@
 <%- include('../partials/app-top', { title: title, active: active }) %>
 
+<%- include('../partials/breadcrumb', { back: '/designations', trail: [ { label: 'Designations', href: '/designations' }, { label: designation.name }, { label: 'Rename' } ] }) %>
 <div class="oh-page-header">
-  <h1 class="oh-page-title">Edit designation</h1>
+  <h1 class="oh-page-title">Rename designation</h1>
 </div>
 
 <div class="oh-card oh-form-card">
@@ -12,7 +13,7 @@
     </div>
     <div class="oh-form-actions">
       <a class="oh-btn oh-btn--small" href="/designations">Cancel</a>
-      <button class="oh-btn oh-btn--secondary" type="submit">Save</button>
+      <button class="oh-btn oh-btn--accent" type="submit">Save</button>
     </div>
   </form>
 </div>

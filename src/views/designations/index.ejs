@@ -1,40 +1,68 @@
 <%- include('../partials/app-top', { title: title, active: active }) %>
 
-<div class="oh-page-header">
-  <h1 class="oh-page-title">Designations</h1>
-  <p class="oh-page-subtitle">Worker trades. Any role can add a new one when a new trade joins a site.</p>
+<div class="oh-page-header oh-page-header--row">
+  <div>
+    <h1 class="oh-page-title">Designations</h1>
+    <p class="oh-page-subtitle">Worker trades &amp; roles assigned to employees.</p>
+  </div>
 </div>
 
-<div class="oh-card oh-stack">
-  <form class="oh-form-inline" method="post" action="/designations">
-    <div class="oh-input-group oh-grow">
-      <label class="oh-label" for="desig-name">New designation</label>
-      <input class="oh-input" id="desig-name" name="name" placeholder="e.g. Glazier" required />
-    </div>
-    <button class="oh-btn oh-btn--secondary" type="submit">Add designation</button>
-  </form>
+<div class="oh-statstrip">
+  <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= summary.total %></span><span class="oh-statstrip__label">Total</span></div>
+  <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= summary.inUse %></span><span class="oh-statstrip__label">In use</span></div>
+  <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= summary.unused %></span><span class="oh-statstrip__label">Unused</span></div>
+</div>
 
+<!-- quick add (any role) -->
+<form class="oh-emp-toolbar" method="post" action="/designations">
+  <label class="oh-search oh-search--lg"><span class="material-icons">add</span><input type="text" name="name" placeholder="Add a designation (e.g. Glazier)" aria-label="New designation" required /></label>
+  <button class="oh-btn oh-btn--accent" type="submit">Add designation</button>
+</form>
+
+<!-- mobile -->
+<div class="oh-only-mobile">
   <% if (designations.length) { %>
-  <table class="oh-table oh-table--cards">
-    <thead>
-      <tr><th>Name</th><% if (can('manage_users')) { %><th class="oh-col-action"></th><% } %></tr>
-    </thead>
+  <div class="oh-m-section"><div class="oh-m-list">
+    <% designations.forEach(function (d) { %>
+    <div class="oh-m-card oh-m-row" style="--spine: <%= d.workers > 0 ? 'var(--c-accent)' : 'var(--c-border)' %>">
+      <span class="oh-m-grow">
+        <span class="oh-m-name"><%= d.name %></span>
+        <span class="oh-m-sub"><%= d.workers %> employee<%= d.workers === 1 ? '' : 's' %></span>
+      </span>
+      <% if (canManage) { %>
+      <span class="oh-actions">
+        <a class="oh-icon-btn" href="/designations/<%= d._id %>/edit" title="Rename"><span class="material-icons">edit</span></a>
+        <form method="post" action="/designations/<%= d._id %>/delete" onsubmit="return confirm('Delete this designation?')"><button class="oh-icon-btn oh-icon-btn--danger" type="submit" title="Delete"><span class="material-icons">delete</span></button></form>
+      </span>
+      <% } %>
+    </div>
+    <% }); %>
+  </div></div>
+  <% } else { %><div class="oh-m-section"><p class="oh-muted">No designations yet.</p></div><% } %>
+</div>
+
+<!-- desktop ledger -->
+<div class="oh-card oh-card--flush oh-only-desktop">
+  <% if (designations.length) { %>
+  <table class="oh-people">
+    <thead><tr><th class="oh-people__spinecol"></th><th>Designation</th><th>Employees</th><% if (canManage) { %><th class="oh-people__actcol"></th><% } %></tr></thead>
     <tbody>
       <% designations.forEach(function (d) { %>
-      <tr>
-        <td><%= d.name %></td>
-        <% if (can('manage_users')) { %>
-        <td class="oh-col-action">
-          <a class="oh-btn oh-btn--small" href="/designations/<%= d._id %>/edit">Edit</a>
-        </td>
+      <tr style="--spine: <%= d.workers > 0 ? 'var(--c-accent)' : 'var(--c-border)' %>">
+        <td class="oh-people__spine"></td>
+        <td><span class="oh-person__name" style="font-weight:600"><%= d.name %></span></td>
+        <td><span class="oh-person__id"><%= d.workers %></span></td>
+        <% if (canManage) { %>
+        <td class="oh-people__actcol"><span class="oh-row-actions">
+          <a class="oh-icon-btn" href="/designations/<%= d._id %>/edit" title="Rename"><span class="material-icons">edit</span></a>
+          <form method="post" action="/designations/<%= d._id %>/delete" onsubmit="return confirm('Delete this designation?')"><button class="oh-icon-btn oh-icon-btn--danger" type="submit" title="Delete"><span class="material-icons">delete</span></button></form>
+        </span></td>
         <% } %>
       </tr>
       <% }); %>
     </tbody>
   </table>
-  <% } else { %>
-  <p class="oh-muted">No designations yet.</p>
-  <% } %>
+  <% } else { %><div class="oh-empty"><span class="material-icons">badge</span><p>No designations yet — add the first above.</p></div><% } %>
 </div>
 
 <%- include('../partials/app-bottom') %>

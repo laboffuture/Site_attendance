@@ -3,6 +3,7 @@ import { Router, Request, Response } from "express";
 import { requireCapability, requireRole } from "../auth/middleware";
 import { escapeRegex, isDuplicateKeyError } from "../lib/validate";
 import { DesignationModel } from "../models/Designation";
+import { WorkerModel } from "../models/Worker";
 
 const router = Router();
 
@@ -12,11 +13,22 @@ function flash(req: Request, type: "success" | "danger", text: string): void {
 
 // All roles (Supervisor and above) can view + add designations (spec §3/§4).
 router.get("/designations", requireCapability("add_designation"), async (_req: Request, res: Response) => {
-  const designations = await DesignationModel.find().sort({ name: 1 }).lean();
+  const [all, counts] = await Promise.all([
+    DesignationModel.find().sort({ name: 1 }).lean(),
+    WorkerModel.aggregate([
+      { $match: { status: { $in: ["active", "inactive"] } } },
+      { $group: { _id: "$designationId", n: { $sum: 1 } } },
+    ]),
+  ]);
+  const countById = new Map<string, number>(counts.map((c) => [String(c._id), c.n as number]));
+  const designations = all.map((d) => ({ ...d, workers: countById.get(String(d._id)) ?? 0 }));
+  const inUse = designations.filter((d) => d.workers > 0).length;
   res.render("designations/index", {
     title: "Designations · " + res.locals.company,
     active: "/designations",
     designations,
+    summary: { total: all.length, inUse, unused: all.length - inUse },
+    canManage: res.locals.can("manage_users"),
   });
 });
 
@@ -73,6 +85,18 @@ router.post("/designations/:id", requireRole("management", "hr"), async (req: Re
   }
   await DesignationModel.findByIdAndUpdate(req.params.id, { name });
   flash(req, "success", "Designation updated.");
+  res.redirect("/designations");
+});
+
+// Delete — blocked while employees still carry this designation.
+router.post("/designations/:id/delete", requireRole("management", "hr"), async (req: Request, res: Response) => {
+  const count = await WorkerModel.countDocuments({ designationId: req.params.id });
+  if (count > 0) {
+    flash(req, "danger", `${count} employee(s) use this designation — reassign them first.`);
+    return res.redirect("/designations");
+  }
+  await DesignationModel.findByIdAndDelete(req.params.id);
+  flash(req, "success", "Designation deleted.");
   res.redirect("/designations");
 });
 
