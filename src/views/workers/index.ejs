@@ -1,104 +1,126 @@
 <%- include('../partials/app-top', { title: title, active: active }) %>
 <%
-  var statusBadge = { active: "success", inactive: "muted", pending: "warning", deleted: "danger" };
-  var unreg = face.total - face.registered;
+  var STATUS = {
+    active:   { dot: 'var(--c-success)',    label: 'Active',   spine: 'var(--c-accent)' },
+    inactive: { dot: 'var(--c-text-muted)', label: 'Inactive', spine: 'var(--c-border)' },
+    pending:  { dot: 'var(--c-warning)',    label: 'Pending',  spine: 'var(--c-warning)' },
+    deleted:  { dot: 'var(--c-danger)',     label: 'Archived', spine: 'var(--c-danger)' }
+  };
+  function initials(n) { return (n || '?').split(' ').filter(Boolean).map(function (x) { return x[0]; }).slice(0, 2).join('').toUpperCase(); }
   var tabQs = tab !== 'active' ? ('status=' + tab) : '';
-  // Action cards = the primary things you can do in this module (template B).
-  var cards = [
-    { href: '/workers/new', icon: 'person_add', title: 'Add Employee', desc: 'Enroll a new employee with a face photo' },
-    { href: '/workers?face=unregistered', icon: 'face', title: 'Register Faces', desc: unreg + ' employee(s) need a face' },
-  ];
-  if (can('add_designation')) cards.push({ href: '/designations', icon: 'badge', title: 'Designations', desc: 'Manage trades & roles' });
+  var filtering = q || faceFilter === 'unregistered' || selectedSiteId;
 %>
+
 <div class="oh-page-header oh-page-header--row">
   <div>
     <h1 class="oh-page-title">Employees</h1>
-    <p class="oh-page-subtitle">Manage your workforce &middot; Face registered: <%= face.registered %> / <%= face.total %></p>
+    <p class="oh-page-subtitle">Manage your workforce across every site.</p>
   </div>
+  <a class="oh-btn oh-btn--accent oh-only-desktop" href="/workers/new"><span class="material-icons">add</span> Add employee</a>
 </div>
 
-<%- include('../partials/action-cards', { cards: cards }) %>
+<!-- Summary strip — the workforce at a glance -->
+<div class="oh-statstrip">
+  <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= summary.total.toLocaleString('en-IN') %></span><span class="oh-statstrip__label">Total</span></div>
+  <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= summary.active.toLocaleString('en-IN') %></span><span class="oh-statstrip__label">Active</span></div>
+  <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= summary.pending.toLocaleString('en-IN') %></span><span class="oh-statstrip__label">Pending</span></div>
+  <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= summary.faceRegistered %><span class="oh-statstrip__of">/<%= summary.faceTotal %></span></span><span class="oh-statstrip__label">Faces registered</span></div>
+  <div class="oh-statstrip__item"><span class="oh-statstrip__num <%= summary.facePending ? 'is-warn' : '' %>"><%= summary.facePending %></span><span class="oh-statstrip__label">Face pending</span></div>
+</div>
 
-<div class="oh-list-toolbar">
-  <div class="oh-filter-tabs">
-    <a class="oh-filter-tab <%= tab === 'active' ? 'oh-filter-tab--active' : '' %>" href="/workers">Active (<%= counts.active %>)</a>
-    <a class="oh-filter-tab <%= tab === 'pending' ? 'oh-filter-tab--active' : '' %>" href="/workers?status=pending">Pending (<%= counts.pending %>)</a>
-    <a class="oh-filter-tab <%= tab === 'archived' ? 'oh-filter-tab--active' : '' %>" href="/workers?status=archived">Archived (<%= counts.archived %>)</a>
+<!-- Toolbar: search + site filter -->
+<form class="oh-emp-toolbar" method="get" action="/workers">
+  <label class="oh-search oh-search--lg">
+    <span class="material-icons">search</span>
+    <input type="text" name="q" value="<%= q %>" placeholder="Search by name or employee ID" aria-label="Search employees" />
+  </label>
+  <% if (tab !== 'active') { %><input type="hidden" name="status" value="<%= tab %>" /><% } %>
+  <% if (faceFilter === 'unregistered') { %><input type="hidden" name="face" value="unregistered" /><% } %>
+  <% if (sites.length > 1) { %>
+  <select class="oh-select oh-select--compact" name="siteId" onchange="this.form.submit()" aria-label="Filter by site">
+    <option value="">All sites</option>
+    <% sites.forEach(function (s) { %><option value="<%= s._id %>" <%= selectedSiteId === String(s._id) ? 'selected' : '' %>><%= s.name %> (<%= s.code %>)</option><% }); %>
+  </select>
+  <% } %>
+  <button class="oh-btn oh-btn--small" type="submit">Search</button>
+</form>
+
+<!-- Status segmented control + face-pending toggle -->
+<div class="oh-emp-filters">
+  <div class="oh-segment" role="tablist">
+    <a class="oh-segment__btn <%= tab === 'active' ? 'is-active' : '' %>" href="/workers">Active <span class="oh-segment__n"><%= counts.active %></span></a>
+    <a class="oh-segment__btn <%= tab === 'pending' ? 'is-active' : '' %>" href="/workers?status=pending">Pending <span class="oh-segment__n"><%= counts.pending %></span></a>
+    <a class="oh-segment__btn <%= tab === 'archived' ? 'is-active' : '' %>" href="/workers?status=archived">Archived <span class="oh-segment__n"><%= counts.archived %></span></a>
   </div>
-  <form class="oh-search" method="get" action="/workers">
-    <% if (tab !== 'active') { %><input type="hidden" name="status" value="<%= tab %>" /><% } %>
-    <% if (faceFilter === 'unregistered') { %><input type="hidden" name="face" value="unregistered" /><% } %>
-    <input type="text" name="q" value="<%= q %>" placeholder="Search name or ID…" aria-label="Search employees" />
-    <button type="submit" aria-label="Search"><span class="material-icons">search</span></button>
-  </form>
+  <a class="oh-chip-toggle <%= faceFilter === 'unregistered' ? 'is-active' : '' %>" href="/workers?face=unregistered<%= tabQs ? '&' + tabQs : '' %>">
+    <span class="material-icons">face</span> Face pending<% if (summary.facePending) { %> · <%= summary.facePending %><% } %>
+  </a>
 </div>
 
-<div class="oh-filter-tabs">
-  <a class="oh-filter-tab <%= faceFilter === 'all' ? 'oh-filter-tab--active' : '' %>" href="/workers<%= tabQs ? '?' + tabQs : '' %>">All</a>
-  <a class="oh-filter-tab <%= faceFilter === 'unregistered' ? 'oh-filter-tab--active' : '' %>" href="/workers?face=unregistered<%= tabQs ? '&' + tabQs : '' %>">Not registered (<%= unreg %>)</a>
-</div>
-
-<!-- mobile: employee cards + floating add -->
+<!-- mobile: refined person rows -->
 <div class="oh-only-mobile">
   <% if (workers.length) { %>
   <div class="oh-m-section">
     <div class="oh-m-list">
-      <% workers.forEach(function (w) { %>
-      <a class="oh-m-card oh-m-row oh-m-link" href="/workers/<%= w._id %>">
-        <span class="oh-m-avatar">
-          <% if (w.photoUrl) { %><img src="<%= w.photoUrl %>" alt="" /><% } else { %><%= w.name.split(' ').map(function (x) { return x[0]; }).join('').slice(0, 2).toUpperCase() %><% } %>
+      <% workers.forEach(function (w) { var st = STATUS[w.status] || STATUS.inactive; %>
+      <a class="oh-m-card oh-m-row oh-m-link" href="/workers/<%= w._id %>" style="--spine: <%= st.spine %>">
+        <span class="oh-ava">
+          <% if (w.photoUrl) { %><img src="<%= w.photoUrl %>" alt="" /><% } else { %><%= initials(w.name) %><% } %>
         </span>
         <span class="oh-m-grow">
           <span class="oh-m-name"><%= w.name %></span>
           <span class="oh-m-sub"><%= w.empRegNo %> &middot; <%= w.designationName %> &middot; <%= w.siteName %></span>
         </span>
-        <span style="display:flex;flex-direction:column;gap:0.3rem;align-items:flex-end">
-          <span class="oh-m-badge oh-badge--<%= statusBadge[w.status] || 'muted' %>"><%= w.status %></span>
-          <span class="oh-m-badge oh-badge--<%= w.hasFace ? 'success' : 'warning' %>"><%= w.hasFace ? 'Registered' : 'Not registered' %></span>
-        </span>
+        <span class="oh-stat"><span class="oh-stat__dot" style="background: <%= st.dot %>"></span><% if (!w.hasFace) { %><span class="material-icons" style="font-size:1rem;color:var(--c-warning)">face</span><% } %></span>
       </a>
       <% }); %>
     </div>
   </div>
   <% } else { %>
-  <div class="oh-m-section"><p class="oh-muted">No employees found.</p></div>
+  <div class="oh-m-section"><p class="oh-muted"><%= filtering ? 'No one matches your filters.' : 'No employees yet.' %></p></div>
   <% } %>
-  <a class="oh-m-fab" href="/workers/new"><span class="material-icons">person_add</span> Add employee</a>
+  <a class="oh-m-fab" href="/workers/new"><span class="material-icons">add</span> Add employee</a>
 </div>
 
-<div class="oh-card oh-only-desktop">
+<!-- desktop: the people ledger -->
+<div class="oh-card oh-card--flush oh-only-desktop">
   <% if (workers.length) { %>
-  <table class="oh-table">
+  <table class="oh-people">
     <thead>
       <tr>
-        <th></th><th>Emp ID</th><th>Name</th><th>Designation</th>
-        <th>Site</th><th>Status</th><th>Face</th><th class="oh-col-action">Actions</th>
+        <th class="oh-people__spinecol"></th>
+        <th>Employee</th>
+        <th>Designation</th>
+        <th>Site</th>
+        <th>Status</th>
+        <th>Face</th>
+        <th class="oh-people__actcol"></th>
       </tr>
     </thead>
     <tbody>
-      <% workers.forEach(function (w) { %>
-      <tr>
+      <% workers.forEach(function (w) { var st = STATUS[w.status] || STATUS.inactive; %>
+      <tr style="--spine: <%= st.spine %>">
+        <td class="oh-people__spine"></td>
         <td>
-          <% if (w.photoUrl) { %>
-          <img class="oh-thumb" src="<%= w.photoUrl %>" alt="" />
-          <% } else { %><span class="oh-thumb"></span><% } %>
+          <a class="oh-person" href="/workers/<%= w._id %>">
+            <span class="oh-ava"><% if (w.photoUrl) { %><img src="<%= w.photoUrl %>" alt="" /><% } else { %><%= initials(w.name) %><% } %></span>
+            <span class="oh-person__txt">
+              <span class="oh-person__name"><%= w.name %></span>
+              <span class="oh-person__id"><%= w.empRegNo %></span>
+            </span>
+          </a>
         </td>
-        <td><span class="oh-badge oh-badge--muted"><%= w.empRegNo %></span></td>
-        <td><a href="/workers/<%= w._id %>"><%= w.name %></a></td>
         <td><%= w.designationName %></td>
         <td><%= w.siteName %></td>
-        <td><span class="oh-badge oh-badge--<%= statusBadge[w.status] || 'muted' %>"><%= w.status %></span></td>
+        <td><span class="oh-stat"><span class="oh-stat__dot" style="background: <%= st.dot %>"></span><%= st.label %></span></td>
         <td>
-          <% if (w.hasFace) { %><span class="oh-badge oh-badge--success">Registered</span>
-          <% } else { %><span class="oh-badge oh-badge--warning">Not registered</span><% } %>
+          <% if (w.hasFace) { %><span class="oh-face oh-face--ok"><span class="material-icons">check_circle</span> Registered</span>
+          <% } else { %><a class="oh-face oh-face--pending" href="/workers/<%= w._id %>/face">Pending</a><% } %>
         </td>
-        <td class="oh-col-action">
-          <span class="oh-actions">
+        <td class="oh-people__actcol">
+          <span class="oh-row-actions">
             <a class="oh-icon-btn" href="/workers/<%= w._id %>" title="View"><span class="material-icons">visibility</span></a>
             <a class="oh-icon-btn" href="/workers/<%= w._id %>/edit" title="Edit"><span class="material-icons">edit</span></a>
-            <% if (!w.hasFace) { %>
-            <a class="oh-icon-btn" href="/workers/<%= w._id %>/face" title="Register face"><span class="material-icons">face</span></a>
-            <% } %>
             <% if (can('delete_worker') && w.status !== 'deleted') { %>
             <form method="post" action="/workers/<%= w._id %>/delete" onsubmit="var r=prompt('Reason for deleting this employee?'); if(!r){return false;} this.reason.value=r; return true;">
               <input type="hidden" name="reason" />
@@ -106,9 +128,7 @@
             </form>
             <% } %>
             <% if (can('delete_worker') && w.status === 'deleted') { %>
-            <form method="post" action="/workers/<%= w._id %>/restore">
-              <button class="oh-icon-btn" type="submit" title="Restore"><span class="material-icons">restore_from_trash</span></button>
-            </form>
+            <form method="post" action="/workers/<%= w._id %>/restore"><button class="oh-icon-btn" type="submit" title="Restore"><span class="material-icons">restore_from_trash</span></button></form>
             <% } %>
           </span>
         </td>
@@ -116,8 +136,18 @@
       <% }); %>
     </tbody>
   </table>
+  <% } else if (filtering) { %>
+  <div class="oh-empty">
+    <span class="material-icons">search_off</span>
+    <p>No one matches your filters.</p>
+    <a class="oh-btn oh-btn--small" href="/workers">Clear filters</a>
+  </div>
   <% } else { %>
-  <p class="oh-muted">No employees found. Use the “Add Employee” card to enroll the first.</p>
+  <div class="oh-empty">
+    <span class="material-icons">groups</span>
+    <p>No employees yet.</p>
+    <a class="oh-btn oh-btn--accent" href="/workers/new"><span class="material-icons">add</span> Add your first employee</a>
+  </div>
   <% } %>
 </div>
 

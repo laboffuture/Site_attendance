@@ -85,7 +85,8 @@ async function main(): Promise<void> {
 
   const list0 = await admin.get("/workers");
   assert("admin GET /workers → 200", list0.status === 200);
-  assert("employees landing shows action cards + Add Employee", list0.text.includes("oh-action-card") && list0.text.includes("Add Employee"));
+  assert("employees landing shows the summary strip", list0.text.includes("oh-statstrip"));
+  assert("employees landing has the Add employee action", list0.text.includes("Add employee") && list0.text.includes("/workers/new"));
   assert("employees list has a search box", list0.text.includes('name="q"'));
   const form = await admin.get("/workers/new");
   assert("enroll form lists a seeded site (VBW)", form.text.includes("VBW"));

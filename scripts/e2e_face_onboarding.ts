@@ -54,8 +54,8 @@ async function main(): Promise<void> {
   // Roster shows both as not-registered, with a 0/2 progress count.
   const roster = await sa.get("/workers");
   assert("roster lists the imported workers", roster.text.includes(`QA-FO-A-${S}`) && roster.text.includes(`QA-FO-B-${S}`));
-  assert("roster shows a Not registered badge", roster.text.includes("Not registered"));
-  assert("progress count starts at 0 / 2", roster.text.includes("Face registered: 0 / 2"));
+  assert("roster flags face-pending employees", roster.text.includes("oh-face--pending"));
+  assert("progress shows 2 awaiting a face", /Face pending[^<]*2/.test(roster.text));
 
   // Unregistered filter narrows to the faceless workers.
   const unreg = await sa.get("/workers?face=unregistered");
@@ -74,7 +74,7 @@ async function main(): Promise<void> {
 
   // Progress grows; A drops out of the unregistered filter, B remains.
   const roster2 = await sa.get("/workers");
-  assert("progress count grows to 1 / 2", roster2.text.includes("Face registered: 1 / 2"));
+  assert("progress drops to 1 awaiting a face", /Face pending[^<]*1/.test(roster2.text));
   const unreg2 = await sa.get("/workers?face=unregistered");
   assert("enrolled worker leaves the filter", !unreg2.text.includes(`QA-FO-A-${S}`) && unreg2.text.includes(`QA-FO-B-${S}`));
 

@@ -138,14 +138,22 @@ router.get("/workers", requireCapability("enroll_worker"), async (req: Request, 
   const q = String(req.query.q ?? "").trim();
   // Workers can be assigned to many sites, so scope by `siteIds` overlap.
   const scope = workerScopeFilter(req.currentUser!);
+  const sites = await allowedSites(req.currentUser!);
+  // Optional single-site filter (only a site the user actually has).
+  const reqSiteId = String(req.query.siteId ?? "");
+  const selectedSiteId = reqSiteId && sites.some((s) => String(s._id) === reqSiteId) ? reqSiteId : "";
+
   const listQuery: Record<string, unknown> = { ...scope, status: { $in: STATUS_TABS[tab] } };
   // "faceEncoding.0" exists ⇒ at least one descriptor ⇒ enrolled.
   if (faceFilter === "unregistered") listQuery["faceEncoding.0"] = { $exists: false };
+  if (selectedSiteId) listQuery.siteIds = new Types.ObjectId(selectedSiteId);
   // Free-text search across name + Employee ID (case-insensitive).
   if (q) listQuery.$or = [{ name: new RegExp(escapeRegex(q), "i") }, { empRegNo: new RegExp(escapeRegex(q), "i") }];
-  const [workers, active, pending, archived, faceRegistered] = await Promise.all([
+
+  const [workers, activeTab, activeOnly, pending, archived, faceRegistered] = await Promise.all([
     WorkerModel.find(listQuery).sort({ createdAt: -1 }).lean(),
     WorkerModel.countDocuments({ ...scope, status: { $in: ["active", "inactive"] } }),
+    WorkerModel.countDocuments({ ...scope, status: "active" }),
     WorkerModel.countDocuments({ ...scope, status: "pending" }),
     WorkerModel.countDocuments({ ...scope, status: "deleted" }),
     WorkerModel.countDocuments({ ...scope, status: { $in: ["active", "inactive"] }, "faceEncoding.0": { $exists: true } }),
@@ -164,8 +172,18 @@ router.get("/workers", requireCapability("enroll_worker"), async (req: Request, 
     tab,
     faceFilter,
     q,
-    counts: { active, pending, archived },
-    face: { registered: faceRegistered, total: active },
+    sites,
+    selectedSiteId,
+    counts: { active: activeTab, pending, archived },
+    summary: {
+      total: activeTab + pending,
+      active: activeOnly,
+      pending,
+      faceRegistered,
+      faceTotal: activeTab,
+      facePending: activeTab - faceRegistered,
+    },
+    face: { registered: faceRegistered, total: activeTab },
   });
 });
 
