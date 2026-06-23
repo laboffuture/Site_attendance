@@ -1581,6 +1581,14 @@ tr > .oh-att-row {
 .oh-frow__pair > .oh-input { flex: 1 1 0; min-width: 0; width: auto; }
 .oh-map-tools { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.5rem 0; }
 .oh-map-tools .oh-btn .material-icons { font-size: 1rem; }
+
+/* Role permission matrix (user detail) */
+.oh-perm { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 1rem 1.75rem; }
+.oh-perm__gtitle { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--c-text-muted); margin-bottom: 0.4rem; }
+.oh-perm__row { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; padding: 0.18rem 0; color: var(--c-placeholder); }
+.oh-perm__row .material-icons { font-size: 1.05rem; color: var(--c-border); }
+.oh-perm__row.is-on { color: var(--c-text); }
+.oh-perm__row.is-on .material-icons { color: var(--c-success); }
 @media (max-width: 760px) {
   .oh-frow { grid-template-columns: 1fr; gap: 0.35rem; padding: 0.7rem 0; }
   .oh-frow__label { padding-top: 0; }

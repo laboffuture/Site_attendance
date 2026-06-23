@@ -1,0 +1,66 @@
+<%- include('../partials/app-top', { title: title, active: active }) %>
+<%
+  function initials(n) { return (n || '?').split(' ').filter(Boolean).map(function (x) { return x[0]; }).slice(0, 2).join('').toUpperCase(); }
+  var allSites = user.role === 'management' || user.role === 'hr';
+%>
+<div class="oh-detail-topbar">
+  <%- include('../partials/breadcrumb', { back: '/users', trail: [ { label: 'Users & Roles', href: '/users' }, { label: 'View User' } ] }) %>
+  <div class="oh-actions">
+    <a class="oh-btn oh-btn--small oh-btn--secondary" href="/users/<%= user._id %>/edit"><span class="material-icons">edit</span> Edit</a>
+    <% if (!isSelf) { %>
+    <form method="post" action="/users/<%= user._id %>/toggle" style="margin:0"><button class="oh-btn oh-btn--small" type="submit"><%= user.active ? 'Deactivate' : 'Activate' %></button></form>
+    <% } %>
+  </div>
+</div>
+
+<div class="oh-card oh-form-card oh-form-card--wide">
+  <div class="oh-detail-head">
+    <span class="oh-detail-head__photo oh-detail-head__photo--ph"><%= initials(user.name) %></span>
+    <div>
+      <h2 class="oh-detail-head__name"><%= user.name %><%= isSelf ? ' · you' : '' %></h2>
+      <div class="oh-detail-head__meta">
+        <span class="oh-badge oh-badge--secondary"><%= roleLabel(user.role) %></span>
+        <span class="oh-stat"><span class="oh-stat__dot" style="background: <%= user.active ? 'var(--c-success)' : 'var(--c-text-muted)' %>"></span><%= user.active ? 'Active' : 'Inactive' %></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="oh-kv-section">
+    <h3 class="oh-kv-section__title">Account</h3>
+    <div class="oh-kv">
+      <div class="oh-kv__label">Email</div><div class="oh-kv__value"><%= user.email %></div>
+      <div class="oh-kv__label">Phone</div><div class="oh-kv__value"><%= user.phone || '—' %></div>
+      <div class="oh-kv__label">Role</div><div class="oh-kv__value"><%= roleLabel(user.role) %></div>
+      <div class="oh-kv__label">App access</div><div class="oh-kv__value"><%= user.active ? 'Enabled' : 'Disabled' %></div>
+    </div>
+  </div>
+
+  <div class="oh-kv-section">
+    <h3 class="oh-kv-section__title">Site scope</h3>
+    <div class="oh-kv">
+      <div class="oh-kv__label">Sites</div>
+      <div class="oh-kv__value">
+        <% if (allSites) { %>All sites<% } else if (siteList.length) { %><%= siteList.join(', ') %><% } else { %><span class="oh-muted">none assigned</span><% } %>
+      </div>
+    </div>
+  </div>
+
+  <div class="oh-kv-section">
+    <h3 class="oh-kv-section__title">Role permissions</h3>
+    <div class="oh-perm">
+      <% permissions.forEach(function (g) { %>
+      <div class="oh-perm__group">
+        <div class="oh-perm__gtitle"><%= g.group %></div>
+        <% g.caps.forEach(function (c) { %>
+        <div class="oh-perm__row <%= c.granted ? 'is-on' : '' %>">
+          <span class="material-icons"><%= c.granted ? 'check_circle' : 'remove' %></span>
+          <span><%= c.label %></span>
+        </div>
+        <% }); %>
+      </div>
+      <% }); %>
+    </div>
+  </div>
+</div>
+
+<%- include('../partials/app-bottom') %>

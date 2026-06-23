@@ -1,81 +1,95 @@
 <%- include('../partials/app-top', { title: title, active: active }) %>
-
+<%
+  function initials(n) { return (n || '?').split(' ').filter(Boolean).map(function (x) { return x[0]; }).slice(0, 2).join('').toUpperCase(); }
+  function scopeText(u) {
+    if (u.role === 'management' || u.role === 'hr') return 'All sites';
+    if (u.assignedSiteIds && u.assignedSiteIds.length) return u.assignedSiteIds.map(function (id) { return siteNameById.get(String(id)) || '?'; }).join(', ');
+    return 'none';
+  }
+  var filtering = q || selectedRole;
+%>
 <div class="oh-page-header oh-page-header--row">
   <div>
     <h1 class="oh-page-title">Users &amp; Roles</h1>
-    <p class="oh-page-subtitle">Staff accounts (<%= users.length %>). Workers are not users and never log in.</p>
+    <p class="oh-page-subtitle">Staff accounts with login access. Employees are not users — they never log in.</p>
   </div>
-  <a class="oh-btn oh-btn--secondary oh-only-desktop" href="/users/new"><span class="material-icons">person_add</span> Add user</a>
+  <a class="oh-btn oh-btn--accent oh-only-desktop" href="/users/new"><span class="material-icons">add</span> Add user</a>
 </div>
 
-<!-- mobile: user cards -->
+<div class="oh-statstrip">
+  <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= summary.total %></span><span class="oh-statstrip__label">Total</span></div>
+  <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= summary.active %></span><span class="oh-statstrip__label">Active</span></div>
+  <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= summary.inactive %></span><span class="oh-statstrip__label">Inactive</span></div>
+  <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= summary.pms %></span><span class="oh-statstrip__label">PMs</span></div>
+  <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= summary.supervisors %></span><span class="oh-statstrip__label">Supervisors</span></div>
+</div>
+
+<form class="oh-emp-toolbar" method="get" action="/users">
+  <label class="oh-search oh-search--lg"><span class="material-icons">search</span><input type="text" name="q" value="<%= q %>" placeholder="Search by name or email" aria-label="Search users" /></label>
+  <% if (roles.length > 1) { %>
+  <select class="oh-select oh-select--compact" name="role" onchange="this.form.submit()" aria-label="Filter by role">
+    <option value="">All roles</option>
+    <% roles.forEach(function (rn) { %><option value="<%= rn %>" <%= selectedRole === rn ? 'selected' : '' %>><%= roleLabel(rn) %></option><% }); %>
+  </select>
+  <% } %>
+  <button class="oh-btn oh-btn--small" type="submit">Search</button>
+</form>
+
+<!-- mobile -->
 <div class="oh-only-mobile">
   <% if (users.length) { %>
-  <div class="oh-m-section oh-m-list">
-    <% users.forEach(function (u) {
-      var sites = (u.role === "management" || u.role === "hr") ? "All sites"
-        : (u.assignedSiteIds && u.assignedSiteIds.length
-          ? u.assignedSiteIds.map(function (id) { return siteNameById.get(String(id)) || "?"; }).join(", ") : "none");
-    %>
-    <div class="oh-m-card">
-      <div class="oh-m-row" style="justify-content:space-between;">
-        <span class="oh-m-name"><%= u.name %><%= String(u._id) === selfId ? " (you)" : "" %></span>
-        <span class="oh-m-badge oh-badge--muted"><%= roleLabel(u.role) %></span>
-      </div>
-      <div class="oh-m-sub"><%= u.email %></div>
-      <% if (u.phone) { %><div class="oh-m-sub" style="display:flex;align-items:center;gap:5px;"><span class="material-icons" style="font-size:14px;">call</span><%= u.phone %></div><% } %>
-      <div class="oh-m-sub" style="display:flex;align-items:center;gap:5px;"><span class="material-icons" style="font-size:14px;">place</span><%= sites %></div>
-      <div class="oh-m-actions" style="margin-top:0.7rem;">
-        <a class="oh-btn oh-btn--small" href="/users/<%= u._id %>/edit">Edit</a>
-        <% if (String(u._id) !== selfId) { %>
-        <form method="post" action="/users/<%= u._id %>/toggle">
-          <button class="oh-btn oh-btn--small w-100" type="submit"><%= u.active ? "Deactivate" : "Activate" %></button>
-        </form>
-        <% } %>
-        <span class="oh-m-badge oh-badge--<%= u.active ? 'success' : 'muted' %>" style="align-self:center;"><%= u.active ? "active" : "inactive" %></span>
-      </div>
-    </div>
+  <div class="oh-m-section"><div class="oh-m-list">
+    <% users.forEach(function (u) { %>
+    <a class="oh-m-card oh-m-row oh-m-link" href="/users/<%= u._id %>" style="--spine: <%= u.active ? 'var(--c-accent)' : 'var(--c-border)' %>">
+      <span class="oh-ava"><%= initials(u.name) %></span>
+      <span class="oh-m-grow">
+        <span class="oh-m-name"><%= u.name %><%= String(u._id) === selfId ? ' (you)' : '' %></span>
+        <span class="oh-m-sub"><%= u.email %> &middot; <%= roleLabel(u.role) %></span>
+      </span>
+      <span class="oh-stat"><span class="oh-stat__dot" style="background: <%= u.active ? 'var(--c-success)' : 'var(--c-text-muted)' %>"></span></span>
+    </a>
     <% }); %>
-  </div>
-  <a class="oh-m-fab" href="/users/new"><span class="material-icons">person_add</span> Add user</a>
-  <% } else { %>
-  <div class="oh-m-section"><p class="oh-muted">No users yet.</p></div>
-  <% } %>
+  </div></div>
+  <% } else { %><div class="oh-m-section"><p class="oh-muted"><%= filtering ? 'No users match.' : 'No users yet.' %></p></div><% } %>
+  <a class="oh-m-fab" href="/users/new"><span class="material-icons">add</span> Add user</a>
 </div>
 
-<div class="oh-card oh-only-desktop">
+<!-- desktop ledger -->
+<div class="oh-card oh-card--flush oh-only-desktop">
   <% if (users.length) { %>
-  <table class="oh-table">
-    <thead>
-      <tr><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>Sites</th><th>Status</th><th class="oh-col-action"></th></tr>
-    </thead>
+  <table class="oh-people">
+    <thead><tr><th class="oh-people__spinecol"></th><th>User</th><th>Role</th><th>Scope</th><th>Status</th><th class="oh-people__actcol"></th></tr></thead>
     <tbody>
-      <% users.forEach(function (u) { %>
-      <tr>
-        <td><%= u.name %><%= String(u._id) === selfId ? " (you)" : "" %></td>
-        <td><%= u.email %></td>
-        <td><%= u.phone || "—" %></td>
-        <td><span class="oh-badge oh-badge--muted"><%= roleLabel(u.role) %></span></td>
+      <% users.forEach(function (u) { var self = String(u._id) === selfId; %>
+      <tr style="--spine: <%= u.active ? 'var(--c-accent)' : 'var(--c-border)' %>">
+        <td class="oh-people__spine"></td>
         <td>
-          <% if (u.role === "management" || u.role === "hr") { %>All sites<% } else if (u.assignedSiteIds && u.assignedSiteIds.length) { %>
-          <%= u.assignedSiteIds.map(function (id) { return siteNameById.get(String(id)) || "?"; }).join(", ") %>
-          <% } else { %><span class="oh-muted">none</span><% } %>
+          <a class="oh-person" href="/users/<%= u._id %>">
+            <span class="oh-ava"><%= initials(u.name) %></span>
+            <span class="oh-person__txt">
+              <span class="oh-person__name"><%= u.name %><%= self ? ' · you' : '' %></span>
+              <span class="oh-person__id" style="font-variant-numeric:normal"><%= u.email %></span>
+            </span>
+          </a>
         </td>
-        <td><span class="oh-badge oh-badge--<%= u.active ? 'success' : 'muted' %>"><%= u.active ? "active" : "inactive" %></span></td>
-        <td class="oh-col-action">
-          <a class="oh-btn oh-btn--small" href="/users/<%= u._id %>/edit">Edit</a>
-          <% if (String(u._id) !== selfId) { %>
-          <form method="post" action="/users/<%= u._id %>/toggle" style="display:inline;margin:0">
-            <button class="oh-btn oh-btn--small" type="submit"><%= u.active ? "Deactivate" : "Activate" %></button>
-          </form>
+        <td><span class="oh-badge oh-badge--muted"><%= roleLabel(u.role) %></span></td>
+        <td><% if (scopeText(u) === 'none') { %><span class="oh-muted">none</span><% } else { %><%= scopeText(u) %><% } %></td>
+        <td><span class="oh-stat"><span class="oh-stat__dot" style="background: <%= u.active ? 'var(--c-success)' : 'var(--c-text-muted)' %>"></span><%= u.active ? 'Active' : 'Inactive' %></span></td>
+        <td class="oh-people__actcol"><span class="oh-row-actions">
+          <a class="oh-icon-btn" href="/users/<%= u._id %>" title="View"><span class="material-icons">visibility</span></a>
+          <a class="oh-icon-btn" href="/users/<%= u._id %>/edit" title="Edit"><span class="material-icons">edit</span></a>
+          <% if (!self) { %>
+          <form method="post" action="/users/<%= u._id %>/toggle"><button class="oh-icon-btn" type="submit" title="<%= u.active ? 'Deactivate' : 'Activate' %>"><span class="material-icons"><%= u.active ? 'toggle_on' : 'toggle_off' %></span></button></form>
           <% } %>
-        </td>
+        </span></td>
       </tr>
       <% }); %>
     </tbody>
   </table>
+  <% } else if (filtering) { %>
+  <div class="oh-empty"><span class="material-icons">search_off</span><p>No users match your filters.</p><a class="oh-btn oh-btn--small" href="/users">Clear filters</a></div>
   <% } else { %>
-  <p class="oh-muted">No users yet.</p>
+  <div class="oh-empty"><span class="material-icons">group</span><p>No users yet.</p><a class="oh-btn oh-btn--accent" href="/users/new"><span class="material-icons">add</span> Add your first user</a></div>
   <% } %>
 </div>
 

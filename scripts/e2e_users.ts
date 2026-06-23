@@ -53,7 +53,12 @@ async function main(): Promise<void> {
   const hr = await UserModel.findOne({ email: HR });
   assert("HR created with no sites (all)", !!hr && hr.role === "hr" && hr.assignedSiteIds.length === 0);
   assert("phone stored on create", hr?.phone === "+1 555 0100");
-  assert("phone shown in the list", (await admin.get("/users")).text.includes("+1 555 0100"));
+  const hrView = await admin.get(`/users/${hr!._id}`);
+  assert("user detail page → 200", hrView.status === 200);
+  assert("detail shows email + phone", hrView.text.includes(HR) && hrView.text.includes("+1 555 0100"));
+  assert("detail shows the role-permission matrix", hrView.text.includes("Role permissions") && hrView.text.includes("oh-perm"));
+  const usersList = await admin.get("/users");
+  assert("users ledger has summary strip + search", usersList.text.includes("oh-statstrip") && usersList.text.includes('name="q"'));
   // Edit can change the phone.
   await admin.post(`/users/${hr!._id}`).type("form").send({ name: "QA HR", email: HR, role: "hr", phone: "555 0199" });
   assert("phone updated on edit", (await UserModel.findById(hr!._id))?.phone === "555 0199");
