@@ -1,9 +1,15 @@
 <%- include('../partials/app-top', { title: title, active: active }) %>
 <%
   function ts(d) { return d ? new Date(d).toLocaleString("en-GB", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" }) : ""; }
+  var dot = { pending: "var(--c-warning)", recommended: "var(--c-accent)", approved: "var(--c-success)", rejected: "var(--c-danger)" };
   var statusBadge = { pending: "warning", recommended: "info", approved: "success", rejected: "danger" };
   var typeLabel = { scheduled_ot: "Scheduled OT", offload: "Offload" };
-  var tabs = [["pending","Pending"],["recommended","Recommended"],["decided","Decided"],["all","All"]];
+  var bands = [
+    { key: "pending", label: "Pending", n: counts.pending, cls: "oh-qband__item--warn" },
+    { key: "recommended", label: "Recommended", n: counts.recommended, cls: "" },
+    { key: "decided", label: "Decided", n: counts.decided, cls: "oh-qband__item--ok" },
+    { key: "all", label: "All", n: counts.pending + counts.recommended + counts.decided, cls: "" },
+  ];
 %>
 
 <div class="oh-page-header oh-page-header--row">
@@ -11,26 +17,26 @@
     <h1 class="oh-page-title">Requests</h1>
     <p class="oh-page-subtitle">Scheduled overtime &amp; offload suggestions. PM recommends → admin approves. Requests can't be withdrawn.</p>
   </div>
-  <div class="oh-form-actions oh-only-desktop">
-    <a class="oh-btn oh-btn--secondary" href="/requests/new?type=scheduled_ot">Request OT</a>
-    <a class="oh-btn oh-btn--small" href="/requests/new?type=offload">Suggest offload</a>
-  </div>
+  <% if (canCreate) { %><a class="oh-btn oh-btn--accent oh-only-desktop" href="/requests/new"><span class="material-icons">add</span> New request</a><% } %>
 </div>
 
-<div class="oh-filter-tabs">
-  <% tabs.forEach(function (t) { %>
-  <a class="oh-filter-tab <%= tab === t[0] ? 'oh-filter-tab--active' : '' %>" href="/requests?tab=<%= t[0] %>"><%= t[1] %></a>
+<div class="oh-qband">
+  <% bands.forEach(function (b) { %>
+  <a class="oh-qband__item <%= b.cls %> <%= tab === b.key ? 'is-active' : '' %>" href="/requests?tab=<%= b.key %>">
+    <span class="oh-qband__num"><%= b.n %></span>
+    <span class="oh-qband__label"><%= b.label %></span>
+  </a>
   <% }); %>
 </div>
 
 <% if (!requests.length) { %>
-<div class="oh-card"><p class="oh-muted">No <%= tab === "all" ? "" : tab %> requests.</p></div>
+<div class="oh-empty"><span class="material-icons">assignment</span><p>No <%= tab === "all" ? "" : tab %> requests.</p></div>
 <% } else { %>
 
 <!-- mobile cards -->
 <div class="oh-only-mobile oh-m-list">
   <% requests.forEach(function (r) { %>
-  <div class="oh-m-card">
+  <div class="oh-m-card" style="border-left:3px solid <%= dot[r.status] || 'var(--c-border)' %>">
     <div class="oh-m-row" style="justify-content:space-between;">
       <span class="oh-m-badge oh-badge--muted"><%= typeLabel[r.type] || r.type %></span>
       <span class="oh-m-badge oh-badge--<%= statusBadge[r.status] %>"><%= r.status %></span>
@@ -44,26 +50,25 @@
   <% }); %>
 </div>
 
-<!-- desktop table -->
-<div class="oh-card oh-only-desktop">
-  <table class="oh-table">
-    <thead>
-      <tr><th>Type</th><th>Worker</th><th>Site</th><th>Details</th><th>Requested by</th><th>Status</th><th class="oh-col-action">Action</th></tr>
-    </thead>
+<!-- desktop ledger -->
+<div class="oh-card oh-card--flush oh-only-desktop">
+  <table class="oh-people">
+    <thead><tr><th class="oh-people__spinecol"></th><th>Type</th><th>Worker</th><th>Site</th><th>Details</th><th>Requested by</th><th>Status</th><th class="oh-people__actcol">Action</th></tr></thead>
     <tbody>
       <% requests.forEach(function (r) { %>
-      <tr>
+      <tr style="--spine: <%= dot[r.status] || 'var(--c-border)' %>">
+        <td class="oh-people__spine"></td>
         <td><span class="oh-badge oh-badge--muted"><%= typeLabel[r.type] || r.type %></span></td>
-        <td><%= r.workerName %><br /><span class="oh-muted"><%= r.empRegNo %></span></td>
+        <td><span class="oh-person__txt"><span class="oh-person__name"><%= r.workerName %></span><span class="oh-person__id"><%= r.empRegNo %></span></span></td>
         <td><%= r.siteName %></td>
         <td>
           <% if (r.type === "scheduled_ot") { %><%= r.date %> · <%= r.fromTime %>–<%= r.toTime %> (<%= r.hours %>h)<% } else { %>—<% } %>
-          <% if (r.requesterRemarks) { %><br /><span class="oh-muted">“<%= r.requesterRemarks %>”</span><% } %>
-          <% if (r.recommendedByName) { %><br /><span class="oh-muted">rec. by <%= r.recommendedByName %></span><% } %>
+          <% if (r.requesterRemarks) { %><div class="oh-muted" style="font-size:0.78rem">“<%= r.requesterRemarks %>”</div><% } %>
+          <% if (r.recommendedByName) { %><div class="oh-muted" style="font-size:0.78rem">rec. by <%= r.recommendedByName %></div><% } %>
         </td>
-        <td><%= r.requestedByName %><br /><span class="oh-muted"><%= ts(r.requestedAt) %></span></td>
-        <td><span class="oh-badge oh-badge--<%= statusBadge[r.status] %>"><%= r.status %></span></td>
-        <td class="oh-col-action"><%- include('actions', { r: r, canRecommend: canRecommend, canDecide: canDecide }) %></td>
+        <td><%= r.requestedByName %><div class="oh-muted" style="font-size:0.78rem"><%= ts(r.requestedAt) %></div></td>
+        <td><span class="oh-stat"><span class="oh-stat__dot" style="background: <%= dot[r.status] || 'var(--c-text-muted)' %>"></span><%= r.status %></span></td>
+        <td class="oh-people__actcol"><%- include('actions', { r: r, canRecommend: canRecommend, canDecide: canDecide }) %></td>
       </tr>
       <% }); %>
     </tbody>

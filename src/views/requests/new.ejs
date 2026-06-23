@@ -1,6 +1,6 @@
 <%- include('../partials/app-top', { title: title, active: active }) %>
 <% var isOt = type === "scheduled_ot"; %>
-
+<%- include('../partials/breadcrumb', { back: '/requests', trail: [ { label: 'Requests', href: '/requests' }, { label: isOt ? 'Request OT' : 'Suggest offload' } ] }) %>
 <div class="oh-page-header">
   <h1 class="oh-page-title"><%= isOt ? "Request scheduled overtime" : "Suggest offload" %></h1>
   <p class="oh-page-subtitle">
@@ -8,60 +8,65 @@
   </p>
 </div>
 
-<div class="oh-card oh-form-card">
-  <% if (!workers.length) { %>
-  <p class="oh-muted">No active workers at your sites to raise a request for.</p>
-  <% } else { %>
-  <form class="oh-form-group" method="post" action="/requests">
-    <input type="hidden" name="type" value="<%= type %>" />
+<% if (!workers.length) { %>
+<div class="oh-card oh-form-card"><p class="oh-muted">No active workers at your sites to raise a request for.</p></div>
+<% } else { %>
+<form method="post" action="/requests">
+  <input type="hidden" name="type" value="<%= type %>" />
+  <div class="oh-card oh-form-card oh-form-card--full">
 
     <% if (typeof canRequestOt === 'undefined' || canRequestOt) { %>
-    <div class="oh-tabs-switch">
-      <a class="oh-btn oh-btn--small <%= isOt ? 'oh-btn--secondary' : '' %>" href="/requests/new?type=scheduled_ot">Scheduled OT</a>
-      <a class="oh-btn oh-btn--small <%= !isOt ? 'oh-btn--secondary' : '' %>" href="/requests/new?type=offload">Offload</a>
-    </div>
-    <% } %>
-
-    <div class="oh-input-group">
-      <label class="oh-label" for="workerId">Worker</label>
-      <select class="oh-select" id="workerId" name="workerId" required>
-        <% workers.forEach(function (w) { %>
-        <option value="<%= w._id %>"><%= w.name %> (<%= w.empRegNo %>) · <%= w.siteName %></option>
-        <% }); %>
-      </select>
-    </div>
-
-    <% if (isOt) { %>
-    <div class="oh-row-2">
-      <div class="oh-input-group">
-        <label class="oh-label" for="date">Date</label>
-        <input class="oh-input" id="date" type="date" name="date" required />
-      </div>
-      <div class="oh-input-group"></div>
-    </div>
-    <div class="oh-row-2">
-      <div class="oh-input-group">
-        <label class="oh-label" for="fromTime">From</label>
-        <input class="oh-input" id="fromTime" type="time" name="fromTime" required />
-      </div>
-      <div class="oh-input-group">
-        <label class="oh-label" for="toTime">To</label>
-        <input class="oh-input" id="toTime" type="time" name="toTime" required />
+    <div class="oh-form-section">
+      <h3 class="oh-kv-section__title">Request type</h3>
+      <div class="oh-frow">
+        <label class="oh-frow__label">Type</label>
+        <div class="oh-frow__field">
+          <div class="oh-segment">
+            <a class="oh-segment__btn <%= isOt ? 'is-active' : '' %>" href="/requests/new?type=scheduled_ot">Scheduled OT</a>
+            <a class="oh-segment__btn <%= !isOt ? 'is-active' : '' %>" href="/requests/new?type=offload">Offload</a>
+          </div>
+        </div>
       </div>
     </div>
     <% } %>
 
-    <div class="oh-input-group">
-      <label class="oh-label" for="requesterRemarks">Remarks <%= isOt ? "(optional)" : "(required — reason)" %></label>
-      <textarea class="oh-input" id="requesterRemarks" name="requesterRemarks" rows="3" <%= isOt ? "" : "required" %>></textarea>
+    <div class="oh-form-section">
+      <h3 class="oh-kv-section__title">Details</h3>
+      <div class="oh-frow">
+        <label class="oh-frow__label" for="workerId">Worker</label>
+        <div class="oh-frow__field">
+          <select class="oh-select" id="workerId" name="workerId" required>
+            <% workers.forEach(function (w) { %><option value="<%= w._id %>"><%= w.name %> (<%= w.empRegNo %>) · <%= w.siteName %></option><% }); %>
+          </select>
+        </div>
+      </div>
+
+      <% if (isOt) { %>
+      <div class="oh-frow">
+        <label class="oh-frow__label" for="date">Date</label>
+        <div class="oh-frow__field"><input class="oh-input" id="date" type="date" name="date" required style="max-width:220px" /></div>
+      </div>
+      <div class="oh-frow">
+        <label class="oh-frow__label">Time</label>
+        <div class="oh-frow__field oh-frow__pair" style="max-width:320px">
+          <input class="oh-input" id="fromTime" type="time" name="fromTime" aria-label="From" required />
+          <input class="oh-input" id="toTime" type="time" name="toTime" aria-label="To" required />
+        </div>
+      </div>
+      <% } %>
+
+      <div class="oh-frow">
+        <label class="oh-frow__label" for="requesterRemarks">Remarks <span class="oh-muted"><%= isOt ? "(optional)" : "(required — reason)" %></span></label>
+        <div class="oh-frow__field"><textarea class="oh-input" id="requesterRemarks" name="requesterRemarks" rows="3" <%= isOt ? "" : "required" %>></textarea></div>
+      </div>
     </div>
 
     <div class="oh-form-actions">
       <a class="oh-btn oh-btn--small" href="/requests">Cancel</a>
-      <button class="oh-btn oh-btn--secondary" type="submit">Submit request</button>
+      <button class="oh-btn oh-btn--accent" type="submit">Submit request</button>
     </div>
-  </form>
-  <% } %>
-</div>
+  </div>
+</form>
+<% } %>
 
 <%- include('../partials/app-bottom') %>

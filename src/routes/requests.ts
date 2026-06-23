@@ -31,18 +31,32 @@ router.get("/requests", requireCapability("view_requests"), async (req: Request,
   const u = req.currentUser!;
   const tab = (TABS as readonly string[]).includes(String(req.query.tab)) ? String(req.query.tab) : "pending";
 
-  const query: Record<string, unknown> = { ...siteScopeFilter(u) };
+  const scope = siteScopeFilter(u);
+  const query: Record<string, unknown> = { ...scope };
   if (tab === "pending") query.status = "pending";
   else if (tab === "recommended") query.status = "recommended";
   else if (tab === "decided") query.status = { $in: ["approved", "rejected"] };
 
-  const requests = await RequestModel.find(query).sort({ createdAt: -1 }).limit(500).lean();
+  const [requests, countAgg] = await Promise.all([
+    RequestModel.find(query).sort({ createdAt: -1 }).limit(500).lean(),
+    RequestModel.aggregate([
+      { $match: { ...scope, status: { $in: ["pending", "recommended", "approved", "rejected"] } } },
+      { $group: { _id: "$status", n: { $sum: 1 } } },
+    ]),
+  ]);
+  const byStatus = new Map<string, number>(countAgg.map((c) => [c._id as string, c.n as number]));
 
   res.render("requests/index", {
     title: "Requests · " + res.locals.company,
     active: "/requests",
     requests,
     tab,
+    counts: {
+      pending: byStatus.get("pending") ?? 0,
+      recommended: byStatus.get("recommended") ?? 0,
+      decided: (byStatus.get("approved") ?? 0) + (byStatus.get("rejected") ?? 0),
+    },
+    canCreate: can(u.role, "create_request"),
     canRecommend: can(u.role, "recommend_request"),
     canDecide: can(u.role, "decide_request"),
   });
