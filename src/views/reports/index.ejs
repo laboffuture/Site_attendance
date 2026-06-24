@@ -7,22 +7,29 @@
   </div>
 </div>
 
-<div class="oh-action-cards">
+<div class="oh-report-grid">
   <% reports.forEach(function (r) { %>
-  <a class="oh-action-card" href="<%= r.href %>">
-    <span class="oh-action-card__icon material-icons"><%= r.icon %></span>
-    <span class="oh-action-card__text">
-      <span class="oh-action-card__title"><%= r.title %></span>
-      <span class="oh-action-card__desc"><%= r.desc %></span>
-    </span>
+  <a class="oh-report-card" href="<%= r.href %>">
+    <div class="oh-report-card__top">
+      <span class="oh-report-card__icon material-icons"><%= r.icon %></span>
+      <span class="oh-report-card__title"><%= r.title %></span>
+    </div>
+    <div class="oh-report-card__metric"><%= r.metric %> <small><%= r.unit %></small></div>
+    <div class="oh-report-card__sub"><%= r.sub %></div>
+    <div class="oh-report-card__desc"><%= r.desc %></div>
+    <span class="oh-report-card__cta">Open report <span class="material-icons">arrow_forward</span></span>
   </a>
   <% }); %>
-  <div class="oh-action-card is-soon" aria-disabled="true">
-    <span class="oh-action-card__icon material-icons">inventory_2</span>
-    <span class="oh-action-card__text">
-      <span class="oh-action-card__title">Asset &amp; Allocation reports <span class="oh-badge oh-badge--muted">soon</span></span>
-      <span class="oh-action-card__desc">Arrive with the Assets / Manpower-allocation modules.</span>
-    </span>
+
+  <div class="oh-report-card is-soon" aria-disabled="true">
+    <div class="oh-report-card__top">
+      <span class="oh-report-card__icon material-icons">inventory_2</span>
+      <span class="oh-report-card__title">Asset &amp; Allocation</span>
+    </div>
+    <div class="oh-report-card__metric">—</div>
+    <div class="oh-report-card__sub">Arrives with the Assets / Manpower-allocation modules</div>
+    <div class="oh-report-card__desc">Asset registers and resource-allocation reports.</div>
+    <span class="oh-report-card__cta"><span class="oh-badge oh-badge--muted">Coming soon</span></span>
   </div>
 </div>
 

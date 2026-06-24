@@ -1475,6 +1475,34 @@ tr > .oh-att-row {
 }
 .oh-action-card:hover { border-color: var(--c-accent); box-shadow: var(--shadow-card); }
 .oh-action-card.is-soon { opacity: 0.6; pointer-events: none; }
+
+/* Reports hub — live status tiles (a metric per report, not a link list) */
+.oh-report-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 1rem; }
+.oh-report-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 1.25rem;
+  min-height: 196px;
+  border: 1px solid var(--c-border);
+  border-top: 3px solid var(--c-accent);
+  background: var(--c-surface);
+  text-decoration: none;
+  color: var(--c-text);
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+.oh-report-card:hover { box-shadow: var(--shadow-card); border-color: var(--c-accent); }
+.oh-report-card__top { display: flex; align-items: center; gap: 0.6rem; }
+.oh-report-card__icon { width: 34px; height: 34px; flex: 0 0 34px; display: inline-grid; place-items: center; background: var(--c-border-light); color: var(--c-accent-dark); font-size: 1.2rem; }
+.oh-report-card__title { font-weight: 600; font-size: 0.95rem; }
+.oh-report-card__metric { font-size: 1.9rem; font-weight: 700; line-height: 1.05; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; margin-top: 0.2rem; }
+.oh-report-card__metric small { font-size: 0.8rem; font-weight: 500; color: var(--c-text-muted); letter-spacing: 0; }
+.oh-report-card__sub { font-size: 0.82rem; color: var(--c-text-muted); }
+.oh-report-card__desc { font-size: 0.78rem; color: var(--c-text-muted); margin-top: auto; padding-top: 0.5rem; }
+.oh-report-card__cta { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.82rem; font-weight: 600; color: var(--c-accent); }
+.oh-report-card__cta .material-icons { font-size: 1rem; }
+.oh-report-card.is-soon { border-top-color: var(--c-border); opacity: 0.7; pointer-events: none; }
+.oh-report-card.is-soon .oh-report-card__metric { color: var(--c-border); }
 .oh-action-card__icon {
   display: inline-grid;
   place-items: center;

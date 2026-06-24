@@ -6,7 +6,7 @@ import { config } from "../config";
 import { buildXlsxBuffer, streamPdf } from "../lib/exporters";
 import { parseReportFilters, buildAttendanceQuery, groupByBranchSite, hoursBreakdown } from "../lib/report";
 import { siteScopeFilter, canUseSite, workerScopeFilter } from "../lib/scope";
-import { round2 } from "../lib/time";
+import { round2, siteLocalDate } from "../lib/time";
 import { AttendanceModel } from "../models/Attendance";
 import { BranchModel } from "../models/Branch";
 import { DesignationModel } from "../models/Designation";
@@ -31,14 +31,39 @@ function capNote(matched: number): string | undefined {
 }
 
 // ============================ Reports hub ============================
-router.get("/reports", requireCapability("view_dashboard"), async (_req: Request, res: Response) => {
+router.get("/reports", requireCapability("view_dashboard"), async (req: Request, res: Response) => {
+  // Live headline metric per report card — cheap, scoped counts so the hub
+  // reads as a status board, not a link list.
+  const u = req.currentUser!;
+  const aScope = siteScopeFilter(u);
+  const wScope = workerScopeFilter(u);
+  const today = siteLocalDate();
+  const monthStart = today.slice(0, 8) + "01";
+  const [attMonth, attToday, activeWorkers, facesReg, facesTotal, otAgg] = await Promise.all([
+    AttendanceModel.countDocuments({ ...aScope, date: { $gte: monthStart } }),
+    AttendanceModel.countDocuments({ ...aScope, date: today }),
+    WorkerModel.countDocuments({ ...wScope, status: "active" }),
+    WorkerModel.countDocuments({ ...wScope, status: { $in: ["active", "inactive"] }, "faceEncoding.0": { $exists: true } }),
+    WorkerModel.countDocuments({ ...wScope, status: { $in: ["active", "inactive"] } }),
+    AttendanceModel.aggregate([
+      { $match: { ...aScope, "overtime.status": "pending" } },
+      { $group: { _id: null, hours: { $sum: "$overtime.computedHours" }, n: { $sum: 1 } } },
+    ]),
+  ]);
+  const ot = otAgg[0] ?? { hours: 0, n: 0 };
   res.render("reports/index", {
     title: "Reports · " + res.locals.company,
     active: "/reports",
     reports: [
-      { href: "/reports/attendance", icon: "fact_check", title: "Attendance report", desc: "Daily attendance, hours & overtime by branch → site, with Excel / PDF export." },
-      { href: "/reports/employees", icon: "groups", title: "Employee report", desc: "Workforce headcount by designation & site, face enrolment, with CSV export." },
-      { href: "/reports/overtime", icon: "more_time", title: "Overtime report", desc: "Overtime hours and ₹ cost by site — pending vs approved." },
+      { href: "/reports/attendance", icon: "fact_check", title: "Attendance report",
+        metric: attMonth.toLocaleString("en-IN"), unit: "records this month", sub: attToday.toLocaleString("en-IN") + " logged today",
+        desc: "Daily attendance, hours & overtime by branch → site." },
+      { href: "/reports/employees", icon: "groups", title: "Employee report",
+        metric: activeWorkers.toLocaleString("en-IN"), unit: "active employees", sub: facesReg + " / " + facesTotal + " faces enrolled",
+        desc: "Headcount by designation & site, with CSV export." },
+      { href: "/reports/overtime", icon: "more_time", title: "Overtime report",
+        metric: round2(ot.hours).toLocaleString("en-IN"), unit: "OT hrs pending", sub: ot.n.toLocaleString("en-IN") + " records awaiting approval",
+        desc: "OT hours & ₹ cost by site — pending vs approved." },
     ],
   });
 });
