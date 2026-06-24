@@ -11,9 +11,12 @@
   var camNote = document.getElementById("camNote");
   var geoNote = document.getElementById("geoNote");
   var siteSelect = document.getElementById("siteSelect");
+  var autoToggle = document.getElementById("autoToggle");
   if (!scanBtn) return; // no sites assigned
 
   var lastGeo = null; // most recent fix, reused by the scan post
+  var geoOk = false;  // is the picked site allowed right now (geofence)?
+  function autoOn() { return autoToggle ? autoToggle.getAttribute("data-on") === "1" : true; }
 
   function show(cls, text) {
     result.className = "oh-result oh-result--" + cls;
@@ -55,10 +58,12 @@
   // Geofence-first: verify the device is inside the picked site before allowing a scan.
   function verifyLocation() {
     lastGeo = null;
+    geoOk = false;
     if (!fenced()) {
+      geoOk = true;
       setGeo("", null);
       scanBtn.disabled = false;
-      show("idle", "Face the camera and tap Scan.");
+      show("idle", autoOn() ? "Step up and face the camera — auto-scan is on." : "Face the camera and tap Scan.");
       return;
     }
     scanBtn.disabled = true;
@@ -75,9 +80,10 @@
       }).then(function (r) { return r.json(); });
     }).then(function (d) {
       if (d.status === "inside") {
+        geoOk = true;
         setGeo("✓ At " + d.siteName + " (" + d.distanceMeters + "m, within " + d.radius + "m)", true);
         scanBtn.disabled = false;
-        show("idle", "Location confirmed — face the camera and tap Scan.");
+        show("idle", autoOn() ? "Location confirmed — step up, auto-scan is on." : "Location confirmed — face the camera and tap Scan.");
       } else if (d.status === "outside") {
         setGeo("✗ " + d.distanceMeters + "m from " + d.siteName + " (limit " + d.radius + "m)", false);
         show("error", "Too far from " + d.siteName + ". Move within " + d.radius + "m to scan.");
@@ -85,8 +91,9 @@
         setGeo("✗ Location needed", false);
         show("warn", "Allow location access to log attendance at " + d.siteName + ".");
       } else if (d.status === "off") {
+        geoOk = true;
         scanBtn.disabled = false;
-        show("idle", "Face the camera and tap Scan.");
+        show("idle", autoOn() ? "Step up and face the camera — auto-scan is on." : "Face the camera and tap Scan.");
       } else {
         show("error", d.message || "Could not check location.");
       }
@@ -108,11 +115,11 @@
         break;
       case "out_of_range":
         show("error", "✗ Out of range — " + data.distanceMeters + "m from " + data.siteName + " (limit " + data.radius + "m). Move closer.");
-        if (fenced()) scanBtn.disabled = true;
+        if (fenced()) { scanBtn.disabled = true; geoOk = false; }
         break;
       case "location_required":
         show("warn", "Location needed — allow GPS to log attendance at " + data.siteName + ".");
-        if (fenced()) scanBtn.disabled = true;
+        if (fenced()) { scanBtn.disabled = true; geoOk = false; }
         break;
       case "unknown":
         show("warn", "Face not recognized. Try again, or enrol the worker first.");
@@ -125,13 +132,13 @@
     }
   }
 
-  scanBtn.addEventListener("click", function () {
-    if (!video.videoWidth) { show("warn", "Camera not ready yet."); return; }
+  // One scan: capture the current frame + GPS and POST it. Used by the manual
+  // button AND by the live auto-scan loop.
+  function doScan() {
+    if (!video.videoWidth) { show("warn", "Camera not ready yet."); return Promise.resolve(); }
     scanBtn.disabled = true;
     show("idle", "Scanning…");
-
-    // Reuse the confirmed fix where we have one; otherwise grab a fresh fix.
-    (lastGeo ? Promise.resolve(lastGeo) : getGeo())
+    return (lastGeo ? Promise.resolve(lastGeo) : getGeo())
       .then(function (geo) {
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
@@ -152,7 +159,32 @@
       .then(function (data) { if (data) render(data); })
       .catch(function () { show("error", "Network error. Try again."); })
       .finally(function () { if (!fenced()) scanBtn.disabled = false; });
-  });
+  }
+
+  scanBtn.addEventListener("click", doScan);
+
+  if (autoToggle) {
+    autoToggle.addEventListener("click", function () {
+      var on = autoToggle.getAttribute("data-on") === "1";
+      autoToggle.setAttribute("data-on", on ? "0" : "1");
+      autoToggle.textContent = on ? "Auto-scan: Off" : "Auto-scan: On";
+      autoToggle.classList.toggle("is-on", !on);
+    });
+  }
+
+  // Live auto-scan: fire doScan when a face holds steady, gated by the geofence
+  // + the toggle. Falls back silently to the manual button if the model fails.
+  if (window.FaceAutoScan) {
+    FaceAutoScan.start(video, {
+      canScan: function () { return autoOn() && geoOk; },
+      onCapture: doScan,
+      onStatus: function (state) {
+        if (state === "holding") show("idle", "Hold still…");
+        else if (state === "capturing") show("idle", "Scanning…");
+        else if ((state === "ready" || state === "searching") && geoOk) show("idle", autoOn() ? "Step up and face the camera — auto-scan is on." : "Face the camera and tap Scan.");
+      },
+    });
+  }
 
   siteSelect.addEventListener("change", verifyLocation);
   verifyLocation(); // run for the default-selected site on load

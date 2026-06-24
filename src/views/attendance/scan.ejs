@@ -31,8 +31,11 @@
               <video id="video" class="oh-kiosk__video" autoplay playsinline muted></video>
               <canvas id="canvas" hidden></canvas>
             </div>
-            <div id="result" class="oh-result oh-result--idle">Pick the site you're at, then face the camera and tap Scan.</div>
-            <button id="scanBtn" class="oh-btn oh-btn--secondary oh-scan-btn">Scan</button>
+            <div id="result" class="oh-result oh-result--idle">Pick the site you're at, then step up — auto-scan is on.</div>
+            <div class="oh-scan-actions">
+              <button id="autoToggle" type="button" class="oh-btn oh-btn--small oh-autotoggle is-on" data-on="1">Auto-scan: On</button>
+              <button id="scanBtn" class="oh-btn oh-btn--secondary oh-scan-btn">Scan now</button>
+            </div>
             <div class="oh-scan-stage__notes">
               <p id="camNote" class="oh-muted"></p>
               <div id="geoNote" class="oh-muted"></div>
@@ -62,6 +65,8 @@
         <% } %>
       </main>
     </div>
+    <script src="/static/vendor/face-api.js"></script>
+    <script src="/static/js/face-autoscan.js"></script>
     <script src="/static/js/attendance-scan.js"></script>
   </body>
 </html>

@@ -5,6 +5,8 @@
   var scanBtn = document.getElementById("scanBtn");
   var result = document.getElementById("result");
   var camNote = document.getElementById("camNote");
+  var autoToggle = document.getElementById("autoToggle");
+  function autoOn() { return autoToggle ? autoToggle.getAttribute("data-on") === "1" : true; }
 
   function show(cls, text) {
     result.className = "oh-result oh-result--" + cls;
@@ -67,8 +69,9 @@
     }
   }
 
-  scanBtn.addEventListener("click", function () {
-    if (!video.videoWidth) { show("warn", "Camera not ready yet."); return; }
+  // One scan: snap the frame + GPS and POST it. Used by the button + auto-scan.
+  function doScan() {
+    if (!video.videoWidth) { show("warn", "Camera not ready yet."); return Promise.resolve(); }
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     canvas.getContext("2d").drawImage(video, 0, 0);
@@ -76,7 +79,7 @@
 
     scanBtn.disabled = true;
     show("idle", "Scanning…");
-    getLocation().then(function (loc) {
+    return getLocation().then(function (loc) {
       var body = "photoData=" + encodeURIComponent(dataUrl);
       if (loc) {
         body += "&lat=" + encodeURIComponent(loc.lat) +
@@ -96,5 +99,30 @@
       .then(function (data) { if (data) render(data); })
       .catch(function () { show("error", "Network error. Try again."); })
       .finally(function () { scanBtn.disabled = false; });
-  });
+  }
+
+  scanBtn.addEventListener("click", doScan);
+
+  if (autoToggle) {
+    autoToggle.addEventListener("click", function () {
+      var on = autoToggle.getAttribute("data-on") === "1";
+      autoToggle.setAttribute("data-on", on ? "0" : "1");
+      autoToggle.textContent = on ? "Auto-scan: Off" : "Auto-scan: On";
+      autoToggle.classList.toggle("is-on", !on);
+    });
+  }
+
+  // Live auto-scan: fire a scan when a worker's face holds steady, then wait
+  // until they step away before re-arming. Manual button stays as a fallback.
+  if (window.FaceAutoScan) {
+    FaceAutoScan.start(video, {
+      canScan: function () { return autoOn(); },
+      onCapture: doScan,
+      onStatus: function (state) {
+        if (state === "holding") show("idle", "Hold still…");
+        else if (state === "capturing") show("idle", "Scanning…");
+        else if (state === "ready" || state === "searching") show("idle", autoOn() ? "Step up and face the camera — auto-scan is on." : "Face the camera and tap Scan.");
+      },
+    });
+  }
 })();

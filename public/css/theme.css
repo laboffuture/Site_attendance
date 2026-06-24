@@ -442,6 +442,11 @@ code {
   font-size: 1.15rem;
   padding: 1rem 3rem;
 }
+/* Auto-scan toggle + actions row (live face capture) */
+.oh-scan-actions { display: flex; gap: 0.6rem; align-items: center; justify-content: center; flex-wrap: wrap; }
+.oh-autotoggle { display: inline-flex; align-items: center; gap: 0.4rem; }
+.oh-autotoggle.is-on { background: var(--c-success); color: #fff; border-color: var(--c-success); }
+.oh-autotoggle.is-on:hover { filter: brightness(0.95); }
 .oh-result {
   width: min(640px, 90vw);
   min-height: 2.5rem;
