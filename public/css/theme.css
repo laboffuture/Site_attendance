@@ -588,6 +588,34 @@ code {
   padding: 0 4px;
   border: 1px solid rgba(255, 255, 255, 0.3);
 }
+/* Sidebar footer — "Developed by & for" + the Lab of Future maker's mark */
+.oh-sidebar__footer {
+  margin-top: auto;
+  padding: 0.9rem 1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+.oh-sidebar__credit {
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: #cfd6df; /* bright silver */
+}
+.oh-sidebar__brand {
+  display: block;
+  width: 100%;
+  background: #fff;
+  padding: 0.5rem 0.6rem;
+}
+.oh-sidebar__brand img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
 .oh-main {
   flex: 1 1 auto;
   min-width: 0;
