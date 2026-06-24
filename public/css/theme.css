@@ -395,6 +395,13 @@ code {
   border: 1px solid var(--c-border);
   margin: 0.35rem 0 1rem;
 }
+/* Kiosk share — QR + copyable link (stacks on mobile) */
+.oh-kiosk-share { display: flex; gap: 1.25rem; align-items: flex-start; flex-wrap: wrap; margin: 0.5rem 0 0.25rem; }
+.oh-kiosk-share__qr { flex: 0 0 auto; border: 1px solid var(--c-border); background: #fff; padding: 6px; }
+.oh-kiosk-share__link { flex: 1 1 260px; min-width: 230px; }
+.oh-copyrow { display: flex; gap: 0.5rem; }
+.oh-copyrow .oh-input { flex: 1 1 auto; min-width: 0; font-size: 0.82rem; }
+.oh-copyrow .oh-btn { flex: 0 0 auto; white-space: nowrap; }
 
 /* ---- Kiosk capture screen (standalone, dark) ---- */
 .oh-kiosk {

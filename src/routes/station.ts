@@ -25,9 +25,26 @@ function istTime(d: Date): string {
   }).format(d);
 }
 
-// ---- Station sign-in (paste the station key once) ----
-router.get("/station/login", (req: Request, res: Response) => {
+// ---- Station sign-in (paste the key, or open a shared ?key= link / QR) ----
+router.get("/station/login", async (req: Request, res: Response) => {
   if (req.session.stationId) return res.redirect("/station");
+  // A shared kiosk link / QR carries the key in the query → auto sign in.
+  const key = typeof req.query.key === "string" ? req.query.key.trim() : "";
+  if (key) {
+    const station = db.dbReady
+      ? await SiteStationModel.findOne({ stationKeyHash: hashStationKey(key), active: true })
+      : null;
+    if (station) {
+      station.lastSeen = new Date();
+      await station.save();
+      req.session.stationId = String(station._id);
+      return req.session.save(() => res.redirect("/station"));
+    }
+    return res.status(401).render("station/login", {
+      title: "Station Sign-in · " + config.companyName,
+      error: "Invalid or inactive station link.",
+    });
+  }
   res.render("station/login", { title: "Station Sign-in · " + config.companyName });
 });
 

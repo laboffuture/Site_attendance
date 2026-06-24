@@ -1,4 +1,5 @@
 import { Router, Request, Response } from "express";
+import QRCode from "qrcode";
 
 import { requireCapability } from "../auth/middleware";
 import { generateStationKey, hashStationKey } from "../lib/stationKey";
@@ -9,6 +10,14 @@ const router = Router();
 
 function flash(req: Request, type: "success" | "danger", text: string): void {
   req.session.flash = { type, text };
+}
+
+/** A shareable kiosk link (opens /station with the key) + a QR of it, built
+ *  from the plaintext key (only available at create/regenerate time). */
+async function kioskShare(req: Request, key: string): Promise<{ shareUrl: string; qrDataUrl: string }> {
+  const shareUrl = `${req.protocol}://${req.get("host")}/station/login?key=${encodeURIComponent(key)}`;
+  const qrDataUrl = await QRCode.toDataURL(shareUrl, { margin: 1, width: 260, color: { dark: "#1c4d8c", light: "#ffffff" } });
+  return { shareUrl, qrDataUrl };
 }
 
 // Station management is Management/HR-only (manage_org).
@@ -62,12 +71,15 @@ router.post("/stations", requireCapability("manage_stations"), async (req: Reque
   });
 
   // Show the plaintext key exactly once — it is not recoverable later.
+  const share = await kioskShare(req, key);
   res.render("stations/created", {
     title: "Station created · " + res.locals.company,
     active: "/stations",
     stationName,
     siteLabel: `${site.name} (${site.code})`,
     stationKey: key,
+    shareUrl: share.shareUrl,
+    qrDataUrl: share.qrDataUrl,
     regenerated: false,
   });
 });
@@ -83,12 +95,15 @@ router.post("/stations/:id/regenerate", requireCapability("manage_stations"), as
   station.stationKeyHash = hashStationKey(key);
   await station.save();
   const site = await ProjectSiteModel.findById(station.projectSiteId).lean();
+  const share = await kioskShare(req, key);
   res.render("stations/created", {
     title: "Station key regenerated · " + res.locals.company,
     active: "/stations",
     stationName: station.stationName,
     siteLabel: site ? `${site.name} (${site.code})` : "—",
     stationKey: key,
+    shareUrl: share.shareUrl,
+    qrDataUrl: share.qrDataUrl,
     regenerated: true,
   });
 });

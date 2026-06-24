@@ -62,6 +62,10 @@ async function main(): Promise<void> {
   const keyMatch = /oh-keybox">([A-Za-z0-9_\-]+)</.exec(created.text);
   const stationKey = keyMatch ? keyMatch[1] : "";
   assert("station registered + key shown once", stationKey.length > 20);
+  assert("created page shows a kiosk QR + shareable link", created.text.includes("data:image") && created.text.includes("/station/login?key="));
+  // The shared link / QR carries the key in the query and auto-opens the kiosk.
+  const linkAuto = await request.agent(app).get(`/station/login?key=${encodeURIComponent(stationKey)}`);
+  assert("shared ?key= link auto-opens the kiosk", linkAuto.status === 302 && linkAuto.headers.location === "/station");
 
   // Kiosk requires a station session.
   const anon = request.agent(app);

@@ -6,20 +6,46 @@
   <p class="oh-page-subtitle"><%= stationName %> · <%= siteLabel %></p>
 </div>
 
-<div class="oh-card oh-form-card">
+<div class="oh-card oh-form-card oh-form-card--full">
   <div class="oh-alert oh-alert--warning">
-    Copy this station key now — it's shown only once and can't be recovered.
-    <%= regenerated ? 'The previous key no longer works.' : 'Regenerate it from the stations list if it is lost.' %>
+    Share or copy this now — it's shown only once and can't be recovered.
+    <%= regenerated ? 'The previous link & key no longer work.' : 'Regenerate it from the stations list if it is lost.' %>
   </div>
+
+  <h3 class="oh-kv-section__title">Share the kiosk</h3>
+  <p class="oh-muted">Scan the QR — or send the link — to open the attendance kiosk for <strong><%= siteLabel %></strong>. Anyone who opens it can log attendance for this site (face scan + geofence still apply).</p>
+  <div class="oh-kiosk-share">
+    <img class="oh-kiosk-share__qr" src="<%= qrDataUrl %>" alt="Kiosk QR for <%= siteLabel %>" width="200" height="200" />
+    <div class="oh-kiosk-share__link">
+      <label class="oh-label" for="shareUrl">Kiosk link</label>
+      <div class="oh-copyrow">
+        <input class="oh-input" id="shareUrl" type="text" readonly value="<%= shareUrl %>" />
+        <button class="oh-btn oh-btn--small oh-btn--secondary" type="button" id="copyBtn">Copy</button>
+      </div>
+      <p class="oh-muted" style="margin-top:0.5rem">Open it on the site's phone/tablet and leave it on — workers just face the camera.</p>
+    </div>
+  </div>
+
+  <h3 class="oh-kv-section__title" style="margin-top:1.4rem">Or paste the key manually</h3>
   <label class="oh-label">Station key</label>
   <pre class="oh-keybox"><%= stationKey %></pre>
-  <p class="oh-muted">
-    On the site laptop, open <code>/station/login</code> and paste this key. The
-    laptop then captures attendance for <strong><%= siteLabel %></strong> only.
-  </p>
+  <p class="oh-muted">On the site device, open <code>/station/login</code> and paste this key.</p>
+
   <div class="oh-form-actions">
     <a class="oh-btn oh-btn--accent" href="/stations">Done</a>
   </div>
 </div>
+
+<script>
+  document.getElementById("copyBtn").addEventListener("click", function () {
+    var inp = document.getElementById("shareUrl");
+    inp.select();
+    (navigator.clipboard ? navigator.clipboard.writeText(inp.value) : Promise.reject()).then(function () {
+      var b = document.getElementById("copyBtn");
+      b.textContent = "Copied ✓";
+      setTimeout(function () { b.textContent = "Copy"; }, 1800);
+    }).catch(function () { document.execCommand && document.execCommand("copy"); });
+  });
+</script>
 
 <%- include('../partials/app-bottom') %>

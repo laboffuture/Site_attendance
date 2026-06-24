@@ -15,8 +15,8 @@ import { Role, ROLES } from "../models/User";
  *   Employees (enrol)         | yes  | yes | yes | yes
  *   Recommend OT/Reg/Requests | —    | yes | yes | no
  *   Approve / close (all)     | yes  | no  | no  | no
- *   Stations                  | yes  | yes | yes | no
- *   Users & Roles             | yes  | yes | yes | no
+ *   Stations (key + share)    | yes  | yes | yes | yes
+ *   Users & Roles             | yes  | yes | no  | no
  *   Designations              | yes  | yes | no  | no
  *   Branches & Sites          | yes  | yes | no  | no
  *   Payroll                   | yes  | yes | no  | no
@@ -68,8 +68,8 @@ const CAPABILITY_ROLES: Record<Capability, Role[]> = {
   view_org: ["management", "hr"], // branches & sites — admins only
   manage_org: ["management", "hr"], // branches
   manage_sites: ["management", "hr"], // project sites
-  manage_stations: ["management", "hr", "pm"], // kiosk stations — PM included (not supervisor)
-  manage_users: ["management", "hr", "pm"], // user accounts & roles — PM included (not supervisor)
+  manage_stations: ["management", "hr", "pm", "supervisor"], // kiosk: PM + Supervisor get the key + share the link/QR
+  manage_users: ["management", "hr"], // user accounts & roles — admins only
   delete_worker: ["management", "hr"],
   // Requests subsystem (scheduled OT + offload). Flow: create → PM recommends
   // → admin decides (admins may also decide directly from pending).
