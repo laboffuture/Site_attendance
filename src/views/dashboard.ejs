@@ -2,7 +2,9 @@
 <%
   function ts(d) { return d ? new Date(d).toLocaleString("en-GB", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" }) : ""; }
   function inr(n) { return "₹ " + Math.round(n || 0).toLocaleString("en-IN"); }
-  var allClear = verdictTone === "success" && needsYouTotal === 0;
+  // Count only the queues THIS role can actually open, so the verdict + band agree.
+  var visNeeds = (can('view_overtime') ? stats.pendingOT : 0) + (can('view_regularization') ? stats.pendingReg : 0) + (can('view_requests') ? stats.pendingReq : 0) + (can('view_flags') ? stats.unresolvedFlags : 0);
+  var allClear = verdictTone === "success" && visNeeds === 0;
 %>
 
 <div class="oh-page-header oh-page-header--row">
@@ -27,24 +29,24 @@
     <% if (allClear) { %>
       All clear — <strong><%= stats.todayCount %></strong> present across <%= totalSites %> site<%= totalSites === 1 ? "" : "s" %> (<%= pct %>%)<% if (seesAll && money) { %> · payroll on track<% } %>.
     <% } else { %>
-      <strong><%= stats.todayCount %></strong> / <%= stats.activeWorkers %> in today (<%= pct %>%)<% if (needsYouTotal > 0) { %> · <strong><%= needsYouTotal %></strong> need<%= needsYouTotal === 1 ? "s" : "" %> you<% if (seesAll && otExposure.cost > 0) { %> (<%= inr(otExposure.cost) %> OT)<% } %><% } %><% if (stats.unresolvedFlags > 0) { %> · <%= stats.unresolvedFlags %> flag<%= stats.unresolvedFlags === 1 ? "" : "s" %><% } %>
+      <strong><%= stats.todayCount %></strong> / <%= stats.activeWorkers %> in today (<%= pct %>%)<% if (visNeeds > 0) { %> · <strong><%= visNeeds %></strong> need<%= visNeeds === 1 ? "s" : "" %> you<% if (seesAll && otExposure.cost > 0) { %> (<%= inr(otExposure.cost) %> OT)<% } %><% } %><% if (can('view_flags') && stats.unresolvedFlags > 0) { %> · <%= stats.unresolvedFlags %> flag<%= stats.unresolvedFlags === 1 ? "" : "s" %><% } %>
       <% if (worstSite) { %><a class="oh-verdict__link" href="/dashboard?siteId=<%= worstSite.id %>">Worst: <%= worstSite.name %> <%= worstSite.pct %>%</a><% } %>
     <% } %>
   </p>
 </div>
 
-<!-- 2 · NEEDS-YOU action band -->
-<% if (needsYouTotal > 0) { %>
+<!-- 2 · NEEDS-YOU action band (only tiles the role can actually open) -->
+<% if (visNeeds > 0) { %>
 <div class="oh-qband oh-qband--needs">
-  <% if (stats.pendingOT > 0) { %>
+  <% if (stats.pendingOT > 0 && can('view_overtime')) { %>
   <a class="oh-qband__item oh-qband__item--warn" href="/overtime?status=pending">
     <span class="oh-qband__num"><%= stats.pendingOT %></span><span class="oh-qband__label">Pending OT</span>
     <% if (seesAll && otExposure.cost > 0) { %><span class="oh-qband__sub"><%= inr(otExposure.cost) %> · <%= otExposure.hrs %>h</span><% } %>
   </a>
   <% } %>
-  <% if (stats.pendingReg > 0) { %><a class="oh-qband__item oh-qband__item--warn" href="/regularization"><span class="oh-qband__num"><%= stats.pendingReg %></span><span class="oh-qband__label">Regularizations</span></a><% } %>
-  <% if (stats.pendingReq > 0) { %><a class="oh-qband__item oh-qband__item--warn" href="/requests"><span class="oh-qband__num"><%= stats.pendingReq %></span><span class="oh-qband__label">Requests</span></a><% } %>
-  <% if (stats.unresolvedFlags > 0) { %><a class="oh-qband__item oh-qband__item--danger" href="/flags"><span class="oh-qband__num"><%= stats.unresolvedFlags %></span><span class="oh-qband__label">Flags</span></a><% } %>
+  <% if (stats.pendingReg > 0 && can('view_regularization')) { %><a class="oh-qband__item oh-qband__item--warn" href="/regularization"><span class="oh-qband__num"><%= stats.pendingReg %></span><span class="oh-qband__label">Regularizations</span></a><% } %>
+  <% if (stats.pendingReq > 0 && can('view_requests')) { %><a class="oh-qband__item oh-qband__item--warn" href="/requests"><span class="oh-qband__num"><%= stats.pendingReq %></span><span class="oh-qband__label">Requests</span></a><% } %>
+  <% if (stats.unresolvedFlags > 0 && can('view_flags')) { %><a class="oh-qband__item oh-qband__item--danger" href="/flags"><span class="oh-qband__num"><%= stats.unresolvedFlags %></span><span class="oh-qband__label">Flags</span></a><% } %>
 </div>
 <% } %>
 
@@ -110,7 +112,8 @@
   <div class="oh-chart-box"><div id="otTrendChart"></div></div>
 </div>
 
-<!-- 6 · Recent flags -->
+<!-- 6 · Recent flags (admins only) -->
+<% if (can('view_flags')) { %>
 <div class="oh-section-header">
   <span class="oh-section-title">Recent flags</span>
   <a class="oh-btn oh-btn--small" href="/flags">View all</a>
@@ -132,6 +135,7 @@
 </div>
 <% } else { %>
 <div class="oh-empty"><span class="material-icons">verified</span><p>No unresolved flags.</p></div>
+<% } %>
 <% } %>
 
 <script>window.__CHARTS__ = <%- JSON.stringify({ otTrend: otTrend }) %>;</script>

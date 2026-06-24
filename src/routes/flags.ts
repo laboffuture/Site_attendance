@@ -10,9 +10,9 @@ function flash(req: Request, type: "success" | "danger", text: string): void {
   req.session.flash = { type, text };
 }
 
-// Flagged events are visible to PE/Supervisor and above (view_dashboard),
-// scoped to the site where the attempt happened.
-router.get("/flags", requireCapability("view_dashboard"), async (req: Request, res: Response) => {
+// Flagged events (spoof / wrong-site / geofence) are an admin queue —
+// Management + HR only (view_flags), scoped to the attempted site.
+router.get("/flags", requireCapability("view_flags"), async (req: Request, res: Response) => {
   const showResolved = req.query.status === "resolved";
   const flags = await FlagEventModel.find({ ...flagScopeFilter(req.currentUser!), resolved: showResolved })
     .sort({ timestamp: -1 })
@@ -26,7 +26,7 @@ router.get("/flags", requireCapability("view_dashboard"), async (req: Request, r
   });
 });
 
-router.post("/flags/:id/resolve", requireCapability("view_dashboard"), async (req: Request, res: Response) => {
+router.post("/flags/:id/resolve", requireCapability("view_flags"), async (req: Request, res: Response) => {
   const flag = await FlagEventModel.findById(req.params.id);
   if (!flag) {
     flash(req, "danger", "Flag not found.");

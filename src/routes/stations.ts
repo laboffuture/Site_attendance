@@ -12,7 +12,7 @@ function flash(req: Request, type: "success" | "danger", text: string): void {
 }
 
 // Station management is Management/HR-only (manage_org).
-router.get("/stations", requireCapability("manage_org"), async (_req: Request, res: Response) => {
+router.get("/stations", requireCapability("manage_stations"), async (_req: Request, res: Response) => {
   const [stations, sites] = await Promise.all([
     SiteStationModel.find().sort({ createdAt: -1 }).lean(),
     ProjectSiteModel.find().sort({ name: 1 }).lean(),
@@ -31,7 +31,7 @@ router.get("/stations", requireCapability("manage_org"), async (_req: Request, r
 });
 
 // Register form.
-router.get("/stations/new", requireCapability("manage_org"), async (_req: Request, res: Response) => {
+router.get("/stations/new", requireCapability("manage_stations"), async (_req: Request, res: Response) => {
   const sites = await ProjectSiteModel.find().sort({ name: 1 }).lean();
   res.render("stations/new", {
     title: "Register station · " + res.locals.company,
@@ -40,7 +40,7 @@ router.get("/stations/new", requireCapability("manage_org"), async (_req: Reques
   });
 });
 
-router.post("/stations", requireCapability("manage_org"), async (req: Request, res: Response) => {
+router.post("/stations", requireCapability("manage_stations"), async (req: Request, res: Response) => {
   const stationName = String(req.body.stationName ?? "").trim();
   const projectSiteId = String(req.body.projectSiteId ?? "").trim();
   if (!stationName || !projectSiteId) {
@@ -73,7 +73,7 @@ router.post("/stations", requireCapability("manage_org"), async (req: Request, r
 });
 
 // Regenerate the key — the old key stops working; show the new one once.
-router.post("/stations/:id/regenerate", requireCapability("manage_org"), async (req: Request, res: Response) => {
+router.post("/stations/:id/regenerate", requireCapability("manage_stations"), async (req: Request, res: Response) => {
   const station = await SiteStationModel.findById(req.params.id);
   if (!station) {
     flash(req, "danger", "Station not found.");
@@ -93,7 +93,7 @@ router.post("/stations/:id/regenerate", requireCapability("manage_org"), async (
   });
 });
 
-router.post("/stations/:id/toggle", requireCapability("manage_org"), async (req: Request, res: Response) => {
+router.post("/stations/:id/toggle", requireCapability("manage_stations"), async (req: Request, res: Response) => {
   const station = await SiteStationModel.findById(req.params.id);
   if (!station) {
     flash(req, "danger", "Station not found.");
@@ -105,7 +105,7 @@ router.post("/stations/:id/toggle", requireCapability("manage_org"), async (req:
   res.redirect("/stations");
 });
 
-router.post("/stations/:id/delete", requireCapability("manage_org"), async (req: Request, res: Response) => {
+router.post("/stations/:id/delete", requireCapability("manage_stations"), async (req: Request, res: Response) => {
   const station = await SiteStationModel.findByIdAndDelete(req.params.id);
   flash(req, station ? "success" : "danger", station ? `Station "${station.stationName}" deleted.` : "Station not found.");
   res.redirect("/stations");

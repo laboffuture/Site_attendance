@@ -92,12 +92,13 @@ async function main(): Promise<void> {
   const recTab = await ma.get("/overtime?status=recommended");
   assert("recommended filter band exists", recTab.text.includes("Recommended"));
 
-  // PM is view-only — cannot recommend OR approve.
+  // PM can RECOMMEND (raise) but not approve/close.
   const pa = await login(app, pm);
-  assert("PM GET /overtime → 200 (view)", (await pa.get("/overtime")).status === 200);
-  assert("PM recommend → 403", (await pa.post(`/overtime/${id4}/recommend`).type("form").send({})).status === 403);
-  assert("PM approve → 403", (await pa.post(`/overtime/${id4}/approve`).type("form").send({ approvedHours: "2" })).status === 403);
-  assert("PM could not change status", (await AttendanceModel.findById(id4).lean())?.overtime.status === "pending");
+  assert("PM GET /overtime → 200 (view + recommend)", (await pa.get("/overtime")).status === 200);
+  await pa.post(`/overtime/${id4}/recommend`).type("form").send({});
+  assert("PM recommend → recommended", (await AttendanceModel.findById(id4).lean())?.overtime.status === "recommended");
+  assert("PM approve → 403 (Management closes)", (await pa.post(`/overtime/${id4}/approve`).type("form").send({ approvedHours: "2" })).status === 403);
+  assert("PM could not approve (stays recommended)", (await AttendanceModel.findById(id4).lean())?.overtime.status === "recommended");
 
   // Supervisor is blocked entirely.
   const sa = await login(app, sup);

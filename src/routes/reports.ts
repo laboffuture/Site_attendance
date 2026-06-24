@@ -22,7 +22,7 @@ function capNote(matched: number): string | undefined {
 }
 
 // ============================ Reports hub ============================
-router.get("/reports", requireCapability("view_dashboard"), async (req: Request, res: Response) => {
+router.get("/reports", requireCapability("view_reports"), async (req: Request, res: Response) => {
   // Live headline metric per report card — cheap, scoped counts so the hub
   // reads as a status board, not a link list.
   const u = req.currentUser!;
@@ -55,24 +55,24 @@ router.get("/reports", requireCapability("view_dashboard"), async (req: Request,
   ]);
   const ot = otAgg[0] ?? { hours: 0, n: 0 };
   const pay = payAgg[0] ?? { gross: 0, workers: [] };
-  res.render("reports/index", {
-    title: "Reports · " + res.locals.company,
-    active: "/reports",
-    reports: [
-      { href: "/reports/attendance", icon: "fact_check", title: "Attendance report",
-        metric: attMonth.toLocaleString("en-IN"), unit: "records this month", sub: attToday.toLocaleString("en-IN") + " logged today",
-        desc: "Daily attendance, hours & overtime by branch → site." },
-      { href: "/reports/employees", icon: "groups", title: "Employee report",
-        metric: activeWorkers.toLocaleString("en-IN"), unit: "active employees", sub: facesReg + " / " + facesTotal + " faces enrolled",
-        desc: "Headcount by designation & site, with CSV export." },
-      { href: "/reports/overtime", icon: "more_time", title: "Overtime report",
-        metric: round2(ot.hours).toLocaleString("en-IN"), unit: "OT hrs pending", sub: ot.n.toLocaleString("en-IN") + " records awaiting approval",
-        desc: "OT hours & ₹ cost by site — pending vs approved." },
-      { href: "/payroll", icon: "payments", title: "Payroll report",
-        metric: "₹ " + Math.round(pay.gross).toLocaleString("en-IN"), unit: "gross this month", sub: (pay.workers ? pay.workers.length : 0).toLocaleString("en-IN") + " workers · normal + OT + food",
-        desc: "Per-worker hours & pay (basic, OT, food, gross) with bank details — payroll-ready CSV / Excel." },
-    ],
-  });
+  const reports = [
+    { href: "/reports/attendance", icon: "fact_check", title: "Attendance report",
+      metric: attMonth.toLocaleString("en-IN"), unit: "records this month", sub: attToday.toLocaleString("en-IN") + " logged today",
+      desc: "Daily attendance, hours & overtime by branch → site." },
+    { href: "/reports/employees", icon: "groups", title: "Employee report",
+      metric: activeWorkers.toLocaleString("en-IN"), unit: "active employees", sub: facesReg + " / " + facesTotal + " faces enrolled",
+      desc: "Headcount by designation & site, with CSV export." },
+    { href: "/reports/overtime", icon: "more_time", title: "Overtime report",
+      metric: round2(ot.hours).toLocaleString("en-IN"), unit: "OT hrs pending", sub: ot.n.toLocaleString("en-IN") + " records awaiting approval",
+      desc: "OT hours & ₹ cost by site — pending vs approved." },
+  ];
+  // Payroll (money + bank details) is admins-only — hide its tile from PM/Supervisor.
+  if (res.locals.can("view_payroll")) {
+    reports.push({ href: "/payroll", icon: "payments", title: "Payroll report",
+      metric: "₹ " + Math.round(pay.gross).toLocaleString("en-IN"), unit: "gross this month", sub: (pay.workers ? pay.workers.length : 0).toLocaleString("en-IN") + " workers · normal + OT + food",
+      desc: "Per-worker hours & pay (basic, OT, food, gross) with bank details — payroll-ready CSV / Excel." });
+  }
+  res.render("reports/index", { title: "Reports · " + res.locals.company, active: "/reports", reports });
 });
 
 // ======================== Attendance report ========================
@@ -114,7 +114,7 @@ async function attendanceData(req: Request) {
   };
 }
 
-router.get("/reports/attendance", requireCapability("view_dashboard"), async (req: Request, res: Response) => {
+router.get("/reports/attendance", requireCapability("view_reports"), async (req: Request, res: Response) => {
   const { filters, tableRows, matched, summary, reportCharts } = await attendanceData(req);
   const [branches, sites, designations] = await Promise.all([
     BranchModel.find().sort({ name: 1 }).lean(),
@@ -136,7 +136,7 @@ router.get("/reports/attendance", requireCapability("view_dashboard"), async (re
   });
 });
 
-router.get("/reports/attendance/export.xlsx", requireCapability("view_dashboard"), async (req: Request, res: Response) => {
+router.get("/reports/attendance/export.xlsx", requireCapability("view_reports"), async (req: Request, res: Response) => {
   const { tableRows, matched } = await attendanceData(req);
   const buf = await buildXlsxBuffer(tableRows, capNote(matched));
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
@@ -144,7 +144,7 @@ router.get("/reports/attendance/export.xlsx", requireCapability("view_dashboard"
   res.send(buf);
 });
 
-router.get("/reports/attendance/export.pdf", requireCapability("view_dashboard"), async (req: Request, res: Response) => {
+router.get("/reports/attendance/export.pdf", requireCapability("view_reports"), async (req: Request, res: Response) => {
   const { filters, tableRows, matched } = await attendanceData(req);
   const sub = reportSubtitle(filters as Record<string, unknown>) + (capNote(matched) ? " · " + capNote(matched) : "");
   res.setHeader("Content-Type", "application/pdf");
@@ -164,7 +164,7 @@ function employeeQuery(req: Request) {
   return { q, filters: { siteId, designation, status } };
 }
 
-router.get("/reports/employees", requireCapability("view_dashboard"), async (req: Request, res: Response) => {
+router.get("/reports/employees", requireCapability("view_reports"), async (req: Request, res: Response) => {
   const { q, filters } = employeeQuery(req);
   const [tableRows, total, active, faceRegistered, facet, sites, designations] = await Promise.all([
     WorkerModel.find(q).select("name empRegNo designationName siteName status dailyWage").sort({ name: 1 }).limit(TABLE_LIMIT).lean(),
@@ -196,7 +196,7 @@ router.get("/reports/employees", requireCapability("view_dashboard"), async (req
   });
 });
 
-router.get("/reports/employees/export.csv", requireCapability("view_dashboard"), async (req: Request, res: Response) => {
+router.get("/reports/employees/export.csv", requireCapability("view_reports"), async (req: Request, res: Response) => {
   const { q } = employeeQuery(req);
   const [rows, total] = await Promise.all([
     WorkerModel.find(q).select("name empRegNo designationName siteName status dailyWage").sort({ name: 1 }).limit(TABLE_LIMIT).lean(),
@@ -260,7 +260,7 @@ async function overtimeData(req: Request) {
   return { groups, summary, filters };
 }
 
-router.get("/reports/overtime", requireCapability("view_dashboard"), async (req: Request, res: Response) => {
+router.get("/reports/overtime", requireCapability("view_reports"), async (req: Request, res: Response) => {
   const { groups, summary, filters } = await overtimeData(req);
   const sites = await ProjectSiteModel.find().sort({ name: 1 }).lean();
   res.render("reports/overtime", {
@@ -273,7 +273,7 @@ router.get("/reports/overtime", requireCapability("view_dashboard"), async (req:
   });
 });
 
-router.get("/reports/overtime/export.csv", requireCapability("view_dashboard"), async (req: Request, res: Response) => {
+router.get("/reports/overtime/export.csv", requireCapability("view_reports"), async (req: Request, res: Response) => {
   const { groups } = await overtimeData(req);
   sendCsv(res, `overtime-${Date.now()}.csv`,
     ["Site", "Pending OT hours", "Approved OT hours", "OT cost (INR)"],

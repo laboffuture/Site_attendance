@@ -158,20 +158,26 @@ async function main(): Promise<void> {
   await admin.post(`/org/sites/${siteDoc!._id}/delete`).type("form").send({});
   assert("unstaffed site deleted", !(await ProjectSiteModel.findById(siteDoc!._id)));
 
-  // Permission matrix: supervisor has READ-ONLY org (scoped to own sites),
-  // cannot manage, and can add designations.
+  // Permission matrix (whitelist model): supervisor is restricted to Dashboard,
+  // Reports, Attendance, Requests, Employees — and BLOCKED from org, designations,
+  // stations, users, payroll, flagged.
   const sup = await login(app, SUP_EMAIL, SUP_PW);
-  const supOrg = await sup.get("/org");
-  assert("supervisor GET /org → 200 (read-only)", supOrg.status === 200);
-  assert("supervisor org shows own site (VBW)", supOrg.text.includes("VBW"));
-  assert("supervisor org hides unrelated QA branch", !supOrg.text.includes(BRANCH));
+  assert("supervisor GET /org → 403 (org removed)", (await sup.get("/org")).status === 403);
+  assert("supervisor GET /designations → 403 (removed)", (await sup.get("/designations")).status === 403);
   const supPost = await sup.post("/org/branches").type("form").send({ name: "Sneaky " + S });
   assert("supervisor POST /org/branches → 403 (cannot manage)", supPost.status === 403);
   assert("supervisor branch not created", !(await BranchModel.findOne({ name: "Sneaky " + S })));
   const supSite = await sup.post("/org/sites").type("form").send({ branchId: String(branchDoc!._id), name: "Sneaky Site", code: CODE + "S", standardStartTime: "09:00", standardEndTime: "18:00" });
   assert("supervisor POST /org/sites → 403 (cannot add sites)", supSite.status === 403);
-  const supDesig = await sup.get("/designations");
-  assert("supervisor GET /designations → 200 (allowed)", supDesig.status === 200);
+  // Whitelisted pages still work for supervisor:
+  assert("supervisor GET /reports → 200 (download)", (await sup.get("/reports")).status === 200);
+  assert("supervisor GET /workers → 200 (employees kept)", (await sup.get("/workers")).status === 200);
+  assert("supervisor GET /requests → 200", (await sup.get("/requests")).status === 200);
+  // Admin-only pages blocked for supervisor:
+  assert("supervisor GET /payroll → 403", (await sup.get("/payroll")).status === 403);
+  assert("supervisor GET /stations → 403", (await sup.get("/stations")).status === 403);
+  assert("supervisor GET /users → 403", (await sup.get("/users")).status === 403);
+  assert("supervisor GET /flags → 403", (await sup.get("/flags")).status === 403);
 
   // Cleanup.
   await Promise.all([

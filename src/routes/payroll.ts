@@ -47,7 +47,7 @@ async function payrollData(req: Request) {
   return { workers, summary, dates, filters: { dateFrom, dateTo, siteId, preset }, std: config.payrollStandardHours };
 }
 
-router.get("/payroll", requireCapability("view_dashboard"), async (req: Request, res: Response) => {
+router.get("/payroll", requireCapability("view_payroll"), async (req: Request, res: Response) => {
   const { workers, summary, filters, std, dates } = await payrollData(req);
   const sites = await ProjectSiteModel.find().sort({ name: 1 }).lean();
   res.render("payroll/index", {
@@ -60,7 +60,7 @@ router.get("/payroll", requireCapability("view_dashboard"), async (req: Request,
 });
 
 // Save / update a worker's arrears for this exact pay period.
-router.post("/payroll/arrears", requireCapability("view_dashboard"), async (req: Request, res: Response) => {
+router.post("/payroll/arrears", requireCapability("view_payroll"), async (req: Request, res: Response) => {
   const u = req.currentUser!;
   const workerId = String(req.body.workerId ?? "");
   const dateFrom = String(req.body.dateFrom ?? "");
@@ -83,14 +83,14 @@ router.post("/payroll/arrears", requireCapability("view_dashboard"), async (req:
   res.redirect("/payroll?" + params.toString());
 });
 
-router.get("/payroll/export.csv", requireCapability("view_dashboard"), async (req: Request, res: Response) => {
+router.get("/payroll/export.csv", requireCapability("view_payroll"), async (req: Request, res: Response) => {
   const { workers, filters } = await payrollData(req);
   sendCsv(res, `payroll-${filters.dateFrom}_to_${filters.dateTo}.csv`,
     ["S.No", "Emp Code", "Worker", "Designation", "Account No", "IFSC", "Basic", "Food", "Days", "Normal Hrs", "OT Hrs", "Normal Pay", "OT Pay", "Food Count", "Food Allowance", "Arrears", "Total Pay"],
     workers.map((w, i) => [i + 1, w.empRegNo, w.name, w.designation, w.account, w.ifsc, w.basic ?? "", w.food, w.days, w.normalHrs, w.otHrs, w.normalPay, w.otPay, w.foodDays, w.foodAllowance, w.arrears, w.gross]));
 });
 
-router.get("/payroll/export.xlsx", requireCapability("view_dashboard"), async (req: Request, res: Response) => {
+router.get("/payroll/export.xlsx", requireCapability("view_payroll"), async (req: Request, res: Response) => {
   const { workers, filters, dates } = await payrollData(req);
   const buf = await buildPayrollXlsx(workers, dates, `${filters.dateFrom} → ${filters.dateTo}`);
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
