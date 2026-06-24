@@ -67,6 +67,10 @@ async function main(): Promise<void> {
   // HR/Management approve a PENDING request directly — PM recommendation is
   // optional now, not a gate. (The offload flow below still exercises the
   // recommend → approve path to prove recommending still works.)
+  // The queue must EXPOSE the Approve button on a pending request (not just
+  // allow it server-side) — otherwise an admin can only reject from pending.
+  const queue = await admin.get("/requests");
+  assert("pending request shows an Approve button to the decider", new RegExp(`/requests/${ot!._id}/approve`).test(queue.text));
   await admin.post(`/requests/${ot!._id}/approve`).type("form").send({ remarks: "approved" });
   const otFinal = await RequestModel.findById(ot!._id);
   assert("admin approves a pending OT request directly", otFinal!.status === "approved");

@@ -7,7 +7,7 @@
   <% if (canRecommend && r.status === "pending") { %>
   <form method="post" action="/requests/<%= r._id %>/recommend"><button class="oh-btn oh-btn--small oh-btn--secondary" type="submit">Recommend</button></form>
   <% } %>
-  <% if (canDecide && r.status === "recommended") { %>
+  <% if (canDecide && (r.status === "pending" || r.status === "recommended")) { %>
   <form method="post" action="/requests/<%= r._id %>/approve"><button class="oh-btn oh-btn--small oh-btn--success" type="submit">Approve</button></form>
   <% } %>
   <% if (canDecide && (r.status === "pending" || r.status === "recommended")) { %>
