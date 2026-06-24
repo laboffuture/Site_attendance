@@ -5,7 +5,7 @@ import { requireCapability } from "../auth/middleware";
 import { config } from "../config";
 import { buildXlsxBuffer, streamPdf } from "../lib/exporters";
 import { parseReportFilters, buildAttendanceQuery, groupByBranchSite, hoursBreakdown } from "../lib/report";
-import { siteScopeFilter, workerScopeFilter } from "../lib/scope";
+import { siteScopeFilter, canUseSite, workerScopeFilter } from "../lib/scope";
 import { round2 } from "../lib/time";
 import { AttendanceModel } from "../models/Attendance";
 import { BranchModel } from "../models/Branch";
@@ -14,14 +14,20 @@ import { ProjectSiteModel } from "../models/ProjectSite";
 import { WorkerModel } from "../models/Worker";
 
 const router = Router();
-const MAX_ROWS = 5000;
+const TABLE_LIMIT = 2000; // rows shown in the on-screen / exported table
 
-function sendCsv(res: Response, filename: string, headers: string[], rows: (string | number | null)[][]): void {
+function sendCsv(res: Response, filename: string, headers: string[], rows: (string | number | null)[][], note?: string): void {
   const esc = (v: unknown) => { const s = v == null ? "" : String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
-  const body = [headers, ...rows].map((r) => r.map(esc).join(",")).join("\n");
+  const lines = [headers, ...rows].map((r) => r.map(esc).join(","));
+  if (note) lines.push("", esc(note));
   res.setHeader("Content-Type", "text/csv; charset=utf-8");
   res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-  res.send(body);
+  res.send(lines.join("\n"));
+}
+
+/** "showing first N of M" note when the table is capped (numbers stay correct). */
+function capNote(matched: number): string | undefined {
+  return matched > TABLE_LIMIT ? `Table capped: showing the first ${TABLE_LIMIT.toLocaleString("en-IN")} of ${matched.toLocaleString("en-IN")} rows — totals & charts cover the full set. Refine filters for a complete row list.` : undefined;
 }
 
 // ============================ Reports hub ============================
@@ -38,195 +44,188 @@ router.get("/reports", requireCapability("view_dashboard"), async (_req: Request
 });
 
 // ======================== Attendance report ========================
-async function fetchRows(req: Request) {
-  const filters = parseReportFilters(req.query as Record<string, unknown>);
-  const query = buildAttendanceQuery(req.currentUser!, filters);
-  const rows = await AttendanceModel.find(query)
-    .sort({ branchName: 1, siteName: 1, date: -1, workerName: 1 })
-    .limit(MAX_ROWS)
-    .lean();
-  return { filters, rows };
-}
-
-function reportSubtitle(filters: Record<string, unknown>): string {
+function reportSubtitle(f: Record<string, unknown>): string {
   const bits: string[] = [];
-  if (filters.dateFrom || filters.dateTo) bits.push(`${filters.dateFrom ?? "…"} → ${filters.dateTo ?? "…"}`);
-  if (filters.designation) bits.push(String(filters.designation));
-  if (filters.q) bits.push(`"${filters.q}"`);
+  if (f.dateFrom || f.dateTo) bits.push(`${f.dateFrom ?? "…"} → ${f.dateTo ?? "…"}`);
+  if (f.designation) bits.push(String(f.designation));
+  if (f.q) bits.push(`"${f.q}"`);
   return bits.length ? bits.join(" · ") : "All records";
 }
 
+/** Table rows (capped) + matched count + summary/charts aggregated over the FULL match. */
+async function attendanceData(req: Request) {
+  const filters = parseReportFilters(req.query as Record<string, unknown>);
+  const query = buildAttendanceQuery(req.currentUser!, filters);
+  const [tableRows, matched, facet] = await Promise.all([
+    AttendanceModel.find(query).sort({ branchName: 1, siteName: 1, date: -1, workerName: 1 }).limit(TABLE_LIMIT).lean(),
+    AttendanceModel.countDocuments(query),
+    AttendanceModel.aggregate([
+      { $match: query },
+      {
+        $facet: {
+          byDay: [{ $group: { _id: "$date", n: { $sum: 1 } } }, { $sort: { _id: 1 } }],
+          bySite: [{ $group: { _id: "$siteName", count: { $sum: 1 }, ot: { $sum: "$overtime.computedHours" } } }, { $sort: { count: -1 } }, { $limit: 25 }],
+          totals: [{ $group: { _id: null, ot: { $sum: "$overtime.computedHours" }, employees: { $addToSet: "$empRegNo" }, sites: { $addToSet: "$siteName" } } }],
+        },
+      },
+    ]),
+  ]);
+  const f = facet[0] ?? { byDay: [], bySite: [], totals: [] };
+  const t = f.totals[0] ?? { ot: 0, employees: [], sites: [] };
+  return {
+    filters, query, tableRows, matched,
+    summary: { records: matched, employees: t.employees.length, otHours: round2(t.ot), sites: t.sites.length },
+    reportCharts: {
+      byDay: { labels: f.byDay.map((d: { _id: string }) => d._id), data: f.byDay.map((d: { n: number }) => d.n) },
+      bySite: { labels: f.bySite.map((s: { _id: string }) => s._id), count: f.bySite.map((s: { count: number }) => s.count), ot: f.bySite.map((s: { ot: number }) => round2(s.ot)) },
+    },
+  };
+}
+
 router.get("/reports/attendance", requireCapability("view_dashboard"), async (req: Request, res: Response) => {
-  const { filters, rows } = await fetchRows(req);
+  const { filters, tableRows, matched, summary, reportCharts } = await attendanceData(req);
   const [branches, sites, designations] = await Promise.all([
     BranchModel.find().sort({ name: 1 }).lean(),
     ProjectSiteModel.find().sort({ name: 1 }).lean(),
     DesignationModel.find().sort({ name: 1 }).lean(),
   ]);
-
-  // Visualize the SAME filtered rows (no extra queries).
-  const byDay = new Map<string, number>();
-  const bySite = new Map<string, { count: number; ot: number }>();
-  for (const r of rows) {
-    byDay.set(r.date, (byDay.get(r.date) ?? 0) + 1);
-    const key = r.siteName ?? "—";
-    const s = bySite.get(key) ?? { count: 0, ot: 0 };
-    s.count += 1;
-    s.ot += r.overtime?.computedHours ?? 0;
-    bySite.set(key, s);
-  }
-  const dayKeys = [...byDay.keys()].sort();
-  const siteKeys = [...bySite.keys()];
-  const reportCharts = {
-    byDay: { labels: dayKeys, data: dayKeys.map((d) => byDay.get(d) ?? 0) },
-    bySite: { labels: siteKeys, count: siteKeys.map((s) => bySite.get(s)!.count), ot: siteKeys.map((s) => round2(bySite.get(s)!.ot)) },
-  };
-  const summary = {
-    records: rows.length,
-    employees: new Set(rows.map((r) => r.empRegNo)).size,
-    otHours: round2(rows.reduce((a, r) => a + (r.overtime?.computedHours ?? 0), 0)),
-    sites: new Set(rows.map((r) => r.siteName)).size,
-  };
-
   res.render("reports/attendance", {
     title: "Attendance report · " + res.locals.company,
     active: "/reports",
     filters,
-    groups: groupByBranchSite(rows),
-    rowCount: rows.length,
-    maxRows: MAX_ROWS,
-    branches,
-    sites,
-    designations,
-    hoursBreakdown,
-    reportCharts,
-    summary,
+    groups: groupByBranchSite(tableRows),
+    rowCount: matched,
+    shown: Math.min(matched, TABLE_LIMIT),
+    capped: matched > TABLE_LIMIT,
+    activeFilter: reportSubtitle(filters as Record<string, unknown>),
+    branches, sites, designations, hoursBreakdown,
+    reportCharts, summary,
     query: req.originalUrl.includes("?") ? req.originalUrl.slice(req.originalUrl.indexOf("?")) : "",
   });
 });
 
 router.get("/reports/attendance/export.xlsx", requireCapability("view_dashboard"), async (req: Request, res: Response) => {
-  const { rows } = await fetchRows(req);
-  const buf = await buildXlsxBuffer(rows);
+  const { tableRows, matched } = await attendanceData(req);
+  const buf = await buildXlsxBuffer(tableRows, capNote(matched));
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
   res.setHeader("Content-Disposition", `attachment; filename="attendance-${Date.now()}.xlsx"`);
   res.send(buf);
 });
 
 router.get("/reports/attendance/export.pdf", requireCapability("view_dashboard"), async (req: Request, res: Response) => {
-  const { filters, rows } = await fetchRows(req);
+  const { filters, tableRows, matched } = await attendanceData(req);
+  const sub = reportSubtitle(filters as Record<string, unknown>) + (capNote(matched) ? " · " + capNote(matched) : "");
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", `attachment; filename="attendance-${Date.now()}.pdf"`);
-  streamPdf(rows, { title: `${res.locals.company} — Attendance Report`, subtitle: reportSubtitle(filters as Record<string, unknown>) }, res);
+  streamPdf(tableRows, { title: `${res.locals.company} — Attendance Report`, subtitle: sub }, res);
 });
 
 // ========================= Employee report =========================
-async function employeeRows(req: Request) {
+function employeeQuery(req: Request) {
   const siteId = String(req.query.siteId ?? "");
   const designation = String(req.query.designation ?? "");
   const status = ["active", "inactive", "pending"].includes(String(req.query.status)) ? String(req.query.status) : "";
   const q: Record<string, unknown> = { ...workerScopeFilter(req.currentUser!) };
   q.status = status || { $in: ["active", "inactive"] };
-  if (siteId && Types.ObjectId.isValid(siteId)) q.siteIds = new Types.ObjectId(siteId);
+  if (siteId && Types.ObjectId.isValid(siteId) && canUseSite(req.currentUser!, siteId)) q.siteIds = new Types.ObjectId(siteId);
   if (designation) q.designationName = designation;
-  const workers = await WorkerModel.find(q)
-    .select("name empRegNo designationName siteName status dailyWage")
-    .sort({ name: 1 })
-    .limit(MAX_ROWS)
-    .lean();
-  const faceRegistered = await WorkerModel.countDocuments({ ...q, "faceEncoding.0": { $exists: true } });
-  return { workers, faceRegistered, filters: { siteId, designation, status } };
+  return { q, filters: { siteId, designation, status } };
 }
 
 router.get("/reports/employees", requireCapability("view_dashboard"), async (req: Request, res: Response) => {
-  const { workers, faceRegistered, filters } = await employeeRows(req);
-  const [sites, designations] = await Promise.all([
+  const { q, filters } = employeeQuery(req);
+  const [tableRows, total, active, faceRegistered, facet, sites, designations] = await Promise.all([
+    WorkerModel.find(q).select("name empRegNo designationName siteName status dailyWage").sort({ name: 1 }).limit(TABLE_LIMIT).lean(),
+    WorkerModel.countDocuments(q),
+    WorkerModel.countDocuments({ ...q, status: "active" }),
+    WorkerModel.countDocuments({ ...q, "faceEncoding.0": { $exists: true } }),
+    WorkerModel.aggregate([
+      { $match: q },
+      { $facet: {
+        byDesignation: [{ $group: { _id: "$designationName", n: { $sum: 1 } } }, { $sort: { n: -1 } }, { $limit: 20 }],
+        bySite: [{ $group: { _id: "$siteName", n: { $sum: 1 } } }, { $sort: { n: -1 } }, { $limit: 20 }],
+      } },
+    ]),
     ProjectSiteModel.find().sort({ name: 1 }).lean(),
     DesignationModel.find().sort({ name: 1 }).lean(),
   ]);
-  const byDesig = new Map<string, number>();
-  const bySite = new Map<string, number>();
-  for (const w of workers) {
-    byDesig.set(w.designationName, (byDesig.get(w.designationName) ?? 0) + 1);
-    bySite.set(w.siteName, (bySite.get(w.siteName) ?? 0) + 1);
-  }
-  const desigKeys = [...byDesig.keys()].sort((a, b) => (byDesig.get(b)! - byDesig.get(a)!));
-  const siteKeys = [...bySite.keys()].sort((a, b) => (bySite.get(b)! - bySite.get(a)!));
+  const f = facet[0] ?? { byDesignation: [], bySite: [] };
   res.render("reports/employees", {
     title: "Employee report · " + res.locals.company,
     active: "/reports",
-    workers,
-    sites,
-    designations,
-    filters,
-    summary: {
-      total: workers.length,
-      active: workers.filter((w) => w.status === "active").length,
-      faceRegistered,
-      facePending: workers.length - faceRegistered,
-    },
+    workers: tableRows, sites, designations, filters,
+    rowCount: total, capped: total > TABLE_LIMIT, shown: Math.min(total, TABLE_LIMIT),
+    summary: { total, active, faceRegistered, facePending: Math.max(0, total - faceRegistered) },
     charts: {
-      byDesignation: { labels: desigKeys, data: desigKeys.map((k) => byDesig.get(k)!) },
-      bySite: { labels: siteKeys, data: siteKeys.map((k) => bySite.get(k)!) },
+      byDesignation: { labels: f.byDesignation.map((d: { _id: string }) => d._id), data: f.byDesignation.map((d: { n: number }) => d.n) },
+      bySite: { labels: f.bySite.map((s: { _id: string }) => s._id), data: f.bySite.map((s: { n: number }) => s.n) },
     },
     query: req.originalUrl.includes("?") ? req.originalUrl.slice(req.originalUrl.indexOf("?")) : "",
   });
 });
 
 router.get("/reports/employees/export.csv", requireCapability("view_dashboard"), async (req: Request, res: Response) => {
-  const { workers } = await employeeRows(req);
-  sendCsv(
-    res,
-    `employees-${Date.now()}.csv`,
+  const { q } = employeeQuery(req);
+  const [rows, total] = await Promise.all([
+    WorkerModel.find(q).select("name empRegNo designationName siteName status dailyWage").sort({ name: 1 }).limit(TABLE_LIMIT).lean(),
+    WorkerModel.countDocuments(q),
+  ]);
+  sendCsv(res, `employees-${Date.now()}.csv`,
     ["Employee ID", "Name", "Designation", "Site", "Status", "Daily wage"],
-    workers.map((w) => [w.empRegNo, w.name, w.designationName, w.siteName, w.status, w.dailyWage ?? ""]),
-  );
+    rows.map((w) => [w.empRegNo, w.name, w.designationName, w.siteName, w.status, w.dailyWage ?? ""]),
+    capNote(total));
 });
 
 // ========================= Overtime report =========================
-async function overtimeData(req: Request) {
+function overtimePipeline(req: Request) {
   const dateFrom = String(req.query.dateFrom ?? "");
   const dateTo = String(req.query.dateTo ?? "");
   const siteId = String(req.query.siteId ?? "");
-  const q: Record<string, unknown> = { ...siteScopeFilter(req.currentUser!), "overtime.status": { $in: ["pending", "approved"] } };
+  const match: Record<string, unknown> = { ...siteScopeFilter(req.currentUser!), "overtime.status": { $in: ["pending", "approved"] } };
   if (/^\d{4}-\d{2}-\d{2}$/.test(dateFrom) || /^\d{4}-\d{2}-\d{2}$/.test(dateTo)) {
     const range: Record<string, string> = {};
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateFrom)) range.$gte = dateFrom;
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateTo)) range.$lte = dateTo;
-    q.date = range;
+    match.date = range;
   }
-  if (siteId && Types.ObjectId.isValid(siteId)) q.siteId = new Types.ObjectId(siteId);
-  const rows = await AttendanceModel.find(q).select("siteName standardHours overtime workerId").limit(MAX_ROWS).lean();
+  if (siteId && Types.ObjectId.isValid(siteId) && canUseSite(req.currentUser!, siteId)) match.siteId = new Types.ObjectId(siteId);
+  return { match, filters: { dateFrom, dateTo, siteId } };
+}
 
-  const workerIds = [...new Set(rows.map((r) => String(r.workerId)).filter((x) => x && x !== "undefined"))];
-  const workers = await WorkerModel.find({ _id: { $in: workerIds } }).select("dailyWage").lean();
-  const wageById = new Map(workers.map((w) => [String(w._id), w.dailyWage]));
-
-  const bySite = new Map<string, { pending: number; approved: number; cost: number }>();
-  let missingWage = 0;
-  for (const r of rows) {
-    const approved = r.overtime?.status === "approved";
-    const otH = approved ? (r.overtime?.approvedHours ?? r.overtime?.computedHours ?? 0) : (r.overtime?.computedHours ?? 0);
-    const wage = wageById.get(String(r.workerId));
-    const std = r.standardHours;
-    const cost = wage != null && std ? otH * (wage / std) * config.otMultiplier : 0;
-    if (wage == null) missingWage += 1;
-    const k = r.siteName ?? "—";
-    const g = bySite.get(k) ?? { pending: 0, approved: 0, cost: 0 };
-    if (approved) g.approved += otH; else g.pending += otH;
-    g.cost += cost;
-    bySite.set(k, g);
-  }
-  const siteKeys = [...bySite.keys()].sort((a, b) => (bySite.get(b)!.pending + bySite.get(b)!.approved) - (bySite.get(a)!.pending + bySite.get(a)!.approved));
-  const groups = siteKeys.map((k) => ({ site: k, pending: round2(bySite.get(k)!.pending), approved: round2(bySite.get(k)!.approved), cost: Math.round(bySite.get(k)!.cost) }));
+async function overtimeData(req: Request) {
+  const { match, filters } = overtimePipeline(req);
+  const grouped = await AttendanceModel.aggregate([
+    { $match: match },
+    { $lookup: { from: "workers", localField: "workerId", foreignField: "_id", as: "w" } },
+    { $addFields: {
+      wage: { $arrayElemAt: ["$w.dailyWage", 0] },
+      otH: { $cond: [{ $eq: ["$overtime.status", "approved"] }, { $ifNull: ["$overtime.approvedHours", "$overtime.computedHours"] }, "$overtime.computedHours"] },
+    } },
+    { $addFields: { hasWage: { $cond: [{ $and: [{ $ne: ["$wage", null] }, { $gt: ["$standardHours", 0] }] }, 1, 0] } } },
+    { $addFields: { cost: { $cond: ["$hasWage", { $multiply: ["$otH", { $divide: ["$wage", "$standardHours"] }, config.otMultiplier] }, 0] } } },
+    { $group: {
+      _id: "$siteName",
+      pending: { $sum: { $cond: [{ $eq: ["$overtime.status", "pending"] }, "$otH", 0] } },
+      approved: { $sum: { $cond: [{ $eq: ["$overtime.status", "approved"] }, "$otH", 0] } },
+      cost: { $sum: "$cost" },
+      otHoursTotal: { $sum: "$otH" },
+      withWageHours: { $sum: { $cond: ["$hasWage", "$otH", 0] } },
+      missingWage: { $sum: { $cond: ["$hasWage", 0, 1] } },
+    } },
+    { $sort: { otHoursTotal: -1 } },
+  ]);
+  const groups = grouped.map((g) => ({ site: g._id ?? "—", pending: round2(g.pending), approved: round2(g.approved), cost: Math.round(g.cost) }));
+  const totalOt = grouped.reduce((a, g) => a + g.otHoursTotal, 0);
+  const withWage = grouped.reduce((a, g) => a + g.withWageHours, 0);
   const summary = {
     pendingHours: round2(groups.reduce((a, g) => a + g.pending, 0)),
     approvedHours: round2(groups.reduce((a, g) => a + g.approved, 0)),
     cost: groups.reduce((a, g) => a + g.cost, 0),
     sites: groups.length,
-    missingWage,
+    missingWage: grouped.reduce((a, g) => a + g.missingWage, 0),
+    wageCoverage: totalOt > 0 ? Math.round((withWage / totalOt) * 100) : 100,
   };
-  return { groups, summary, filters: { dateFrom, dateTo, siteId } };
+  return { groups, summary, filters };
 }
 
 router.get("/reports/overtime", requireCapability("view_dashboard"), async (req: Request, res: Response) => {
@@ -235,24 +234,18 @@ router.get("/reports/overtime", requireCapability("view_dashboard"), async (req:
   res.render("reports/overtime", {
     title: "Overtime report · " + res.locals.company,
     active: "/reports",
-    groups,
-    summary,
-    filters,
-    sites,
+    groups, summary, filters, sites,
     otMultiplier: config.otMultiplier,
-    charts: { labels: groups.map((g) => g.site), pending: groups.map((g) => g.pending), approved: groups.map((g) => g.approved), cost: groups.map((g) => g.cost) },
+    charts: { labels: groups.map((g) => g.site), pending: groups.map((g) => g.pending), approved: groups.map((g) => g.approved) },
     query: req.originalUrl.includes("?") ? req.originalUrl.slice(req.originalUrl.indexOf("?")) : "",
   });
 });
 
 router.get("/reports/overtime/export.csv", requireCapability("view_dashboard"), async (req: Request, res: Response) => {
   const { groups } = await overtimeData(req);
-  sendCsv(
-    res,
-    `overtime-${Date.now()}.csv`,
+  sendCsv(res, `overtime-${Date.now()}.csv`,
     ["Site", "Pending OT hours", "Approved OT hours", "OT cost (INR)"],
-    groups.map((g) => [g.site, g.pending, g.approved, g.cost]),
-  );
+    groups.map((g) => [g.site, g.pending, g.approved, g.cost]));
 });
 
 export default router;

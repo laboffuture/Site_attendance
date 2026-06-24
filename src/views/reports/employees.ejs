@@ -16,6 +16,10 @@
   <div class="oh-statstrip__item"><span class="oh-statstrip__num <%= summary.facePending ? 'is-warn' : '' %>"><%= summary.facePending %></span><span class="oh-statstrip__label">Face pending</span></div>
 </div>
 
+<% if (typeof capped !== 'undefined' && capped) { %>
+<div class="oh-alert oh-alert--warning">Showing the first <%= shown.toLocaleString('en-IN') %> of <strong><%= rowCount.toLocaleString('en-IN') %></strong> employees in the table — the tiles and charts cover the full set. Narrow the filters or export for the complete list.</div>
+<% } %>
+
 <div class="oh-card oh-stack">
   <form class="oh-form-inline" method="get" action="/reports/employees">
     <div class="oh-input-group">
@@ -61,7 +65,7 @@
         <td><span class="oh-person__name" style="font-weight:600"><%= w.name %></span></td>
         <td><%= w.designationName %></td>
         <td><%= w.siteName %></td>
-        <td><span class="oh-stat"><span class="oh-stat__dot" style="background: <%= w.status === 'active' ? 'var(--c-success)' : 'var(--c-text-muted)' %>"></span><%= w.status %></span></td>
+        <td><span class="oh-stat"><span class="oh-stat__dot" style="background: <%= w.status === 'active' ? 'var(--c-success)' : 'var(--c-text-muted)' %>"></span><%= w.status.charAt(0).toUpperCase() + w.status.slice(1) %></span></td>
       </tr>
       <% }); %>
     </tbody>
@@ -78,12 +82,12 @@
   (function () {
     if (typeof ApexCharts === "undefined" || !window.__EMP_RPT__) return;
     var d = window.__EMP_RPT__, font = "Poppins, Inter, sans-serif";
-    var PALETTE = ["#1c4d8c", "#21c06b", "#f5b438", "#2e97db", "#8e44ad", "#16a085", "#ff3b38", "#6F1E51"];
+    var ACCENT = "#1c4d8c";
     function bar(id, labels, data) {
       var el = document.getElementById(id); if (!el) return;
       new ApexCharts(el, {
         chart: { type: "bar", height: 240, fontFamily: font, toolbar: { show: false } },
-        colors: PALETTE, plotOptions: { bar: { columnWidth: "55%", distributed: true } },
+        colors: [ACCENT], plotOptions: { bar: { columnWidth: "55%" } }, tooltip: { y: { formatter: function (v) { return v + " employees"; } } },
         dataLabels: { enabled: false }, legend: { show: false },
         series: [{ name: "Employees", data: data }],
         xaxis: { categories: labels, labels: { rotate: -35, hideOverlappingLabels: true, style: { fontSize: "10px" } } },

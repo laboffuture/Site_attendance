@@ -12,7 +12,7 @@
 <div class="oh-statstrip">
   <div class="oh-statstrip__item"><span class="oh-statstrip__num is-warn"><%= summary.pendingHours %></span><span class="oh-statstrip__label">Pending OT hrs</span></div>
   <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= summary.approvedHours %></span><span class="oh-statstrip__label">Approved OT hrs</span></div>
-  <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= inr(summary.cost) %></span><span class="oh-statstrip__label">OT cost (<%= otMultiplier %>×)</span></div>
+  <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= inr(summary.cost) %></span><span class="oh-statstrip__label">OT cost (<%= otMultiplier %>×)<% if (summary.wageCoverage < 100) { %> · <span class="<%= summary.wageCoverage < 80 ? 'is-warn' : '' %>" style="<%= summary.wageCoverage < 80 ? 'color:var(--c-warning)' : '' %>"><%= summary.wageCoverage %>% wage-covered</span><% } %></span></div>
   <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= summary.sites %></span><span class="oh-statstrip__label">Sites with OT</span></div>
 </div>
 
@@ -32,7 +32,7 @@
 </div>
 
 <% if (summary.missingWage > 0) { %>
-<div class="oh-alert oh-alert--warning"><%= summary.missingWage %> OT record(s) have no daily wage set on the employee, so their ₹ cost is counted as 0. Set wages on those employees for an accurate total.</div>
+<div class="oh-alert oh-alert--warning"><%= summary.missingWage %> OT record(s) have no daily wage set, so only <strong><%= summary.wageCoverage %>%</strong> of OT hours are costed — the ₹ total above is understated. Set wages on those employees for an accurate figure.</div>
 <% } %>
 
 <% if (groups.length) { %>

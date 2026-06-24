@@ -84,6 +84,11 @@ attendanceSchema.index({ siteId: 1, date: 1 });
 attendanceSchema.index({ workerId: 1, date: 1 }, { unique: true }); // one row/worker/day
 attendanceSchema.index({ branchId: 1, date: 1 });
 attendanceSchema.index({ "overtime.status": 1 });
+// Reports: covers the branch→site→date sort/group used by the (unfiltered) HR
+// attendance report, and the overtime report's status+site+date aggregation.
+attendanceSchema.index({ branchId: 1, siteId: 1, date: -1 });
+attendanceSchema.index({ "overtime.status": 1, siteId: 1, date: 1 });
+attendanceSchema.index({ "attendanceStatus": 1, siteId: 1, date: 1 });
 
 export type Attendance = InferSchemaType<typeof attendanceSchema>;
 export const AttendanceModel = model("Attendance", attendanceSchema, "attendance");

@@ -1,19 +1,24 @@
 <%- include('../partials/app-top', { title: title, active: active }) %>
 <%
   var badgeFor = { pending: "warning", approved: "success", rejected: "danger", none: "muted" };
+  var statusText = { none: "—", pending: "Pending", approved: "Approved", rejected: "Rejected" };
   function otClass(s) { return s === "approved" ? "oh-ot-approved" : (s === "pending" ? "oh-ot-pending" : ""); }
 %>
 <%- include('../partials/breadcrumb', { back: '/reports', trail: [ { label: 'Reports', href: '/reports' }, { label: 'Attendance' } ] }) %>
 <div class="oh-page-header oh-page-header--row">
   <div>
     <h1 class="oh-page-title">Attendance report</h1>
-    <p class="oh-page-subtitle">Grouped by branch → site. Showing <%= rowCount %><%= rowCount >= maxRows ? " (capped)" : "" %> rows.</p>
+    <p class="oh-page-subtitle">Grouped by branch → site · <span class="oh-muted"><%= activeFilter %></span></p>
   </div>
   <div class="oh-actions">
     <a class="oh-btn oh-btn--small oh-btn--secondary" href="/reports/attendance/export.xlsx<%= query %>"><span class="material-icons">download</span> Excel</a>
     <a class="oh-btn oh-btn--small oh-btn--secondary" href="/reports/attendance/export.pdf<%= query %>"><span class="material-icons">picture_as_pdf</span> PDF</a>
   </div>
 </div>
+
+<% if (capped) { %>
+<div class="oh-alert oh-alert--warning">Showing the first <%= shown.toLocaleString('en-IN') %> of <strong><%= rowCount.toLocaleString('en-IN') %></strong> matching rows in the table below — the summary tiles and charts cover the <em>full</em> set. Narrow the filters (or export) for a complete row list.</div>
+<% } %>
 
 <div class="oh-statstrip">
   <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= summary.records.toLocaleString('en-IN') %></span><span class="oh-statstrip__label">Records</span></div>
@@ -72,7 +77,7 @@
           <div class="oh-m-box"><div class="oh-m-box__k">Total</div><div class="oh-m-box__v"><%= h.payableTotal != null ? h.payableTotal + "h" : "—" %></div></div>
         </div>
         <div style="margin-top:0.5rem;display:flex;align-items:center;gap:8px;">
-          <span class="oh-m-badge oh-badge--<%= badgeFor[h.otStatus] %>"><%= h.otStatus %></span>
+          <span class="oh-m-badge oh-badge--<%= badgeFor[h.otStatus] %>"><%= statusText[h.otStatus] || h.otStatus %></span>
           <% if (h.otStatus === "pending" && h.otComputed > 0) { %><span class="oh-m-sub oh-ot-pending">+<%= h.otComputed %>h pending</span><% } %>
         </div>
       </div>
@@ -90,10 +95,10 @@
           <td><%= h.worked != null ? h.standard + "h" : "—" %></td>
           <td><% if (h.otComputed > 0) { %><span class="<%= otClass(h.otStatus) %>"><%= h.otComputed %>h</span><% } else { %>—<% } %></td>
           <td><strong><%= h.payableTotal != null ? h.payableTotal + "h" : "—" %></strong><% if (h.otStatus === "pending" && h.otComputed > 0) { %><br /><span class="oh-muted oh-ot-pending">+<%= h.otComputed %>h pending</span><% } %></td>
-          <td><span class="oh-badge oh-badge--<%= badgeFor[h.otStatus] %>"><%= h.otStatus %></span></td>
+          <td><span class="oh-badge oh-badge--<%= badgeFor[h.otStatus] %>"><%= statusText[h.otStatus] || h.otStatus %></span></td>
           <td>
             <% var g = r.inGeo; if (g && g.available && g.lat != null) { %>
-            <a href="https://maps.google.com/?q=<%= g.lat %>,<%= g.lng %>" target="_blank" rel="noopener" title="In-scan location">📍<%= g.distanceMeters != null ? " " + g.distanceMeters + "m" : "" %></a>
+            <a href="https://maps.google.com/?q=<%= g.lat %>,<%= g.lng %>" target="_blank" rel="noopener" title="In-scan location"><span class="material-icons" style="font-size:0.95rem;vertical-align:middle">place</span><%= g.distanceMeters != null ? " " + g.distanceMeters + "m" : "" %></a>
             <% } else { %><span class="oh-muted">—</span><% } %>
           </td>
         </tr>

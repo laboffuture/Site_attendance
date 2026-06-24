@@ -53,12 +53,16 @@ function flat(r: Row): Record<string, string | number> {
   };
 }
 
-export async function buildXlsxBuffer(rows: Row[]): Promise<Buffer> {
+export async function buildXlsxBuffer(rows: Row[], note?: string): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet("Attendance");
   ws.columns = COLUMNS.map((c) => ({ header: c.header, key: c.key, width: c.width }));
   ws.getRow(1).font = { bold: true };
   for (const r of rows) ws.addRow(flat(r));
+  if (note) {
+    const noteRow = ws.addRow([note]);
+    noteRow.font = { italic: true, color: { argb: "FF996600" } };
+  }
   const buf = await wb.xlsx.writeBuffer();
   return Buffer.from(buf);
 }
