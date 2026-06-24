@@ -599,17 +599,21 @@ code {
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 .oh-sidebar__credit {
-  font-size: 0.6rem;
-  font-weight: 600;
+  font-size: 0.62rem;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.14em;
-  color: #cfd6df; /* bright silver */
+  letter-spacing: 0.16em;
+  /* bright shining silver */
+  background: linear-gradient(180deg, #ffffff 0%, #dfe4ea 34%, #a9b2bd 52%, #f3f6f9 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
 }
 .oh-sidebar__brand {
   display: block;
   width: 100%;
-  background: #fff;
-  padding: 0.5rem 0.6rem;
+  padding: 0.15rem 0;
 }
 .oh-sidebar__brand img {
   display: block;
