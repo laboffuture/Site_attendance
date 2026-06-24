@@ -115,6 +115,15 @@ async function main(): Promise<void> {
   const ot = await admin.get("/reports/overtime");
   assert("overtime report 200 + cost summary", ot.status === 200 && ot.text.includes("oh-statstrip") && ot.text.includes("OT cost"));
 
+  // Payroll report
+  assert("reports hub lists the Payroll report", hub.text.includes("Payroll report"));
+  const pay = await admin.get("/reports/payroll");
+  assert("payroll report 200 + gross summary", pay.status === 200 && pay.text.includes("Gross payroll") && pay.text.includes("standard day"));
+  const payCsv = await admin.get("/reports/payroll/export.csv");
+  assert("payroll CSV has payroll + bank columns", (payCsv.headers["content-type"] || "").includes("text/csv") && payCsv.text.includes("Total Pay") && payCsv.text.includes("IFSC"));
+  const payXlsx = await admin.get("/reports/payroll/export.xlsx").buffer().parse(binaryParser);
+  assert("payroll xlsx is a real workbook", Buffer.isBuffer(payXlsx.body) && payXlsx.body.slice(0, 2).toString() === "PK");
+
   // Attendance exports
   const xlsx = await admin.get(`/reports/attendance/export.xlsx?dateFrom=${today}&dateTo=${today}`).buffer().parse(binaryParser);
   assert("xlsx content-type", (xlsx.headers["content-type"] || "").includes("spreadsheetml"));

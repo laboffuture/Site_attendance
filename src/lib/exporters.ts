@@ -67,6 +67,37 @@ export async function buildXlsxBuffer(rows: Row[], note?: string): Promise<Buffe
   return Buffer.from(buf);
 }
 
+/** Per-worker payroll sheet (matches the client OT-sheet roll-up columns). */
+export interface PayrollRow {
+  empRegNo: string; name: string; designation: string; account: string; ifsc: string;
+  basic: number | null; food: number; days: number; normalHrs: number; otHrs: number;
+  normalPay: number; otPay: number; foodDays: number; foodAllowance: number; gross: number;
+}
+export async function buildPayrollXlsx(rows: PayrollRow[], period: string): Promise<Buffer> {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet("Payroll");
+  const cols = [
+    { header: "S.No", key: "n", width: 6 }, { header: "Emp Code", key: "empRegNo", width: 16 },
+    { header: "Worker", key: "name", width: 20 }, { header: "Designation", key: "designation", width: 18 },
+    { header: "Account No", key: "account", width: 18 }, { header: "IFSC", key: "ifsc", width: 14 },
+    { header: "Basic", key: "basic", width: 9 }, { header: "Food", key: "food", width: 8 },
+    { header: "Days", key: "days", width: 7 }, { header: "Normal Hrs", key: "normalHrs", width: 11 },
+    { header: "OT Hrs", key: "otHrs", width: 9 }, { header: "Normal Pay", key: "normalPay", width: 12 },
+    { header: "OT Pay", key: "otPay", width: 10 }, { header: "Food Count", key: "foodDays", width: 11 },
+    { header: "Food Allowance", key: "foodAllowance", width: 14 }, { header: "Total Pay", key: "gross", width: 12 },
+  ];
+  ws.columns = cols;
+  ws.getRow(1).font = { bold: true };
+  ws.spliceRows(1, 0, [`Payroll · ${period}`]);
+  ws.getRow(1).font = { bold: true, size: 13 };
+  rows.forEach((r, i) => ws.addRow({ ...r, n: i + 1, basic: r.basic ?? "" }));
+  const totals = rows.reduce((a, r) => ({ normalPay: a.normalPay + r.normalPay, otPay: a.otPay + r.otPay, foodAllowance: a.foodAllowance + r.foodAllowance, gross: a.gross + r.gross }), { normalPay: 0, otPay: 0, foodAllowance: 0, gross: 0 });
+  const tr = ws.addRow({ name: "TOTAL", normalPay: totals.normalPay, otPay: totals.otPay, foodAllowance: totals.foodAllowance, gross: totals.gross });
+  tr.font = { bold: true };
+  const buf = await wb.xlsx.writeBuffer();
+  return Buffer.from(buf);
+}
+
 /** Streams a landscape A4 PDF table directly to the response. */
 export function streamPdf(rows: Row[], meta: { title: string; subtitle: string }, res: Response): void {
   const doc = new PDFDocument({ size: "A4", layout: "landscape", margin: 28 });

@@ -1786,6 +1786,7 @@ tr > .oh-att-row {
 .oh-people__actcol { width: 1%; white-space: nowrap; }
 .oh-people tbody td { padding: 0.5rem 1rem; border-bottom: 1px solid var(--c-border-light); font-size: 0.88rem; vertical-align: middle; }
 .oh-people tbody tr:last-child td { border-bottom: 0; }
+.oh-people tfoot td { border-top: 2px solid var(--c-border); padding: 0.7rem 1rem; background: var(--c-canvas); font-size: 0.88rem; }
 .oh-people tbody tr:hover { background: var(--c-canvas); }
 .oh-people__spine { background: var(--spine, transparent); }
 .oh-person { display: flex; align-items: center; gap: 0.7rem; text-decoration: none; color: var(--c-text); }

@@ -1,0 +1,96 @@
+<%- include('../partials/app-top', { title: title, active: active }) %>
+<%
+  function inr(n) { return "₹ " + Math.round(n || 0).toLocaleString('en-IN'); }
+  var tNormalPay = workers.reduce(function (a, w) { return a + w.normalPay; }, 0);
+  var tOtPay = workers.reduce(function (a, w) { return a + w.otPay; }, 0);
+  var tFood = workers.reduce(function (a, w) { return a + w.foodAllowance; }, 0);
+%>
+<%- include('../partials/breadcrumb', { back: '/reports', trail: [ { label: 'Reports', href: '/reports' }, { label: 'Payroll' } ] }) %>
+<div class="oh-page-header oh-page-header--row">
+  <div>
+    <h1 class="oh-page-title">Payroll report</h1>
+    <p class="oh-page-subtitle">Per-worker hours &amp; pay · <span class="oh-muted">standard day <%= std %>h · OT at <%= otMultiplier %>× hourly (basic ÷ <%= std %>) · food on days worked ≥ 5h</span></p>
+  </div>
+  <div class="oh-actions">
+    <a class="oh-btn oh-btn--small oh-btn--secondary" href="/reports/payroll/export.xlsx<%= query %>"><span class="material-icons">download</span> Excel</a>
+    <a class="oh-btn oh-btn--small oh-btn--secondary" href="/reports/payroll/export.csv<%= query %>"><span class="material-icons">description</span> CSV</a>
+  </div>
+</div>
+
+<div class="oh-statstrip">
+  <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= summary.workers %></span><span class="oh-statstrip__label">Workers</span></div>
+  <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= summary.normalHrs %></span><span class="oh-statstrip__label">Normal hrs</span></div>
+  <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= summary.otHrs %></span><span class="oh-statstrip__label">OT hrs</span></div>
+  <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= inr(summary.gross) %></span><span class="oh-statstrip__label">Gross payroll</span></div>
+</div>
+
+<div class="oh-card oh-stack">
+  <form class="oh-form-inline" method="get" action="/reports/payroll">
+    <div class="oh-input-group"><label class="oh-label" for="dateFrom">From</label><input class="oh-input" id="dateFrom" type="date" name="dateFrom" value="<%= filters.dateFrom %>" /></div>
+    <div class="oh-input-group"><label class="oh-label" for="dateTo">To</label><input class="oh-input" id="dateTo" type="date" name="dateTo" value="<%= filters.dateTo %>" /></div>
+    <div class="oh-input-group">
+      <label class="oh-label" for="siteId">Site</label>
+      <select class="oh-select" id="siteId" name="siteId"><option value="">All sites</option>
+        <% sites.forEach(function (s) { %><option value="<%= s._id %>" <%= String(filters.siteId) === String(s._id) ? "selected" : "" %>><%= s.name %> (<%= s.code %>)</option><% }); %>
+      </select>
+    </div>
+    <button class="oh-btn oh-btn--secondary" type="submit">Run</button>
+    <a class="oh-btn oh-btn--small" href="/reports/payroll">Reset</a>
+  </form>
+</div>
+
+<% if (summary.missingWage > 0) { %>
+<div class="oh-alert oh-alert--warning"><%= summary.missingWage %> worker(s) have no daily wage set, so their pay is ₹0. Set a daily wage on those employees for an accurate run.</div>
+<% } %>
+
+<% if (!workers.length) { %>
+<div class="oh-empty"><span class="material-icons">payments</span><p>No attendance in this period to pay.</p></div>
+<% } else { %>
+
+<!-- mobile -->
+<div class="oh-only-mobile oh-m-list">
+  <% workers.forEach(function (w) { %>
+  <div class="oh-m-card" style="border-left:3px solid <%= w.hasWage ? 'var(--c-accent)' : 'var(--c-warning)' %>">
+    <div class="oh-m-row" style="justify-content:space-between"><span class="oh-m-name"><%= w.name %></span><span class="oh-m-name"><%= inr(w.gross) %></span></div>
+    <div class="oh-m-sub"><%= w.empRegNo %> · <%= w.designation %> · <%= w.days %> days</div>
+    <div class="oh-m-sub">Normal <%= w.normalHrs %>h (<%= inr(w.normalPay) %>) · OT <%= w.otHrs %>h (<%= inr(w.otPay) %>) · Food <%= inr(w.foodAllowance) %></div>
+  </div>
+  <% }); %>
+</div>
+
+<!-- desktop -->
+<div class="oh-card oh-card--flush oh-only-desktop">
+  <table class="oh-people">
+    <thead><tr><th class="oh-people__spinecol"></th><th>Worker</th><th>Designation</th><th>Basic</th><th>Days</th><th>Normal h</th><th>OT h</th><th>Normal ₹</th><th>OT ₹</th><th>Food ₹</th><th>Gross ₹</th></tr></thead>
+    <tbody>
+      <% workers.forEach(function (w) { %>
+      <tr style="--spine: <%= w.hasWage ? 'var(--c-accent)' : 'var(--c-warning)' %>">
+        <td class="oh-people__spine"></td>
+        <td><span class="oh-person__txt"><span class="oh-person__name"><%= w.name %></span><span class="oh-person__id"><%= w.empRegNo %></span></span></td>
+        <td><%= w.designation %></td>
+        <td><%= w.basic != null ? inr(w.basic) : '—' %></td>
+        <td><%= w.days %></td>
+        <td><%= w.normalHrs %></td>
+        <td><%= w.otHrs %></td>
+        <td><%= inr(w.normalPay) %></td>
+        <td><%= inr(w.otPay) %></td>
+        <td><%= inr(w.foodAllowance) %></td>
+        <td><strong><%= inr(w.gross) %></strong></td>
+      </tr>
+      <% }); %>
+    </tbody>
+    <tfoot>
+      <tr style="--spine: var(--c-accent)">
+        <td class="oh-people__spine"></td>
+        <td colspan="6"><strong>TOTAL · <%= summary.workers %> workers</strong></td>
+        <td><strong><%= inr(tNormalPay) %></strong></td>
+        <td><strong><%= inr(tOtPay) %></strong></td>
+        <td><strong><%= inr(tFood) %></strong></td>
+        <td><strong><%= inr(summary.gross) %></strong></td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+<% } %>
+
+<%- include('../partials/app-bottom') %>
