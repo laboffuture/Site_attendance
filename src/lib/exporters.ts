@@ -77,33 +77,53 @@ export function sendCsv(res: Response, filename: string, headers: string[], rows
   res.send(lines.join("\n"));
 }
 
-/** Per-worker payroll sheet (matches the client OT-sheet roll-up columns). */
+/** Per-worker payroll sheet — mirrors the client OT sheet: identity columns, a
+ *  per-day In/Out/Lunch/Total/Normal/OT block for each date, then the roll-up. */
+export interface PayrollDay { inT: string; outT: string; lunch: number; total: number; normal: number; ot: number; }
 export interface PayrollRow {
   empRegNo: string; name: string; designation: string; account: string; ifsc: string;
   basic: number | null; food: number; days: number; normalHrs: number; otHrs: number;
-  normalPay: number; otPay: number; foodDays: number; foodAllowance: number; gross: number;
+  normalPay: number; otPay: number; foodDays: number; foodAllowance: number; arrears: number; gross: number;
+  byDate: Record<string, PayrollDay>;
 }
-export async function buildPayrollXlsx(rows: PayrollRow[], period: string): Promise<Buffer> {
+export async function buildPayrollXlsx(rows: PayrollRow[], dates: string[], period: string): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet("Payroll");
-  const cols = [
-    { header: "S.No", key: "n", width: 6 }, { header: "Emp Code", key: "empRegNo", width: 16 },
-    { header: "Worker", key: "name", width: 20 }, { header: "Designation", key: "designation", width: 18 },
-    { header: "Account No", key: "account", width: 18 }, { header: "IFSC", key: "ifsc", width: 14 },
-    { header: "Basic", key: "basic", width: 9 }, { header: "Food", key: "food", width: 8 },
-    { header: "Days", key: "days", width: 7 }, { header: "Normal Hrs", key: "normalHrs", width: 11 },
-    { header: "OT Hrs", key: "otHrs", width: 9 }, { header: "Normal Pay", key: "normalPay", width: 12 },
-    { header: "OT Pay", key: "otPay", width: 10 }, { header: "Food Count", key: "foodDays", width: 11 },
-    { header: "Food Allowance", key: "foodAllowance", width: 14 }, { header: "Total Pay", key: "gross", width: 12 },
-  ];
-  ws.columns = cols;
-  ws.getRow(1).font = { bold: true };
-  ws.spliceRows(1, 0, [`Payroll · ${period}`]);
+
+  const head: (string | number)[] = ["S.No", "Emp Code", "Worker", "Designation", "Account No", "IFSC", "Basic", "Food"];
+  for (const dt of dates) head.push(`${dt.slice(5)} Date`, "In", "Out", "Lunch", "Total", "Normal", "OT");
+  head.push("Total Normal Hrs", "No. of OT Hrs", "Normal Pay", "OT Pay", "Food Count", "Food Allowance", "Arrears", "Total Pay");
+
+  ws.addRow([`Payroll · ${period}`]);
   ws.getRow(1).font = { bold: true, size: 13 };
-  rows.forEach((r, i) => ws.addRow({ ...r, n: i + 1, basic: r.basic ?? "" }));
-  const totals = rows.reduce((a, r) => ({ normalPay: a.normalPay + r.normalPay, otPay: a.otPay + r.otPay, foodAllowance: a.foodAllowance + r.foodAllowance, gross: a.gross + r.gross }), { normalPay: 0, otPay: 0, foodAllowance: 0, gross: 0 });
-  const tr = ws.addRow({ name: "TOTAL", normalPay: totals.normalPay, otPay: totals.otPay, foodAllowance: totals.foodAllowance, gross: totals.gross });
-  tr.font = { bold: true };
+  ws.addRow(head).font = { bold: true };
+
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    const row: (string | number)[] = [i + 1, r.empRegNo, r.name, r.designation, r.account, r.ifsc, r.basic ?? "", r.food];
+    for (const dt of dates) {
+      const d = r.byDate[dt];
+      if (d) row.push(dt.slice(5), d.inT, d.outT, d.lunch, d.total, d.normal, d.ot);
+      else row.push(dt.slice(5), "", "", "", "", "", "");
+    }
+    row.push(r.normalHrs, r.otHrs, r.normalPay, r.otPay, r.foodDays, r.foodAllowance, r.arrears, r.gross);
+    ws.addRow(row);
+  }
+
+  // TOTAL row aligned to the roll-up block at the far right.
+  const total = (k: keyof PayrollRow) => rows.reduce((a, r) => a + (r[k] as number), 0);
+  const totalRow: (string | number)[] = new Array(head.length).fill("");
+  totalRow[2] = "TOTAL";
+  const rollup = 8 + dates.length * 7; // first roll-up column index
+  totalRow[rollup + 2] = total("normalPay");
+  totalRow[rollup + 3] = total("otPay");
+  totalRow[rollup + 5] = total("foodAllowance");
+  totalRow[rollup + 6] = total("arrears");
+  totalRow[rollup + 7] = total("gross");
+  ws.addRow(totalRow).font = { bold: true };
+
+  ws.getColumn(3).width = 20;
+  ws.getColumn(4).width = 16;
   const buf = await wb.xlsx.writeBuffer();
   return Buffer.from(buf);
 }

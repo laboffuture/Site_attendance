@@ -118,11 +118,13 @@ async function main(): Promise<void> {
   // Payroll — now a first-class module at /payroll (also linked from the hub)
   assert("reports hub links to Payroll", hub.text.includes("Payroll report") && hub.text.includes('href="/payroll"'));
   const pay = await admin.get("/payroll");
-  assert("payroll page 200 + gross summary + week presets", pay.status === 200 && pay.text.includes("Gross payroll") && pay.text.includes("standard day") && pay.text.includes("This week"));
+  assert("payroll page: gross + presets + per-day grid + arrears", pay.status === 200 && pay.text.includes("Gross payroll") && pay.text.includes("standard day") && pay.text.includes("This week") && pay.text.includes("oh-daygrid") && pay.text.includes("oh-arrears"));
   const payCsv = await admin.get("/payroll/export.csv");
-  assert("payroll CSV has payroll + bank columns", (payCsv.headers["content-type"] || "").includes("text/csv") && payCsv.text.includes("Total Pay") && payCsv.text.includes("IFSC"));
+  assert("payroll CSV has payroll + bank + arrears columns", (payCsv.headers["content-type"] || "").includes("text/csv") && payCsv.text.includes("Total Pay") && payCsv.text.includes("IFSC") && payCsv.text.includes("Arrears"));
   const payXlsx = await admin.get("/payroll/export.xlsx").buffer().parse(binaryParser);
   assert("payroll xlsx is a real workbook", Buffer.isBuffer(payXlsx.body) && payXlsx.body.slice(0, 2).toString() === "PK");
+  const arr = await admin.post("/payroll/arrears").type("form").send({ workerId: new Types.ObjectId().toString(), dateFrom: "2026-06-01", dateTo: "2026-06-30", amount: 500 }).redirects(0);
+  assert("payroll arrears endpoint redirects back to /payroll", arr.status === 302 && (arr.headers.location || "").startsWith("/payroll"));
 
   // Attendance exports
   const xlsx = await admin.get(`/reports/attendance/export.xlsx?dateFrom=${today}&dateTo=${today}`).buffer().parse(binaryParser);

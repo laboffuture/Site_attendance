@@ -154,6 +154,7 @@ interface ParsedSite {
   nightStart: string;
   nightEnd: string;
   allowedOtHours: number | null;
+  lunchHours: number;
   latitude: number | null;
   longitude: number | null;
   radius: number | null;
@@ -181,6 +182,9 @@ function parseSite(req: Request): ParsedSite {
   const allowedRaw = String(req.body.allowedOtHours ?? "").trim();
   const allowedNum = parseFloat(allowedRaw);
   const allowedValid = allowedRaw === "" || (Number.isFinite(allowedNum) && allowedNum >= 0 && allowedNum <= 24);
+  const lunchRaw = String(req.body.lunchHours ?? "").trim();
+  const lunchNum = parseFloat(lunchRaw);
+  const lunchValid = lunchRaw === "" || (Number.isFinite(lunchNum) && lunchNum >= 0 && lunchNum <= 8);
 
   // Drawn polygon geofence — [[lat, lng], ...] sent as JSON in a hidden field.
   let geofencePolygon: number[][] = [];
@@ -202,6 +206,7 @@ function parseSite(req: Request): ParsedSite {
   else if (!endAfterStart(start, end)) error = "Day shift end must be after its start.";
   else if (nightShiftEnabled && (!isValidTime(nightStart) || !isValidTime(nightEnd))) error = "Night shift times must be valid HH:MM (24-hour).";
   else if (!allowedValid) error = "Allowed OT hours must be a number between 0 and 24.";
+  else if (!lunchValid) error = "Lunch deduction must be a number of hours between 0 and 8.";
   else if (lat === undefined || lng === undefined) error = "Latitude must be -90..90 and longitude -180..180.";
   else if (rad === undefined) error = "Radius must be a positive number of metres.";
   else if ((lat === null) !== (lng === null)) error = "Set both latitude and longitude, or leave both blank.";
@@ -215,6 +220,7 @@ function parseSite(req: Request): ParsedSite {
     nightStart,
     nightEnd,
     allowedOtHours: allowedRaw === "" ? null : allowedNum,
+    lunchHours: lunchRaw === "" ? 1 : lunchNum,
     latitude: lat === undefined ? null : lat,
     longitude: lng === undefined ? null : lng,
     radius: rad === undefined ? null : rad,
@@ -263,6 +269,7 @@ router.post("/org/sites", requireCapability("manage_sites"), async (req: Request
       standardStartTime: p.start,
       standardEndTime: p.end,
       allowedOtHours: p.allowedOtHours,
+      lunchHours: p.lunchHours,
       latitude: p.latitude,
       longitude: p.longitude,
       geofenceRadiusMeters: p.radius,
@@ -349,6 +356,7 @@ router.post("/org/sites/:id", requireCapability("manage_sites"), async (req: Req
       standardStartTime: p.start,
       standardEndTime: p.end,
       allowedOtHours: p.allowedOtHours,
+      lunchHours: p.lunchHours,
       latitude: p.latitude,
       longitude: p.longitude,
       geofenceRadiusMeters: p.radius,

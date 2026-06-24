@@ -9,7 +9,7 @@
 <div class="oh-page-header oh-page-header--row">
   <div>
     <h1 class="oh-page-title">Payroll</h1>
-    <p class="oh-page-subtitle"><strong><%= filters.dateFrom %> → <%= filters.dateTo %></strong> · <span class="oh-muted">standard day <%= std %>h · OT at <%= otMultiplier %>× hourly (basic ÷ <%= std %>) · food on days worked ≥ 5h</span></p>
+    <p class="oh-page-subtitle"><strong><%= filters.dateFrom %> → <%= filters.dateTo %></strong> · <span class="oh-muted">standard day <%= std %>h · OT at <%= otMultiplier %>× hourly (basic ÷ <%= std %>) · lunch per site · food on days worked ≥ 5h</span></p>
   </div>
   <div class="oh-actions">
     <a class="oh-btn oh-btn--small oh-btn--secondary" href="/payroll/export.xlsx<%= query %>"><span class="material-icons">download</span> Excel</a>
@@ -44,6 +44,9 @@
 <% if (summary.missingWage > 0) { %>
 <div class="oh-alert oh-alert--warning"><%= summary.missingWage %> worker(s) have no daily wage set, so their pay is ₹0. Set a daily wage on those employees for an accurate run.</div>
 <% } %>
+<% if (summary.capped) { %>
+<div class="oh-alert oh-alert--warning">This period has a very large number of rows — totals may be truncated. Narrow to a single site or a shorter range for an exact run.</div>
+<% } %>
 
 <% if (!workers.length) { %>
 <div class="oh-empty"><span class="material-icons">payments</span><p>No attendance in this period to pay.</p></div>
@@ -55,19 +58,20 @@
   <div class="oh-m-card" style="border-left:3px solid <%= w.hasWage ? 'var(--c-accent)' : 'var(--c-warning)' %>">
     <div class="oh-m-row" style="justify-content:space-between"><span class="oh-m-name"><%= w.name %></span><span class="oh-m-name"><%= inr(w.gross) %></span></div>
     <div class="oh-m-sub"><%= w.empRegNo %> · <%= w.designation %> · <%= w.days %> days</div>
-    <div class="oh-m-sub">Normal <%= w.normalHrs %>h (<%= inr(w.normalPay) %>) · OT <%= w.otHrs %>h (<%= inr(w.otPay) %>) · Food <%= inr(w.foodAllowance) %></div>
+    <div class="oh-m-sub">Normal <%= w.normalHrs %>h (<%= inr(w.normalPay) %>) · OT <%= w.otHrs %>h (<%= inr(w.otPay) %>) · Food <%= inr(w.foodAllowance) %><% if (w.arrears) { %> · Arrears <%= inr(w.arrears) %><% } %></div>
   </div>
   <% }); %>
 </div>
 
 <!-- desktop -->
 <div class="oh-card oh-card--flush oh-only-desktop">
-  <table class="oh-people">
-    <thead><tr><th class="oh-people__spinecol"></th><th>Worker</th><th>Designation</th><th>Basic</th><th>Days</th><th>Normal h</th><th>OT h</th><th>Normal ₹</th><th>OT ₹</th><th>Food ₹</th><th>Gross ₹</th></tr></thead>
+  <table class="oh-people oh-payroll">
+    <thead><tr><th class="oh-people__spinecol"></th><th></th><th>Worker</th><th>Designation</th><th>Basic</th><th>Days</th><th>Normal h</th><th>OT h</th><th>Normal ₹</th><th>OT ₹</th><th>Food ₹</th><th>Arrears ₹</th><th>Gross ₹</th></tr></thead>
     <tbody>
       <% workers.forEach(function (w) { %>
       <tr style="--spine: <%= w.hasWage ? 'var(--c-accent)' : 'var(--c-warning)' %>">
         <td class="oh-people__spine"></td>
+        <td><button type="button" class="oh-rowtoggle" data-tgt="d-<%= w.workerId %>" aria-label="Show daily breakdown"><span class="material-icons">expand_more</span></button></td>
         <td><span class="oh-person__txt"><span class="oh-person__name"><%= w.name %></span><span class="oh-person__id"><%= w.empRegNo %></span></span></td>
         <td><%= w.designation %></td>
         <td><%= w.basic != null ? inr(w.basic) : '—' %></td>
@@ -77,22 +81,63 @@
         <td><%= inr(w.normalPay) %></td>
         <td><%= inr(w.otPay) %></td>
         <td><%= inr(w.foodAllowance) %></td>
+        <td>
+          <form class="oh-arrears" method="post" action="/payroll/arrears">
+            <input type="hidden" name="workerId" value="<%= w.workerId %>" />
+            <input type="hidden" name="dateFrom" value="<%= filters.dateFrom %>" />
+            <input type="hidden" name="dateTo" value="<%= filters.dateTo %>" />
+            <% if (filters.siteId) { %><input type="hidden" name="siteId" value="<%= filters.siteId %>" /><% } %>
+            <input class="oh-arrears__input" type="number" name="amount" step="1" value="<%= w.arrears || '' %>" placeholder="0" title="<%= w.arrearsNote || 'Arrears / adjustment (+ or −)' %>" />
+            <button class="oh-arrears__save" type="submit" title="Save"><span class="material-icons">check</span></button>
+          </form>
+        </td>
         <td><strong><%= inr(w.gross) %></strong></td>
+      </tr>
+      <tr class="oh-dayrow" id="d-<%= w.workerId %>" hidden>
+        <td class="oh-people__spine"></td>
+        <td colspan="12">
+          <table class="oh-daygrid">
+            <thead><tr><th>Date</th><th>In</th><th>Out</th><th>Lunch</th><th>Total</th><th>Normal</th><th>OT</th></tr></thead>
+            <tbody>
+              <% dates.forEach(function (dt) { var d = w.byDate[dt]; %>
+              <tr class="<%= d ? '' : 'oh-daygrid__absent' %>">
+                <td><%= dt.slice(5) %></td>
+                <td><%= d ? d.inT : '—' %></td>
+                <td><%= d ? d.outT : '—' %></td>
+                <td><%= d ? d.lunch : '—' %></td>
+                <td><%= d ? d.total : '—' %></td>
+                <td><%= d ? d.normal : '—' %></td>
+                <td><%= d && d.ot ? d.ot : (d ? 0 : '—') %></td>
+              </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </td>
       </tr>
       <% }); %>
     </tbody>
     <tfoot>
       <tr style="--spine: var(--c-accent)">
         <td class="oh-people__spine"></td>
-        <td colspan="6"><strong>TOTAL · <%= summary.workers %> workers</strong></td>
+        <td colspan="7"><strong>TOTAL · <%= summary.workers %> workers</strong></td>
         <td><strong><%= inr(tNormalPay) %></strong></td>
         <td><strong><%= inr(tOtPay) %></strong></td>
         <td><strong><%= inr(tFood) %></strong></td>
+        <td><strong><%= inr(summary.arrears) %></strong></td>
         <td><strong><%= inr(summary.gross) %></strong></td>
       </tr>
     </tfoot>
   </table>
 </div>
 <% } %>
+
+<script>
+  document.querySelectorAll('.oh-rowtoggle').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var el = document.getElementById(b.dataset.tgt);
+      if (el) { el.hidden = !el.hidden; b.classList.toggle('is-open'); }
+    });
+  });
+</script>
 
 <%- include('../partials/app-bottom') %>

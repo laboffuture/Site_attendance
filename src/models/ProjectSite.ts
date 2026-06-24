@@ -49,6 +49,9 @@ const projectSiteSchema = new Schema(
     standardEndTime: { type: String, default: "18:00" },
     // Max overtime hours allowed per day (cap; null = no explicit cap).
     allowedOtHours: { type: Number, default: null },
+    // Payroll lunch deduction (hours) subtracted from each day's worked hours
+    // before normal/OT are split — matches the client OT sheet's lunch column.
+    lunchHours: { type: Number, default: 1 },
     designationOverrides: { type: [designationOverrideSchema], default: [] },
 
     // Per-site day/night/sunday shift definitions (matrix defaults on create).

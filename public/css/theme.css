@@ -1788,6 +1788,24 @@ tr > .oh-att-row {
 .oh-people tbody tr:last-child td { border-bottom: 0; }
 .oh-people tfoot td { border-top: 2px solid var(--c-border); padding: 0.7rem 1rem; background: var(--c-canvas); font-size: 0.88rem; }
 .oh-people tbody tr:hover { background: var(--c-canvas); }
+
+/* Payroll — inline arrears editing + per-day expand */
+.oh-rowtoggle { background: none; border: 0; cursor: pointer; color: var(--c-text-muted); display: inline-grid; place-items: center; padding: 0; }
+.oh-rowtoggle .material-icons { font-size: 1.2rem; transition: transform 0.15s; }
+.oh-rowtoggle.is-open .material-icons { transform: rotate(180deg); color: var(--c-accent); }
+.oh-arrears { display: flex; align-items: center; gap: 0.25rem; }
+.oh-arrears__input { width: 78px; padding: 0.25rem 0.4rem; border: 1px solid var(--c-border); font: inherit; font-size: 0.82rem; text-align: right; }
+.oh-arrears__input:focus { outline: none; border-color: var(--c-accent); }
+.oh-arrears__save { display: inline-grid; place-items: center; padding: 0.25rem; border: 1px solid var(--c-border); background: var(--c-surface); cursor: pointer; color: var(--c-text-muted); }
+.oh-arrears__save:hover { border-color: var(--c-accent); color: var(--c-accent); }
+.oh-arrears__save .material-icons { font-size: 1rem; }
+.oh-dayrow > td { background: var(--c-canvas); padding: 0 1rem 0.6rem !important; }
+.oh-dayrow:hover { background: transparent; }
+.oh-daygrid { width: auto; border-collapse: collapse; font-size: 0.8rem; margin: 0.3rem 0; }
+.oh-daygrid th, .oh-daygrid td { padding: 0.3rem 0.85rem; text-align: right; border-bottom: 1px solid var(--c-border); }
+.oh-daygrid th:first-child, .oh-daygrid td:first-child { text-align: left; }
+.oh-daygrid th { color: var(--c-text-muted); font-weight: 600; text-transform: uppercase; font-size: 0.68rem; letter-spacing: 0.03em; }
+.oh-daygrid__absent td { color: var(--c-border); }
 .oh-people__spine { background: var(--spine, transparent); }
 .oh-person { display: flex; align-items: center; gap: 0.7rem; text-decoration: none; color: var(--c-text); }
 .oh-ava {
