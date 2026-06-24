@@ -44,7 +44,7 @@ async function main(): Promise<void> {
   // 3) session reaches the dashboard
   const dash = await agent.get("/dashboard");
   assert("authed dashboard returns 200", dash.status === 200);
-  assert("dashboard greets the user", dash.text.includes("Welcome,"));
+  assert("dashboard shows the user's scope context", dash.text.includes("All branches"));
   assert("dashboard shows sidebar (Dashboard link)", dash.text.includes("Dashboard"));
   assert("management sees Users & Roles nav", dash.text.includes("Users &amp; Roles"));
 

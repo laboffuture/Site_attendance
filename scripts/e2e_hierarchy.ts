@@ -68,11 +68,10 @@ async function main(): Promise<void> {
   // Senior role: branch boxes present.
   const admin = await login(app, ADMIN_EMAIL, ADMIN_PW);
   const dash = (await admin.get("/dashboard")).text;
-  assert("dashboard shows the Branches heading", dash.includes(">Branches<"));
-  assert("branch boxes list the Chennai branch", dash.includes("oh-dash-box") && dash.includes("Chennai"));
-  assert("a site tile links into VBW's single-site page", dash.includes(`/dashboard?siteId=${vbw._id}`) && dash.includes("(VBW)"));
-  const chennai = branchRow(dash, "Chennai");
-  assert("Chennai branch box rendered", !!chennai);
+  assert("dashboard shows the exception-sites section (rollup-fed)", dash.includes("Sites that need attention"));
+  assert("dashboard shows the health verdict band", dash.includes("oh-verdict"));
+  const vbwPage = await admin.get(`/dashboard?siteId=${vbw._id}`);
+  assert("VBW single-site page reachable from the rollup scope", vbwPage.status === 200 && vbwPage.text.includes("VBW"));
 
   // Single-site Supervisor: no branch boxes (not a senior multi-site view).
   const sup = await login(app, SUP_EMAIL, PW);

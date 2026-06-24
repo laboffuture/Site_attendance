@@ -1,184 +1,141 @@
 <%- include('partials/app-top', { title: title, active: active }) %>
 <%
   function ts(d) { return d ? new Date(d).toLocaleString("en-GB", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" }) : ""; }
+  function inr(n) { return "₹ " + Math.round(n || 0).toLocaleString("en-IN"); }
+  var allClear = verdictTone === "success" && needsYouTotal === 0;
 %>
 
 <div class="oh-page-header oh-page-header--row">
   <div>
     <h1 class="oh-page-title">Dashboard</h1>
-    <p class="oh-page-subtitle">Welcome, <%= currentUser.name %> · Scope: <%= scopeLabel %></p>
+    <p class="oh-page-subtitle"><%= currentUser.name %> · <%= scopeLabel %></p>
   </div>
   <% if (mySites && mySites.length > 1) { %>
   <form method="get" action="/dashboard" class="oh-dash-filter">
     <select class="oh-select" name="siteId" onchange="this.form.submit()" aria-label="Open a site">
       <option value="">All my sites</option>
-      <% mySites.forEach(function (s) { %>
-      <option value="<%= s._id %>"><%= s.name %> (<%= s.code %>)</option>
-      <% }); %>
+      <% mySites.forEach(function (s) { %><option value="<%= s._id %>"><%= s.name %> (<%= s.code %>)</option><% }); %>
     </select>
   </form>
   <% } %>
 </div>
 
-<% if (!seesAll && myLocations && myLocations.length) { %>
-<div class="oh-loc-bar">
-  <span class="oh-loc-bar__label"><%= myLocations.length %> assigned location<%= myLocations.length > 1 ? "s" : "" %>:</span>
-  <% myLocations.forEach(function (loc) { %><span class="oh-loc-chip"><span class="material-icons">place</span><%= loc %></span><% }); %>
+<!-- 1 · Health verdict -->
+<div class="oh-verdict oh-verdict--<%= verdictTone %>">
+  <span class="material-icons oh-verdict__icon"><%= allClear ? "check_circle" : verdictTone === "danger" ? "error" : "info" %></span>
+  <p class="oh-verdict__text">
+    <% if (allClear) { %>
+      All clear — <strong><%= stats.todayCount %></strong> present across <%= totalSites %> site<%= totalSites === 1 ? "" : "s" %> (<%= pct %>%)<% if (seesAll && money) { %> · payroll on track<% } %>.
+    <% } else { %>
+      <strong><%= stats.todayCount %></strong> / <%= stats.activeWorkers %> in today (<%= pct %>%)<% if (needsYouTotal > 0) { %> · <strong><%= needsYouTotal %></strong> need<%= needsYouTotal === 1 ? "s" : "" %> you<% if (seesAll && otExposure.cost > 0) { %> (<%= inr(otExposure.cost) %> OT)<% } %><% } %><% if (stats.unresolvedFlags > 0) { %> · <%= stats.unresolvedFlags %> flag<%= stats.unresolvedFlags === 1 ? "" : "s" %><% } %>
+      <% if (worstSite) { %><a class="oh-verdict__link" href="/dashboard?siteId=<%= worstSite.id %>">Worst: <%= worstSite.name %> <%= worstSite.pct %>%</a><% } %>
+    <% } %>
+  </p>
 </div>
-<% } %>
 
-<div class="oh-card-grid">
-  <div class="oh-card">
-    <div class="oh-card__label">Present Today</div>
-    <div class="oh-card__value"><%= stats.todayCount %></div>
-  </div>
-  <a class="oh-card oh-card--link" href="/overtime?status=pending">
-    <div class="oh-card__label">Pending Overtime</div>
-    <div class="oh-card__value"><%= stats.pendingOT %></div>
+<!-- 2 · NEEDS-YOU action band -->
+<% if (needsYouTotal > 0) { %>
+<div class="oh-qband oh-qband--needs">
+  <% if (stats.pendingOT > 0) { %>
+  <a class="oh-qband__item oh-qband__item--warn" href="/overtime?status=pending">
+    <span class="oh-qband__num"><%= stats.pendingOT %></span><span class="oh-qband__label">Pending OT</span>
+    <% if (seesAll && otExposure.cost > 0) { %><span class="oh-qband__sub"><%= inr(otExposure.cost) %> · <%= otExposure.hrs %>h</span><% } %>
   </a>
-  <a class="oh-card oh-card--link" href="/flags">
-    <div class="oh-card__label">Flagged Events</div>
-    <div class="oh-card__value"><%= stats.unresolvedFlags %></div>
-  </a>
-  <div class="oh-card">
-    <div class="oh-card__label">Active Workers</div>
-    <div class="oh-card__value"><%= stats.todayCount %> <span class="oh-card__of">/ <%= stats.activeWorkers %></span></div>
-    <div class="oh-card__note"><%= stats.activeWorkers ? Math.round((stats.todayCount / stats.activeWorkers) * 100) : 0 %>% present today</div>
-  </div>
-</div>
-
-<!-- Executive gauges (added on top — radialBar via ApexCharts) -->
-<% if (typeof gauges !== 'undefined' && gauges.length) { %>
-<div class="oh-chart-grid">
-  <% gauges.forEach(function (g) { %>
-  <div class="oh-card">
-    <div class="oh-card__label"><%= g.label %></div>
-    <div class="oh-gauge" id="gauge-<%= g.id %>" data-value="<%= g.value %>" data-unit="<%= g.unit %>"></div>
-  </div>
-  <% }); %>
-</div>
-<% } %>
-
-<% if (rollup) { %>
-<section class="oh-stack" aria-label="Branches">
-  <div class="oh-section-header">
-    <span class="oh-section-title">Branches</span>
-    <span class="oh-muted">Tap a branch to see its sites · present = scanned in today</span>
-  </div>
-  <% if (rollup.length) { %>
-  <div class="oh-dash-branches">
-    <% rollup.forEach(function (b, i) { %>
-    <section class="oh-dash-branch" data-branch="<%= i %>">
-      <button type="button" class="oh-dash-box" aria-expanded="false" aria-controls="dash-sites-<%= i %>">
-        <span class="oh-dash-box__head">
-          <span class="oh-dash-box__name"><%= b.branchName %></span>
-          <span class="oh-dash-box__caret" aria-hidden="true">&#9656;</span>
-        </span>
-        <span class="oh-dash-box__count"><%= b.totals.active %> <span class="oh-dash-box__count-unit">workers</span></span>
-        <span class="oh-dash-box__sub">
-          <strong><%= b.totals.present %></strong> in · OT <%= b.totals.otPending %>h
-        </span>
-        <% if (b.totals.flags > 0) { %>
-        <span class="oh-dash-box__chip">&#9873; <%= b.totals.flags %></span>
-        <% } %>
-      </button>
-      <div class="oh-dash-sites" id="dash-sites-<%= i %>" role="region" aria-label="Sites in <%= b.branchName %>">
-        <% b.sites.forEach(function (s) { var pct = s.active > 0 ? Math.round((s.present / s.active) * 100) : 0; %>
-        <a class="oh-hier__tile oh-dash-tile" href="/dashboard?siteId=<%= s.siteId %>">
-          <div class="oh-hier__site"><%= s.siteName %></div>
-          <div class="oh-hier__code"><%= s.code %></div>
-          <div class="oh-hier__num"><%= s.active %></div>
-          <div class="oh-hier__num-label">workers</div>
-          <div class="oh-hier__present <%= s.present > 0 ? 'is-in' : '' %>"><%= s.present %> present today</div>
-          <% if (s.otPending > 0 || s.flags > 0) { %>
-          <div class="oh-hier__chips">
-            <% if (s.otPending > 0) { %><span class="oh-hier__chip oh-hier__chip--ot">OT <%= s.otPending %>h</span><% } %>
-            <% if (s.flags > 0) { %><span class="oh-hier__chip oh-hier__chip--flag">&#9873; <%= s.flags %></span><% } %>
-          </div>
-          <% } %>
-          <div class="oh-hier__bar"><span class="oh-hier__bar-fill" style="width: <%= pct %>%"></span></div>
-        </a>
-        <% }); %>
-      </div>
-    </section>
-    <% }); %>
-  </div>
-  <% } else { %>
-  <p class="oh-muted">No sites in your scope yet.</p>
   <% } %>
-</section>
-<% } %>
-
-<% if (charts.presenceBySite) { %>
-<div class="oh-card">
-  <div class="oh-card__label">Present vs active — by site (today)</div>
-  <div class="oh-chart-box"><div id="presenceChart"></div></div>
+  <% if (stats.pendingReg > 0) { %><a class="oh-qband__item oh-qband__item--warn" href="/regularization"><span class="oh-qband__num"><%= stats.pendingReg %></span><span class="oh-qband__label">Regularizations</span></a><% } %>
+  <% if (stats.pendingReq > 0) { %><a class="oh-qband__item oh-qband__item--warn" href="/requests"><span class="oh-qband__num"><%= stats.pendingReq %></span><span class="oh-qband__label">Requests</span></a><% } %>
+  <% if (stats.unresolvedFlags > 0) { %><a class="oh-qband__item oh-qband__item--danger" href="/flags"><span class="oh-qband__num"><%= stats.unresolvedFlags %></span><span class="oh-qband__label">Flags</span></a><% } %>
 </div>
 <% } %>
 
-<div class="oh-chart-grid">
-  <div class="oh-card">
-    <div class="oh-card__label">Attendance — last 14 days</div>
-    <% var d = charts.trend; var arrow = d.deltaDir === "up" ? "▲" : d.deltaDir === "down" ? "▼" : "—"; %>
-    <div class="oh-chart-headline">
-      <span class="oh-chart-big"><%= d.today %></span>
-      <span class="oh-chart-sub">
-        today · avg <%= d.avg %>/day
-        <% if (d.deltaDir !== "flat") { %>
-        · <span class="oh-trend oh-trend--<%= d.deltaDir %>"><%= arrow %> <%= Math.abs(d.deltaPct) %>%</span> vs last wk
-        <% } %>
-      </span>
-    </div>
-    <div class="oh-chart-box"><div id="trendChart"></div></div>
-  </div>
-  <div class="oh-card">
-    <div class="oh-card__label">Overtime hours by site</div>
-    <div class="oh-chart-box"><div id="otChart"></div></div>
-  </div>
-  <div class="oh-card">
-    <div class="oh-card__label">Active headcount by designation</div>
-    <div class="oh-chart-box"><div id="desigChart"></div></div>
-  </div>
+<!-- 3 · Money on the board (management / HR) -->
+<% if (seesAll && money) { %>
+<div class="oh-report-grid oh-report-grid--3">
+  <a class="oh-report-card" href="/payroll?preset=this-month">
+    <div class="oh-report-card__top"><span class="oh-report-card__icon material-icons">payments</span><span class="oh-report-card__title">Gross payroll</span></div>
+    <div class="oh-report-card__metric"><%= inr(money.grossMonth) %></div>
+    <div class="oh-report-card__sub">this month · this week <%= inr(money.grossWeek) %></div>
+    <span class="oh-report-card__cta">Open payroll <span class="material-icons">arrow_forward</span></span>
+  </a>
+  <a class="oh-report-card" href="/overtime">
+    <div class="oh-report-card__top"><span class="oh-report-card__icon material-icons">more_time</span><span class="oh-report-card__title">Overtime cost</span></div>
+    <div class="oh-report-card__metric"><%= inr(money.otCostMonth) %></div>
+    <div class="oh-report-card__sub">this month · <%= money.otHrsMonth %> OT hrs</div>
+    <span class="oh-report-card__cta">Review OT <span class="material-icons">arrow_forward</span></span>
+  </a>
+  <a class="oh-report-card <%= otExposure.cost > 0 ? 'oh-report-card--warn' : '' %>" href="/overtime?status=pending">
+    <div class="oh-report-card__top"><span class="oh-report-card__icon material-icons">hourglass_top</span><span class="oh-report-card__title">Awaiting your approval</span></div>
+    <div class="oh-report-card__metric"><%= inr(otExposure.cost) %></div>
+    <div class="oh-report-card__sub"><%= otExposure.hrs %>h on <%= stats.pendingOT %> rows</div>
+    <span class="oh-report-card__cta">Approve OT <span class="material-icons">arrow_forward</span></span>
+  </a>
 </div>
+<% } %>
 
-<div class="oh-card oh-stack">
-  <div class="oh-section-header">
-    <span class="oh-section-title">Recent flagged events</span>
-    <a class="oh-btn oh-btn--small" href="/flags">View all</a>
-  </div>
-  <% if (flags.length) { %>
-  <table class="oh-table oh-table--cards">
-    <thead><tr><th>When</th><th>Worker</th><th>Attempted at</th><th>Assigned to</th></tr></thead>
+<!-- 4 · Sites that need attention -->
+<div class="oh-section-header">
+  <span class="oh-section-title">Sites that need attention</span>
+  <span class="oh-muted">target <%= target %>% present · worst first</span>
+</div>
+<% if (exceptionSites.length) { %>
+<div class="oh-card oh-card--flush">
+  <table class="oh-people">
+    <thead><tr><th class="oh-people__spinecol"></th><th>Site</th><th>Present</th><th>vs target</th><th>OT</th><th>Flags</th></tr></thead>
     <tbody>
-      <% flags.forEach(function (f) { %>
-      <tr>
-        <td><%= ts(f.timestamp) %></td>
-        <td data-label="Worker"><%= f.workerName || "—" %></td>
-        <td data-label="Attempted at"><%= f.attemptedSiteName || "—" %></td>
-        <td data-label="Assigned to"><%= f.homeSiteName || "—" %></td>
+      <% exceptionSites.forEach(function (s) { var tone = (s.pct < target - 10 || s.flags > 0) ? "var(--c-danger)" : "var(--c-warning)"; %>
+      <tr class="oh-clickrow" style="--spine: <%= tone %>" onclick="location.href='/dashboard?siteId=<%= s.siteId %>'">
+        <td class="oh-people__spine"></td>
+        <td><span class="oh-person__txt"><span class="oh-person__name"><%= s.siteName %></span><span class="oh-person__id"><%= s.code %></span></span></td>
+        <td><%= s.present %>/<%= s.active %><div class="oh-hier__bar" style="margin-top:4px"><span class="oh-hier__bar-fill" style="width:<%= s.pct %>%"></span></div></td>
+        <td><%= s.pct %>%<% if (s.pct < target) { %> <span class="oh-trend oh-trend--down">▼<%= target - s.pct %></span><% } %></td>
+        <td><% if (s.otPending > 0) { %><span class="oh-badge oh-badge--warning">OT <%= s.otPending %>h</span><% } else { %>—<% } %></td>
+        <td><% if (s.flags > 0) { %><span class="oh-badge oh-badge--danger">⚑ <%= s.flags %></span><% } else { %>—<% } %></td>
       </tr>
       <% }); %>
     </tbody>
   </table>
-  <% } else { %>
-  <p class="oh-muted">No unresolved flags. 🎉</p>
-  <% } %>
+</div>
+<% } else { %>
+<div class="oh-empty"><span class="material-icons">check_circle</span><p>All sites at or above the <%= target %>% target.</p></div>
+<% } %>
+
+<!-- 5 · OT-cost trend (the one chart) -->
+<div class="oh-card oh-stack">
+  <div class="oh-card__label">Overtime cost — last 14 days</div>
+  <% var arrow = otTrend.deltaDir === "up" ? "▲" : otTrend.deltaDir === "down" ? "▼" : "—"; %>
+  <div class="oh-chart-headline">
+    <span class="oh-chart-big"><%= inr(otTrend.today) %></span>
+    <span class="oh-chart-sub">today · avg <%= inr(otTrend.avg) %>/day<% if (otTrend.deltaDir !== "flat") { %> · <span class="oh-trend" style="color: <%= otTrend.deltaDir === 'up' ? 'var(--c-danger)' : 'var(--c-success)' %>"><%= arrow %> <%= Math.abs(otTrend.deltaPct) %>%</span> vs last wk<% } %></span>
+  </div>
+  <div class="oh-chart-box"><div id="otTrendChart"></div></div>
 </div>
 
-<script>
-  // Progressive disclosure: tapping a branch box reveals its site tiles.
-  document.querySelectorAll(".oh-dash-box").forEach(function (box) {
-    box.addEventListener("click", function () {
-      var branch = box.closest(".oh-dash-branch");
-      var open = branch.classList.toggle("is-open");
-      box.setAttribute("aria-expanded", open ? "true" : "false");
-    });
-  });
+<!-- 6 · Recent flags -->
+<div class="oh-section-header">
+  <span class="oh-section-title">Recent flags</span>
+  <a class="oh-btn oh-btn--small" href="/flags">View all</a>
+</div>
+<% if (flags.length) { %>
+<div class="oh-card oh-card--flush">
+  <table class="oh-people">
+    <tbody>
+      <% flags.forEach(function (f) { %>
+      <tr style="--spine: var(--c-danger)">
+        <td class="oh-people__spine"></td>
+        <td><span class="oh-person__txt"><span class="oh-person__name"><%= f.workerName || "—" %></span><span class="oh-person__id"><%= f.empRegNo || "" %></span></span></td>
+        <td class="oh-muted">Attempted at <%= f.attemptedSiteName || "—" %> · home <%= f.homeSiteName || "—" %></td>
+        <td class="oh-muted" style="text-align:right"><%= ts(f.timestamp) %></td>
+      </tr>
+      <% }); %>
+    </tbody>
+  </table>
+</div>
+<% } else { %>
+<div class="oh-empty"><span class="material-icons">verified</span><p>No unresolved flags.</p></div>
+<% } %>
 
-  window.__CHARTS__ = <%- JSON.stringify(charts) %>;
-</script>
+<script>window.__CHARTS__ = <%- JSON.stringify({ otTrend: otTrend }) %>;</script>
 <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>
 <script src="/static/js/dashboard-charts.js"></script>
-<script src="/static/js/dashboard-gauges.js"></script>
 
 <%- include('partials/app-bottom') %>

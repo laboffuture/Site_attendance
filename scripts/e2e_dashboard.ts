@@ -63,10 +63,12 @@ async function main(): Promise<void> {
   const ma = await login(app, mgr);
   const home = await ma.get("/dashboard");
   assert("all-sites view renders", home.status === 200);
-  assert("all-sites shows the branch box", home.text.includes("oh-dash-box") && home.text.includes(BRANCH));
-  assert("executive gauges added on top (ApexCharts)", home.text.includes('class="oh-gauge"') && home.text.includes("apexcharts"));
-  assert("branch box carries the active worker count (2 workers)", /oh-dash-box__count[^<]*>\s*2\s*<span/.test(home.text));
-  assert("site tile links into the single-site page", home.text.includes(`/dashboard?siteId=${site._id}`));
+  assert("health verdict band shown", home.text.includes("oh-verdict"));
+  assert("NEEDS-YOU band shows pending OT", home.text.includes("oh-qband--needs") && home.text.includes("Pending OT"));
+  assert("money board shows gross payroll (management)", home.text.includes("Gross payroll"));
+  assert("exception ledger renders clickable under-target site rows", home.text.includes("Sites that need attention") && home.text.includes("oh-clickrow"));
+  assert("exception rows deep-link to single-site pages", /\/dashboard\?siteId=[0-9a-f]{24}/.test(home.text));
+  assert("single OT-cost trend chart present", home.text.includes("otTrendChart") && home.text.includes("apexcharts"));
 
   // --- (b) single-site page: site name + today's roster ---
   const single = await ma.get(`/dashboard?siteId=${site._id}`);

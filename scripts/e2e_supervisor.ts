@@ -57,10 +57,10 @@ async function main(): Promise<void> {
   assert("dashboard 200", dash.status === 200);
   assert("site dropdown present (All my sites)", dash.text.includes("All my sites"));
   assert("dropdown lists both sites", dash.text.includes("(VBW)") && dash.text.includes("(PVM)"));
-  assert("present/total card shows % present", dash.text.includes("% present today"));
+  assert("health verdict band shows attendance %", dash.text.includes("oh-verdict") && dash.text.includes("%"));
   assert("default scope = 2 assigned sites", dash.text.includes("2 assigned site(s)"));
-  assert("assigned-locations chips shown", dash.text.includes("assigned location") && dash.text.includes("oh-loc-chip"));
-  assert("present-vs-active visualization present", dash.text.includes("presenceChart") && dash.text.includes("Present vs active"));
+  assert("supervisor does NOT see the money board (role-tailored)", !dash.text.includes("Gross payroll"));
+  assert("exception-sites section present (scoped)", dash.text.includes("Sites that need attention"));
 
   // filter to one site → scope label becomes that site's name.
   const filtered = await supAgent.get(`/dashboard?siteId=${vbw._id}`);

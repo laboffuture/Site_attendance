@@ -22,6 +22,9 @@ export const config = {
   //    OT hour = BASIC ÷ standardDay, no premium). Both overridable via env.
   payrollStandardHours: Number(process.env.PAYROLL_STANDARD_HOURS) || 8,
   otMultiplier: Number(process.env.OT_MULTIPLIER) || 1,
+  // Dashboard attendance target (% of active workers present) — drives the
+  // health verdict colour and the exception-ranked site list.
+  attendanceTarget: Number(process.env.ATTENDANCE_TARGET) || 85,
   // Where worker enrollment photos are stored. Point this at a persistent
   // volume in production so uploads survive redeploys; served at /static/uploads.
   uploadDir: process.env.UPLOAD_DIR || path.join(process.cwd(), "public", "uploads"),

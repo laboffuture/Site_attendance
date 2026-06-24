@@ -4,20 +4,15 @@ import { Types } from "mongoose";
 import { requireCapability } from "../auth/middleware";
 import { config } from "../config";
 import { buildPayrollXlsx, sendCsv } from "../lib/exporters";
+import { computePayroll, ymd } from "../lib/payroll";
 import { siteScopeFilter, canUseSite, canUseWorker } from "../lib/scope";
-import { round2, siteLocalDate } from "../lib/time";
-import { AttendanceModel } from "../models/Attendance";
+import { siteLocalDate } from "../lib/time";
 import { PayrollAdjustmentModel } from "../models/PayrollAdjustment";
 import { ProjectSiteModel } from "../models/ProjectSite";
 import { WorkerModel } from "../models/Worker";
 
 const router = Router();
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const ROW_CAP = 20000;
-
-const pad = (n: number) => String(n).padStart(2, "0");
-const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const istTime = (d: unknown) => (d ? new Date(d as string).toLocaleTimeString("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" }) : "");
 
 /** Mon–Sun pay-week containing `baseYmd`, shifted by `offsetWeeks`. */
 function weekBounds(baseYmd: string, offsetWeeks: number): { dateFrom: string; dateTo: string } {
@@ -42,92 +37,14 @@ function resolveRange(req: Request): { dateFrom: string; dateTo: string; preset:
   return { ...weekBounds(today, 0), preset: "this-week" };
 }
 
-/** One day's worked hours = (Out − In) − site lunch; falls back to the stored
- *  total when in/out aren't both present (e.g. manual entries). */
-function dayHours(inTime: unknown, outTime: unknown, lunch: number, fallback: number | null | undefined): number {
-  if (inTime && outTime) {
-    const h = (new Date(outTime as string).getTime() - new Date(inTime as string).getTime()) / 3600000;
-    return round2(Math.max(0, (h < 0 ? 0 : h) - lunch));
-  }
-  return round2(fallback ?? 0);
-}
-
-// Per-worker hours + pay over the period, matching the client OT sheet:
-//   day total = (Out−In) − site lunch; normal = min(total, standardDay);
-//   OT = beyond standardDay; hourly = BASIC / standardDay; OT × otMultiplier;
-//   food on days worked ≥ 5h; gross = normal + OT + food + arrears.
 async function payrollData(req: Request) {
   const u = req.currentUser!;
   const { dateFrom, dateTo, preset } = resolveRange(req);
   const siteId = String(req.query.siteId ?? "");
-  const STD = config.payrollStandardHours;
   const match: Record<string, unknown> = { ...siteScopeFilter(u), date: { $gte: dateFrom, $lte: dateTo } };
   if (siteId && Types.ObjectId.isValid(siteId) && canUseSite(u, siteId)) match.siteId = new Types.ObjectId(siteId);
-
-  const att = await AttendanceModel.find(match)
-    .select("workerId empRegNo workerName designationName siteId siteName date inTime outTime totalHours")
-    .sort({ workerName: 1, date: 1 }).limit(ROW_CAP).lean();
-
-  const siteIds = [...new Set(att.map((r) => String(r.siteId)).filter(Boolean))];
-  const workerIds = [...new Set(att.map((r) => String(r.workerId)).filter(Boolean))];
-  const [siteDocs, workerDocs, adjustments] = await Promise.all([
-    ProjectSiteModel.find({ _id: { $in: siteIds } }).select("lunchHours").lean(),
-    WorkerModel.find({ _id: { $in: workerIds } }).select("dailyWage foodAllowance bank").lean(),
-    PayrollAdjustmentModel.find({ workerId: { $in: workerIds }, dateFrom, dateTo }).lean(),
-  ]);
-  const lunchBySite = new Map(siteDocs.map((s) => [String(s._id), typeof s.lunchHours === "number" ? s.lunchHours : 1]));
-  const wmap = new Map(workerDocs.map((w) => [String(w._id), w]));
-  const arrearsByWorker = new Map(adjustments.map((a) => [String(a.workerId), a]));
-
-  const dates: string[] = [];
-  for (let d = new Date(dateFrom + "T00:00:00"), end = new Date(dateTo + "T00:00:00"); d <= end; d.setDate(d.getDate() + 1)) dates.push(ymd(d));
-
-  type Day = { inT: string; outT: string; lunch: number; total: number; normal: number; ot: number };
-  const byWorker = new Map<string, { empRegNo: string; name: string; designation: string; siteName: string; byDate: Record<string, Day> }>();
-  for (const r of att) {
-    const key = String(r.workerId);
-    if (!byWorker.has(key)) byWorker.set(key, { empRegNo: r.empRegNo, name: r.workerName, designation: r.designationName, siteName: r.siteName, byDate: {} });
-    const lunch = lunchBySite.get(String(r.siteId)) ?? 1;
-    const total = dayHours(r.inTime, r.outTime, lunch, r.totalHours);
-    byWorker.get(key)!.byDate[r.date] = { inT: istTime(r.inTime), outT: istTime(r.outTime), lunch, total, normal: Math.min(total, STD), ot: round2(Math.max(0, total - STD)) };
-  }
-
-  const mult = config.otMultiplier;
-  const workers = [...byWorker.entries()].map(([id, wd]) => {
-    const w = wmap.get(id) as { dailyWage?: number; foodAllowance?: { applicable?: boolean; amount?: number }; bank?: { accountNumber?: string; ifsc?: string } } | undefined;
-    const wage = w?.dailyWage ?? null;
-    const foodRate = w?.foodAllowance?.applicable ? (w.foodAllowance.amount ?? 0) : 0;
-    const hourly = wage != null ? wage / STD : 0;
-    let normalHrs = 0, otHrs = 0, foodDays = 0;
-    const days = Object.keys(wd.byDate).length;
-    for (const date of Object.keys(wd.byDate)) {
-      const d = wd.byDate[date];
-      normalHrs += d.normal; otHrs += d.ot; if (d.total >= 5) foodDays++;
-    }
-    const normalPay = Math.round(normalHrs * hourly);
-    const otPay = Math.round(otHrs * hourly * mult);
-    const foodAllowance = Math.round(foodRate * foodDays);
-    const adj = arrearsByWorker.get(id);
-    const arrears = adj?.amount ?? 0;
-    return {
-      workerId: id, empRegNo: wd.empRegNo, name: wd.name, designation: wd.designation, siteName: wd.siteName,
-      account: w?.bank?.accountNumber ?? "", ifsc: w?.bank?.ifsc ?? "",
-      basic: wage, food: foodRate, days, normalHrs: round2(normalHrs), otHrs: round2(otHrs), foodDays,
-      normalPay, otPay, foodAllowance, arrears, arrearsNote: adj?.note ?? "",
-      gross: normalPay + otPay + foodAllowance + arrears, hasWage: wage != null, byDate: wd.byDate,
-    };
-  }).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-
-  const summary = {
-    workers: workers.length,
-    normalHrs: round2(workers.reduce((a, w) => a + w.normalHrs, 0)),
-    otHrs: round2(workers.reduce((a, w) => a + w.otHrs, 0)),
-    arrears: workers.reduce((a, w) => a + w.arrears, 0),
-    gross: workers.reduce((a, w) => a + w.gross, 0),
-    missingWage: workers.filter((w) => !w.hasWage).length,
-    capped: att.length >= ROW_CAP,
-  };
-  return { workers, summary, filters: { dateFrom, dateTo, siteId, preset }, std: STD, dates };
+  const { workers, summary, dates } = await computePayroll(match, dateFrom, dateTo);
+  return { workers, summary, dates, filters: { dateFrom, dateTo, siteId, preset }, std: config.payrollStandardHours };
 }
 
 router.get("/payroll", requireCapability("view_dashboard"), async (req: Request, res: Response) => {
@@ -138,7 +55,6 @@ router.get("/payroll", requireCapability("view_dashboard"), async (req: Request,
     active: "/payroll",
     workers, summary, filters, sites, std, dates,
     otMultiplier: config.otMultiplier,
-    canEdit: true,
     query: req.originalUrl.includes("?") ? req.originalUrl.slice(req.originalUrl.indexOf("?")) : "",
   });
 });

@@ -3,12 +3,15 @@ import { Types } from "mongoose";
 
 import { requireAuth } from "../auth/middleware";
 import { seesAllSites } from "../auth/permissions";
+import { config } from "../config";
 import { buildHierarchyRollup } from "../lib/hierarchy";
+import { computePayroll, otExposure, ymd } from "../lib/payroll";
 import { canUseSite, siteScopeFilter, flagScopeFilter } from "../lib/scope";
 import { siteLocalDate, istHM, round2 } from "../lib/time";
 import { AttendanceModel } from "../models/Attendance";
 import { FlagEventModel } from "../models/FlagEvent";
 import { ProjectSiteModel } from "../models/ProjectSite";
+import { RequestModel } from "../models/Request";
 import { WorkerModel } from "../models/Worker";
 
 const router = Router();
@@ -32,9 +35,7 @@ router.get("/dashboard", requireAuth, async (req: Request, res: Response) => {
     requestedSiteId && mySites.some((s) => String(s._id) === requestedSiteId) ? requestedSiteId : "";
 
   // ---------------------------------------------------------------------------
-  // Level 3 — a dedicated, complete page for one site. An out-of-scope or
-  // unknown siteId redirects back to the all-sites view with a danger flash,
-  // rather than silently falling through to the rollup.
+  // Level 3 — a dedicated, complete page for one site.
   // ---------------------------------------------------------------------------
   if (requestedSiteId) {
     const valid = Types.ObjectId.isValid(requestedSiteId);
@@ -60,7 +61,6 @@ router.get("/dashboard", requireAuth, async (req: Request, res: Response) => {
         .lean(),
     ]);
 
-    // Today's roster rows in the shape the view renders (In/Out/Total/OT).
     const roster = todayRows.map((r) => ({
       workerName: r.workerName,
       empRegNo: r.empRegNo,
@@ -108,131 +108,97 @@ router.get("/dashboard", requireAuth, async (req: Request, res: Response) => {
     });
   }
 
+  // ===========================================================================
+  // All-sites executive briefing.
+  // ===========================================================================
   const scope = siteScopeFilter(u);
   const flagScope = flagScopeFilter(u);
+  const seesAll = seesAllSites(u.role);
+  const STD = config.payrollStandardHours;
+  const MULT = config.otMultiplier;
+  const TARGET = config.attendanceTarget;
+  const scopeLabel = seesAll ? "All branches & sites" : `${u.assignedSiteIds.length} assigned site(s)`;
 
-  let scopeLabel: string;
-  if (seesAllSites(u.role)) {
-    scopeLabel = "All branches & sites";
-  } else {
-    scopeLabel = `${u.assignedSiteIds.length} assigned site(s)`;
-  }
+  const monthStart = today.slice(0, 8) + "01";
+  const wkd = new Date(today + "T00:00:00");
+  const mon = new Date(wkd);
+  mon.setDate(wkd.getDate() - ((wkd.getDay() + 6) % 7));
+  const weekStart = ymd(mon);
 
-  // Summary stats
-  const [todayCount, pendingOT, activeWorkers, unresolvedFlags] = await Promise.all([
+  // NEEDS-YOU counters + headline figures.
+  const [todayCount, pendingOT, activeWorkers, unresolvedFlags, pendingReg, pendingReq, otExp] = await Promise.all([
     AttendanceModel.countDocuments({ ...scope, date: today }),
     AttendanceModel.countDocuments({ ...scope, "overtime.status": "pending" }),
     WorkerModel.countDocuments({ ...scope, status: "active" }),
     FlagEventModel.countDocuments({ ...flagScope, resolved: false }),
+    AttendanceModel.countDocuments({ ...scope, attendanceStatus: { $in: ["submitted", "recommended"] } }),
+    RequestModel.countDocuments({ ...scope, status: { $in: ["pending", "recommended"] } }),
+    otExposure({ ...scope, "overtime.status": "pending" }),
   ]);
+  const pct = activeWorkers ? Math.round((todayCount / activeWorkers) * 100) : 0;
+  const needsYouTotal = pendingOT + pendingReg + pendingReq + unresolvedFlags;
+  const verdictTone =
+    pct < TARGET - 10 || unresolvedFlags > 0 ? "danger" : pct < TARGET || needsYouTotal > 0 ? "warning" : "success";
 
-  // Executive gauges (radialBar) — added on top of the existing widgets.
-  const [otApproved, otTotal] = await Promise.all([
-    AttendanceModel.countDocuments({ ...scope, "overtime.status": "approved" }),
-    AttendanceModel.countDocuments({ ...scope, "overtime.status": { $in: ["pending", "approved", "rejected"] } }),
-  ]);
-  const gauges = [
-    { id: "attendance", label: "Attendance Today", value: activeWorkers ? Math.round((todayCount / activeWorkers) * 100) : 0, unit: "%" },
-    { id: "ot-approval", label: "OT Approval Rate", value: otTotal ? Math.round((otApproved / otTotal) * 100) : 0, unit: "%" },
-  ];
+  // Money board (management/HR only) — uses the shared payroll engine so the
+  // figures match the Payroll page exactly.
+  let money: { grossMonth: number; grossWeek: number; otCostMonth: number; otHrsMonth: number } | null = null;
+  if (seesAll) {
+    const [m, w] = await Promise.all([
+      computePayroll({ ...scope, date: { $gte: monthStart, $lte: today } }, monthStart, today),
+      computePayroll({ ...scope, date: { $gte: weekStart, $lte: today } }, weekStart, today),
+    ]);
+    money = { grossMonth: m.summary.gross, otCostMonth: m.summary.otCost, otHrsMonth: m.summary.otHrs, grossWeek: w.summary.gross };
+  }
 
-  // Chart 1: attendance trend (last 14 days)
+  // OT-cost (₹) 14-day trend — the one chart.
   const days: string[] = [];
   for (let i = 13; i >= 0; i--) days.push(siteLocalDate(new Date(Date.now() - i * 86_400_000)));
-  const trendAgg = await AttendanceModel.aggregate([
-    { $match: { ...scope, date: { $gte: days[0] } } },
-    { $group: { _id: "$date", count: { $sum: 1 } } },
+  const otTrendAgg = await AttendanceModel.aggregate([
+    { $match: { ...scope, date: { $gte: days[0] }, "overtime.status": { $in: ["pending", "approved"] } } },
+    { $lookup: { from: "workers", localField: "workerId", foreignField: "_id", as: "w" } },
+    { $addFields: { wage: { $ifNull: [{ $arrayElemAt: ["$w.dailyWage", 0] }, 0] }, h: { $ifNull: ["$overtime.computedHours", 0] } } },
+    { $group: { _id: "$date", cost: { $sum: { $multiply: ["$h", { $divide: ["$wage", STD] }, MULT] } } } },
   ]);
-  const trendMap = new Map(trendAgg.map((t) => [t._id as string, t.count as number]));
-  const trendData = days.map((d) => trendMap.get(d) ?? 0);
-  // Short, readable x-axis labels ("16 Jun") from the YYYY-MM-DD day keys.
+  const otCostMap = new Map(otTrendAgg.map((t) => [t._id as string, Math.round(t.cost as number)]));
+  const otData = days.map((d) => otCostMap.get(d) ?? 0);
   const trendLabels = days.map((d) =>
-    new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", timeZone: "Asia/Kolkata" }).format(
-      new Date(`${d}T00:00:00+05:30`),
-    ),
+    new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", timeZone: "Asia/Kolkata" }).format(new Date(`${d}T00:00:00+05:30`)),
   );
-  // Headline figures for the card: today, daily average, and week-over-week trend.
-  const trendSum = trendData.reduce((a, b) => a + b, 0);
-  const trendAvg = Math.round((trendSum / trendData.length) * 10) / 10;
-  const last7 = trendData.slice(-7).reduce((a, b) => a + b, 0);
-  const prev7 = trendData.slice(-14, -7).reduce((a, b) => a + b, 0);
+  const last7 = otData.slice(-7).reduce((a, b) => a + b, 0);
+  const prev7 = otData.slice(-14, -7).reduce((a, b) => a + b, 0);
   let deltaDir: "up" | "down" | "flat" = "flat";
   let deltaPct = 0;
   if (prev7 > 0) {
     deltaPct = Math.round(((last7 - prev7) / prev7) * 100);
     deltaDir = deltaPct > 0 ? "up" : deltaPct < 0 ? "down" : "flat";
-  } else if (last7 > 0) {
-    deltaDir = "up";
-  }
-  const trend = {
+  } else if (last7 > 0) deltaDir = "up";
+  const otTrend = {
     labels: trendLabels,
-    data: trendData,
-    today: trendData[trendData.length - 1],
-    avg: trendAvg,
+    data: otData,
+    today: otData[otData.length - 1],
+    avg: Math.round(otData.reduce((a, b) => a + b, 0) / otData.length),
     deltaDir,
     deltaPct,
   };
 
-  // Chart 2: overtime hours by site (pending + approved)
-  const otAgg = await AttendanceModel.aggregate([
-    { $match: { ...scope, "overtime.status": { $in: ["pending", "approved"] } } },
-    { $group: { _id: "$siteName", hours: { $sum: "$overtime.computedHours" } } },
-    { $sort: { hours: -1 } },
-    { $limit: 10 },
-  ]);
-  const otBySite = {
-    labels: otAgg.map((o) => o._id as string),
-    data: otAgg.map((o) => round2(o.hours as number)),
-  };
+  // Exception-ranked sites (worst-first) from the scoped hierarchy rollup.
+  const rollup = await buildHierarchyRollup(u);
+  const allSites: Record<string, unknown>[] = (rollup ?? []).flatMap((b) => ((b.sites ?? []) as unknown[]) as Record<string, unknown>[]);
+  const scored = allSites.map((s) => {
+    const active = Number(s.active) || 0;
+    const present = Number(s.present) || 0;
+    const otPending = Number(s.otPending) || 0;
+    const flags = Number(s.flags) || 0;
+    const sitePct = active > 0 ? Math.round((present / active) * 100) : 0;
+    return { siteId: String(s.siteId), siteName: String(s.siteName), code: String(s.code), present, active, otPending, flags, pct: sitePct, score: (TARGET - sitePct) * 10 + flags * 5 + otPending };
+  });
+  const exceptionSites = scored.filter((s) => s.pct < TARGET || s.flags > 0 || s.otPending > 0).sort((a, b) => b.score - a.score).slice(0, 5);
+  const below = scored.filter((s) => s.pct < TARGET).sort((a, b) => a.pct - b.pct);
+  const worstSite = below.length ? { id: below[0].siteId, name: below[0].siteName, pct: below[0].pct } : null;
 
-  // Chart 3: active headcount by designation
-  const desigAgg = await WorkerModel.aggregate([
-    { $match: { ...scope, status: "active" } },
-    { $group: { _id: "$designationName", count: { $sum: 1 } } },
-    { $sort: { count: -1 } },
-    { $limit: 12 },
-  ]);
-  const byDesignation = {
-    labels: desigAgg.map((d) => d._id as string),
-    data: desigAgg.map((d) => d.count as number),
-  };
-
-  // Recent unresolved flags
-  const flags = await FlagEventModel.find({ ...flagScope, resolved: false })
-    .sort({ timestamp: -1 })
-    .limit(8)
-    .lean();
-
-  // Branch → site hierarchy rollup for senior roles (multi-site view).
-  const senior = seesAllSites(u.role) || u.role === "pm";
-  const rollup = senior ? await buildHierarchyRollup(u) : null;
-
-  // Present-vs-active per site (visual bar) — across the sites in scope. Drawn
-  // for any multi-site user (PM/Supervisor included) and when not filtered to one.
-  let presenceBySite: { labels: string[]; present: number[]; active: number[] } | null = null;
-  if (mySites.length > 1) {
-    const siteIds = mySites.map((s) => s._id);
-    const [presentAgg, activeAgg] = await Promise.all([
-      AttendanceModel.aggregate([
-        { $match: { siteId: { $in: siteIds }, date: today } },
-        { $group: { _id: "$siteId", n: { $sum: 1 } } },
-      ]),
-      WorkerModel.aggregate([
-        { $match: { siteId: { $in: siteIds }, status: "active" } },
-        { $group: { _id: "$siteId", n: { $sum: 1 } } },
-      ]),
-    ]);
-    const presentMap = new Map(presentAgg.map((a) => [String(a._id), a.n as number]));
-    const activeMap = new Map(activeAgg.map((a) => [String(a._id), a.n as number]));
-    presenceBySite = {
-      labels: mySites.map((s) => s.code || s.name),
-      present: mySites.map((s) => presentMap.get(String(s._id)) ?? 0),
-      active: mySites.map((s) => activeMap.get(String(s._id)) ?? 0),
-    };
-  }
-
-  // The user's assigned locations, shown as chips on the dashboard.
-  const myLocations = mySites.map((s) => `${s.name} (${s.code})`);
+  // Recent unresolved flags.
+  const flags = await FlagEventModel.find({ ...flagScope, resolved: false }).sort({ timestamp: -1 }).limit(5).lean();
 
   res.render("dashboard", {
     title: "Dashboard · " + res.locals.company,
@@ -240,13 +206,19 @@ router.get("/dashboard", requireAuth, async (req: Request, res: Response) => {
     scopeLabel,
     mySites,
     selectedSiteId,
-    myLocations,
-    seesAll: seesAllSites(u.role),
-    stats: { todayCount, pendingOT, activeWorkers, unresolvedFlags },
-    charts: { trend, otBySite, byDesignation, presenceBySite },
-    gauges,
+    seesAll,
+    stats: { todayCount, pendingOT, activeWorkers, unresolvedFlags, pendingReg, pendingReq },
+    pct,
+    target: TARGET,
+    needsYouTotal,
+    verdictTone,
+    otExposure: otExp,
+    money,
+    otTrend,
+    exceptionSites,
+    worstSite,
+    totalSites: scored.length,
     flags,
-    rollup,
   });
 });
 
