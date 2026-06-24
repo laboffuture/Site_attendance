@@ -4,16 +4,16 @@
   var tNormalPay = workers.reduce(function (a, w) { return a + w.normalPay; }, 0);
   var tOtPay = workers.reduce(function (a, w) { return a + w.otPay; }, 0);
   var tFood = workers.reduce(function (a, w) { return a + w.foodAllowance; }, 0);
+  var presets = [["this-week","This week"],["last-week","Last week"],["this-month","This month"]];
 %>
-<%- include('../partials/breadcrumb', { back: '/reports', trail: [ { label: 'Reports', href: '/reports' }, { label: 'Payroll' } ] }) %>
 <div class="oh-page-header oh-page-header--row">
   <div>
-    <h1 class="oh-page-title">Payroll report</h1>
-    <p class="oh-page-subtitle">Per-worker hours &amp; pay · <span class="oh-muted">standard day <%= std %>h · OT at <%= otMultiplier %>× hourly (basic ÷ <%= std %>) · food on days worked ≥ 5h</span></p>
+    <h1 class="oh-page-title">Payroll</h1>
+    <p class="oh-page-subtitle"><strong><%= filters.dateFrom %> → <%= filters.dateTo %></strong> · <span class="oh-muted">standard day <%= std %>h · OT at <%= otMultiplier %>× hourly (basic ÷ <%= std %>) · food on days worked ≥ 5h</span></p>
   </div>
   <div class="oh-actions">
-    <a class="oh-btn oh-btn--small oh-btn--secondary" href="/reports/payroll/export.xlsx<%= query %>"><span class="material-icons">download</span> Excel</a>
-    <a class="oh-btn oh-btn--small oh-btn--secondary" href="/reports/payroll/export.csv<%= query %>"><span class="material-icons">description</span> CSV</a>
+    <a class="oh-btn oh-btn--small oh-btn--secondary" href="/payroll/export.xlsx<%= query %>"><span class="material-icons">download</span> Excel</a>
+    <a class="oh-btn oh-btn--small oh-btn--secondary" href="/payroll/export.csv<%= query %>"><span class="material-icons">description</span> CSV</a>
   </div>
 </div>
 
@@ -25,7 +25,10 @@
 </div>
 
 <div class="oh-card oh-stack">
-  <form class="oh-form-inline" method="get" action="/reports/payroll">
+  <div class="oh-segment" style="margin-bottom:0.8rem">
+    <% presets.forEach(function (p) { %><a class="oh-segment__btn <%= filters.preset === p[0] ? 'is-active' : '' %>" href="/payroll?preset=<%= p[0] %><%= filters.siteId ? '&siteId=' + filters.siteId : '' %>"><%= p[1] %></a><% }); %>
+  </div>
+  <form class="oh-form-inline" method="get" action="/payroll">
     <div class="oh-input-group"><label class="oh-label" for="dateFrom">From</label><input class="oh-input" id="dateFrom" type="date" name="dateFrom" value="<%= filters.dateFrom %>" /></div>
     <div class="oh-input-group"><label class="oh-label" for="dateTo">To</label><input class="oh-input" id="dateTo" type="date" name="dateTo" value="<%= filters.dateTo %>" /></div>
     <div class="oh-input-group">
@@ -35,7 +38,6 @@
       </select>
     </div>
     <button class="oh-btn oh-btn--secondary" type="submit">Run</button>
-    <a class="oh-btn oh-btn--small" href="/reports/payroll">Reset</a>
   </form>
 </div>
 

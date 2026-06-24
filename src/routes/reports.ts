@@ -3,7 +3,7 @@ import { Types } from "mongoose";
 
 import { requireCapability } from "../auth/middleware";
 import { config } from "../config";
-import { buildXlsxBuffer, buildPayrollXlsx, streamPdf } from "../lib/exporters";
+import { buildXlsxBuffer, streamPdf, sendCsv } from "../lib/exporters";
 import { parseReportFilters, buildAttendanceQuery, groupByBranchSite, hoursBreakdown } from "../lib/report";
 import { siteScopeFilter, canUseSite, workerScopeFilter } from "../lib/scope";
 import { round2, siteLocalDate } from "../lib/time";
@@ -15,15 +15,6 @@ import { WorkerModel } from "../models/Worker";
 
 const router = Router();
 const TABLE_LIMIT = 2000; // rows shown in the on-screen / exported table
-
-function sendCsv(res: Response, filename: string, headers: string[], rows: (string | number | null)[][], note?: string): void {
-  const esc = (v: unknown) => { const s = v == null ? "" : String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
-  const lines = [headers, ...rows].map((r) => r.map(esc).join(","));
-  if (note) lines.push("", esc(note));
-  res.setHeader("Content-Type", "text/csv; charset=utf-8");
-  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-  res.send(lines.join("\n"));
-}
 
 /** "showing first N of M" note when the table is capped (numbers stay correct). */
 function capNote(matched: number): string | undefined {
@@ -77,7 +68,7 @@ router.get("/reports", requireCapability("view_dashboard"), async (req: Request,
       { href: "/reports/overtime", icon: "more_time", title: "Overtime report",
         metric: round2(ot.hours).toLocaleString("en-IN"), unit: "OT hrs pending", sub: ot.n.toLocaleString("en-IN") + " records awaiting approval",
         desc: "OT hours & ₹ cost by site — pending vs approved." },
-      { href: "/reports/payroll", icon: "payments", title: "Payroll report",
+      { href: "/payroll", icon: "payments", title: "Payroll report",
         metric: "₹ " + Math.round(pay.gross).toLocaleString("en-IN"), unit: "gross this month", sub: (pay.workers ? pay.workers.length : 0).toLocaleString("en-IN") + " workers · normal + OT + food",
         desc: "Per-worker hours & pay (basic, OT, food, gross) with bank details — payroll-ready CSV / Excel." },
     ],
@@ -289,89 +280,6 @@ router.get("/reports/overtime/export.csv", requireCapability("view_dashboard"), 
     groups.map((g) => [g.site, g.pending, g.approved, g.cost]));
 });
 
-// ========================= Payroll report =========================
-// Per-worker hours + pay over a period, matching the client OT sheet:
-//   normal = min(day total, standardDay) summed; OT = beyond standardDay summed;
-//   hourly = BASIC / standardDay; OT paid at config.otMultiplier (×1 per the sheet);
-//   food paid on days worked >= 5h; gross = normal pay + OT pay + food.
-async function payrollData(req: Request) {
-  const u = req.currentUser!;
-  const today = siteLocalDate();
-  const monthStart = today.slice(0, 8) + "01";
-  const dateFrom = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.dateFrom ?? "")) ? String(req.query.dateFrom) : monthStart;
-  const dateTo = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.dateTo ?? "")) ? String(req.query.dateTo) : today;
-  const siteId = String(req.query.siteId ?? "");
-  const STD = config.payrollStandardHours;
-  const match: Record<string, unknown> = { ...siteScopeFilter(u), date: { $gte: dateFrom, $lte: dateTo } };
-  if (siteId && Types.ObjectId.isValid(siteId) && canUseSite(u, siteId)) match.siteId = new Types.ObjectId(siteId);
-
-  const rows = await AttendanceModel.aggregate([
-    { $match: match },
-    { $group: {
-      _id: "$workerId",
-      empRegNo: { $first: "$empRegNo" }, name: { $first: "$workerName" }, designation: { $first: "$designationName" }, siteName: { $first: "$siteName" },
-      normalHrs: { $sum: { $min: [{ $ifNull: ["$totalHours", 0] }, STD] } },
-      otHrs: { $sum: { $max: [0, { $subtract: [{ $ifNull: ["$totalHours", 0] }, STD] }] } },
-      foodDays: { $sum: { $cond: [{ $gte: [{ $ifNull: ["$totalHours", 0] }, 5] }, 1, 0] } },
-      days: { $sum: 1 },
-    } },
-    { $lookup: { from: "workers", localField: "_id", foreignField: "_id", as: "w" } },
-    { $addFields: { w: { $arrayElemAt: ["$w", 0] } } },
-    { $sort: { name: 1 } },
-  ]);
-
-  const mult = config.otMultiplier;
-  const workers = rows.map((r) => {
-    const wage: number | null = r.w?.dailyWage ?? null;
-    const foodApplicable = !!r.w?.foodAllowance?.applicable;
-    const foodRate = foodApplicable ? (r.w?.foodAllowance?.amount ?? 0) : 0;
-    const hourly = wage != null ? wage / STD : 0;
-    const normalPay = Math.round(r.normalHrs * hourly);
-    const otPay = Math.round(r.otHrs * hourly * mult);
-    const foodAllowance = Math.round(foodRate * r.foodDays);
-    return {
-      empRegNo: r.empRegNo, name: r.name, designation: r.designation, siteName: r.siteName,
-      account: r.w?.bank?.accountNumber ?? "", ifsc: r.w?.bank?.ifsc ?? "",
-      basic: wage, food: foodRate,
-      days: r.days, normalHrs: round2(r.normalHrs), otHrs: round2(r.otHrs), foodDays: r.foodDays,
-      normalPay, otPay, foodAllowance, gross: normalPay + otPay + foodAllowance, hasWage: wage != null,
-    };
-  });
-  const summary = {
-    workers: workers.length,
-    normalHrs: round2(workers.reduce((a, w) => a + w.normalHrs, 0)),
-    otHrs: round2(workers.reduce((a, w) => a + w.otHrs, 0)),
-    gross: workers.reduce((a, w) => a + w.gross, 0),
-    missingWage: workers.filter((w) => !w.hasWage).length,
-  };
-  return { workers, summary, filters: { dateFrom, dateTo, siteId }, std: STD };
-}
-
-router.get("/reports/payroll", requireCapability("view_dashboard"), async (req: Request, res: Response) => {
-  const { workers, summary, filters, std } = await payrollData(req);
-  const sites = await ProjectSiteModel.find().sort({ name: 1 }).lean();
-  res.render("reports/payroll", {
-    title: "Payroll report · " + res.locals.company,
-    active: "/reports",
-    workers, summary, filters, sites, std,
-    otMultiplier: config.otMultiplier,
-    query: req.originalUrl.includes("?") ? req.originalUrl.slice(req.originalUrl.indexOf("?")) : "",
-  });
-});
-
-router.get("/reports/payroll/export.csv", requireCapability("view_dashboard"), async (req: Request, res: Response) => {
-  const { workers, filters } = await payrollData(req);
-  sendCsv(res, `payroll-${filters.dateFrom}_to_${filters.dateTo}.csv`,
-    ["S.No", "Emp Code", "Worker", "Designation", "Account No", "IFSC", "Basic", "Food", "Days", "Normal Hrs", "OT Hrs", "Normal Pay", "OT Pay", "Food Count", "Food Allowance", "Total Pay"],
-    workers.map((w, i) => [i + 1, w.empRegNo, w.name, w.designation, w.account, w.ifsc, w.basic ?? "", w.food, w.days, w.normalHrs, w.otHrs, w.normalPay, w.otPay, w.foodDays, w.foodAllowance, w.gross]));
-});
-
-router.get("/reports/payroll/export.xlsx", requireCapability("view_dashboard"), async (req: Request, res: Response) => {
-  const { workers, filters } = await payrollData(req);
-  const buf = await buildPayrollXlsx(workers, `${filters.dateFrom} → ${filters.dateTo}`);
-  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-  res.setHeader("Content-Disposition", `attachment; filename="payroll-${filters.dateFrom}_to_${filters.dateTo}.xlsx"`);
-  res.send(buf);
-});
+// Payroll is its own first-class module — see src/routes/payroll.ts (/payroll).
 
 export default router;

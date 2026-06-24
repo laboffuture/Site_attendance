@@ -20,6 +20,7 @@ import flagsRouter from "./routes/flags";
 import indexRouter from "./routes/index";
 import orgRouter from "./routes/org";
 import overtimeRouter from "./routes/overtime";
+import payrollRouter from "./routes/payroll";
 import reportsRouter from "./routes/reports";
 import requestsRouter from "./routes/requests";
 import stationRouter from "./routes/station";
@@ -103,6 +104,7 @@ export function createApp(): Express {
   app.use("/", stationRouter);
   app.use("/", overtimeRouter);
   app.use("/", reportsRouter);
+  app.use("/", payrollRouter);
   app.use("/", flagsRouter);
   app.use("/", usersRouter);
   app.use("/", requestsRouter);

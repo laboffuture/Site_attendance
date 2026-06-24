@@ -115,13 +115,13 @@ async function main(): Promise<void> {
   const ot = await admin.get("/reports/overtime");
   assert("overtime report 200 + cost summary", ot.status === 200 && ot.text.includes("oh-statstrip") && ot.text.includes("OT cost"));
 
-  // Payroll report
-  assert("reports hub lists the Payroll report", hub.text.includes("Payroll report"));
-  const pay = await admin.get("/reports/payroll");
-  assert("payroll report 200 + gross summary", pay.status === 200 && pay.text.includes("Gross payroll") && pay.text.includes("standard day"));
-  const payCsv = await admin.get("/reports/payroll/export.csv");
+  // Payroll — now a first-class module at /payroll (also linked from the hub)
+  assert("reports hub links to Payroll", hub.text.includes("Payroll report") && hub.text.includes('href="/payroll"'));
+  const pay = await admin.get("/payroll");
+  assert("payroll page 200 + gross summary + week presets", pay.status === 200 && pay.text.includes("Gross payroll") && pay.text.includes("standard day") && pay.text.includes("This week"));
+  const payCsv = await admin.get("/payroll/export.csv");
   assert("payroll CSV has payroll + bank columns", (payCsv.headers["content-type"] || "").includes("text/csv") && payCsv.text.includes("Total Pay") && payCsv.text.includes("IFSC"));
-  const payXlsx = await admin.get("/reports/payroll/export.xlsx").buffer().parse(binaryParser);
+  const payXlsx = await admin.get("/payroll/export.xlsx").buffer().parse(binaryParser);
   assert("payroll xlsx is a real workbook", Buffer.isBuffer(payXlsx.body) && payXlsx.body.slice(0, 2).toString() === "PK");
 
   // Attendance exports

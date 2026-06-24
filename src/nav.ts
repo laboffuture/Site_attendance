@@ -22,5 +22,6 @@ export const NAV: NavItem[] = [
   { label: "Stations", href: "/stations", icon: "desktop_windows", cap: "manage_org", ready: true },
   { label: "Users & Roles", href: "/users", icon: "manage_accounts", cap: "manage_users", ready: true },
   { label: "Reports", href: "/reports", icon: "description", cap: "view_dashboard", ready: true },
+  { label: "Payroll", href: "/payroll", icon: "payments", cap: "view_dashboard", ready: true },
   { label: "Flagged", href: "/flags", icon: "flag", cap: "view_dashboard", ready: true },
 ];

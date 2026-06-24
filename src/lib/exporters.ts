@@ -67,6 +67,16 @@ export async function buildXlsxBuffer(rows: Row[], note?: string): Promise<Buffe
   return Buffer.from(buf);
 }
 
+/** Streams a CSV download. Optional trailing note row (e.g. a row-cap notice). */
+export function sendCsv(res: Response, filename: string, headers: string[], rows: (string | number | null)[][], note?: string): void {
+  const esc = (v: unknown) => { const s = v == null ? "" : String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  const lines = [headers, ...rows].map((r) => r.map(esc).join(","));
+  if (note) lines.push("", esc(note));
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  res.send(lines.join("\n"));
+}
+
 /** Per-worker payroll sheet (matches the client OT-sheet roll-up columns). */
 export interface PayrollRow {
   empRegNo: string; name: string; designation: string; account: string; ifsc: string;
