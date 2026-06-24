@@ -106,9 +106,10 @@ router.post("/regularization/:siteId/:date/approve", requireCapability("approve_
     { siteId, date, attendanceStatus: "recommended" },
     { $set: { attendanceStatus: "approved", decidedBy: by, decidedAt: now } },
   );
-  // Subsume OT approval: approve OT on the day's approved records that have OT.
+  // Subsume OT approval: approving the day closes that day's open OT (pending or
+  // HR-recommended) in bulk — Management is closing it here too.
   await AttendanceModel.updateMany(
-    { siteId, date, attendanceStatus: "approved", "overtime.computedHours": { $gt: 0 }, "overtime.status": "pending" },
+    { siteId, date, attendanceStatus: "approved", "overtime.computedHours": { $gt: 0 }, "overtime.status": { $in: ["pending", "recommended"] } },
     { $set: { "overtime.status": "approved", "overtime.approvedBy": by, "overtime.approvedAt": now } },
   );
   flash(req, "success", "Day approved.");

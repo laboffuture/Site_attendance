@@ -47,10 +47,11 @@ async function main(): Promise<void> {
   const wa = await worker(`QA-RG-A-${S}`, 2); // has OT
   const wb = await worker(`QA-RG-B-${S}`, 0); // no OT
 
-  const sup = `qa-rgsup-${S}@trgbi.com`, pm = `qa-rgpm-${S}@trgbi.com`, hr = `qa-rghr-${S}@trgbi.com`;
+  const sup = `qa-rgsup-${S}@trgbi.com`, pm = `qa-rgpm-${S}@trgbi.com`, hr = `qa-rghr-${S}@trgbi.com`, mgr = `qa-rgmgr-${S}@trgbi.com`;
   await UserModel.create({ name: "RG Sup", email: sup, passwordHash: await hashPassword(PW), role: "supervisor", assignedSiteIds: [site._id], active: true });
   await UserModel.create({ name: "RG PM", email: pm, passwordHash: await hashPassword(PW), role: "pm", assignedSiteIds: [site._id], active: true });
   await UserModel.create({ name: "RG HR", email: hr, passwordHash: await hashPassword(PW), role: "hr", assignedSiteIds: [], active: true });
+  await UserModel.create({ name: "RG Mgr", email: mgr, passwordHash: await hashPassword(PW), role: "management", assignedSiteIds: [], active: true });
 
   // --- Supervisor submits the day with remarks ---
   const sa = await login(app, sup);
@@ -67,14 +68,17 @@ async function main(): Promise<void> {
   await pa.post(`/regularization/${site._id}/${today}/recommend`).type("form").send({});
   assert("day recommended", (await AttendanceModel.findOne({ workerId: wa._id, date: today }))?.attendanceStatus === "recommended");
 
-  // --- per-worker reject (B) then HR approve the day ---
+  // --- per-worker reject (B) by HR; HR cannot close; Management approves ---
   const ha = await login(app, hr);
   const rb = await AttendanceModel.findOne({ workerId: wb._id, date: today });
   await ha.post(`/regularization/worker/${rb!._id}/reject`).type("form").send({ reason: "absent disputed" });
   assert("worker B rejected", (await AttendanceModel.findById(rb!._id))?.attendanceStatus === "rejected");
-  await ha.post(`/regularization/${site._id}/${today}/approve`).type("form").send({});
+  const hrApprove = await ha.post(`/regularization/${site._id}/${today}/approve`).type("form").send({});
+  assert("HR approve blocked → 403 (Management is the last to close)", hrApprove.status === 403);
+  const ma = await login(app, mgr);
+  await ma.post(`/regularization/${site._id}/${today}/approve`).type("form").send({});
   const fa = await AttendanceModel.findOne({ workerId: wa._id, date: today });
-  assert("worker A approved", fa?.attendanceStatus === "approved");
+  assert("worker A approved by Management", fa?.attendanceStatus === "approved");
   assert("worker A OT approved (subsumed)", fa?.overtime.status === "approved");
   assert("rejected worker B stays rejected after approve", (await AttendanceModel.findById(rb!._id))?.attendanceStatus === "rejected");
 
@@ -90,7 +94,7 @@ async function main(): Promise<void> {
   await Promise.all([
     AttendanceModel.deleteMany({ siteId: { $in: [site._id, otherSite._id] } }),
     WorkerModel.deleteMany({ siteId: site._id }),
-    UserModel.deleteMany({ email: { $in: [sup, pm, hr, pm2] } }),
+    UserModel.deleteMany({ email: { $in: [sup, pm, hr, pm2, mgr] } }),
     ProjectSiteModel.deleteMany({ _id: { $in: [site._id, otherSite._id] } }),
     BranchModel.deleteOne({ _id: branch._id }),
   ]);

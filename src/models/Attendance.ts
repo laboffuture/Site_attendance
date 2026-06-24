@@ -1,6 +1,6 @@
 import { Schema, model, InferSchemaType } from "mongoose";
 
-export const OVERTIME_STATUS = ["none", "pending", "approved", "rejected"] as const;
+export const OVERTIME_STATUS = ["none", "pending", "recommended", "approved", "rejected"] as const;
 export type OvertimeStatus = (typeof OVERTIME_STATUS)[number];
 
 const overtimeSchema = new Schema(
@@ -8,6 +8,9 @@ const overtimeSchema = new Schema(
     computedHours: { type: Number, default: 0 },
     status: { type: String, enum: [...OVERTIME_STATUS], default: "none" },
     approvedHours: { type: Number, default: null },
+    // HR recommends (raises) → Management approves/closes.
+    recommendedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    recommendedAt: { type: Date, default: null },
     approvedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
     approvedAt: { type: Date, default: null },
     notes: { type: String, default: null },

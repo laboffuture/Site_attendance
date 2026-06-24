@@ -47,45 +47,56 @@ async function main(): Promise<void> {
   const id3 = await mkPending("reject");
   const id4 = await mkPending("pmblock");
 
-  const hr = `qa-othr-${S}@trgbi.com`, pm = `qa-otpm-${S}@trgbi.com`, sup = `qa-otsup-${S}@trgbi.com`;
+  const hr = `qa-othr-${S}@trgbi.com`, pm = `qa-otpm-${S}@trgbi.com`, sup = `qa-otsup-${S}@trgbi.com`, mgr = `qa-otmgr-${S}@trgbi.com`;
   await UserModel.create({ name: "QA OT HR", email: hr, passwordHash: await hashPassword(PW), role: "hr", assignedSiteIds: [], active: true });
+  await UserModel.create({ name: "QA OT Mgr", email: mgr, passwordHash: await hashPassword(PW), role: "management", assignedSiteIds: [], active: true });
   await UserModel.create({ name: "QA OT PM", email: pm, passwordHash: await hashPassword(PW), role: "pm", assignedSiteIds: [site._id], active: true });
   await UserModel.create({ name: "QA OT Sup", email: sup, passwordHash: await hashPassword(PW), role: "supervisor", assignedSiteIds: [site._id], active: true });
 
+  // --- HR RAISES (recommends), but cannot close ---
   const ha = await login(app, hr);
   const list = await ha.get("/overtime");
   assert("HR GET /overtime → 200", list.status === 200);
-  assert("queue shows a pending record + approve control", list.text.includes(`QA-OT-${S}-adjust`) && /formaction="\/overtime\/[^"]+\/approve"/.test(list.text));
+  assert("HR queue shows a pending record + RECOMMEND control", list.text.includes(`QA-OT-${S}-adjust`) && /action="\/overtime\/[^"]+\/recommend"/.test(list.text));
+  assert("HR sees NO approve control (Management closes)", !/formaction="\/overtime\/[^"]+\/approve"/.test(list.text));
   assert("OT records grouped under their site header", list.text.includes("oh-section-title") && list.text.includes(site.name));
   assert("overtime shows the status counter band", list.text.includes("oh-qband"));
 
-  // Approve with an adjusted value.
-  await ha.post(`/overtime/${id1}/approve`).type("form").send({ approvedHours: "1.5", notes: "trimmed" });
+  await ha.post(`/overtime/${id1}/recommend`).type("form").send({});
+  const rec1 = await AttendanceModel.findById(id1).lean();
+  assert("HR recommend → recommended + recommendedBy", rec1?.overtime.status === "recommended" && !!rec1?.overtime.recommendedBy);
+  const hrApprove = await ha.post(`/overtime/${id1}/approve`).type("form").send({ approvedHours: "1.5" });
+  assert("HR approve blocked → 403", hrApprove.status === 403);
+
+  // --- MANAGEMENT closes (approve / adjust / reject) ---
+  const ma = await login(app, mgr);
+  await ma.post(`/overtime/${id1}/approve`).type("form").send({ approvedHours: "1.5", notes: "trimmed" });
   const r1 = await AttendanceModel.findById(id1).lean();
-  assert("HR approve+adjust → approved", r1?.overtime.status === "approved");
+  assert("Mgmt approve+adjust a recommended record → approved", r1?.overtime.status === "approved");
   assert("adjusted hours stored (1.5)", r1?.overtime.approvedHours === 1.5);
-  assert("approvedBy recorded", !!r1?.overtime.approvedBy);
+  assert("approvedBy recorded + recommendedBy preserved", !!r1?.overtime.approvedBy && !!r1?.overtime.recommendedBy);
 
-  // Approve with no value → defaults to computed (2).
-  await ha.post(`/overtime/${id2}/approve`).type("form").send({});
+  // Management may close a still-pending record directly (final authority).
+  await ma.post(`/overtime/${id2}/approve`).type("form").send({});
   const r2 = await AttendanceModel.findById(id2).lean();
-  assert("HR approve default → computed hours (2)", r2?.overtime.status === "approved" && r2?.overtime.approvedHours === 2);
+  assert("Mgmt approve pending (default) → computed hours (2)", r2?.overtime.status === "approved" && r2?.overtime.approvedHours === 2);
 
-  // Reject.
-  await ha.post(`/overtime/${id3}/reject`).type("form").send({});
+  await ma.post(`/overtime/${id3}/reject`).type("form").send({});
   const r3 = await AttendanceModel.findById(id3).lean();
-  assert("HR reject → rejected, 0 approved", r3?.overtime.status === "rejected" && r3?.overtime.approvedHours === 0);
+  assert("Mgmt reject → rejected, 0 approved", r3?.overtime.status === "rejected" && r3?.overtime.approvedHours === 0);
 
   // Filters.
-  const approved = await ha.get("/overtime?status=approved");
+  const approved = await ma.get("/overtime?status=approved");
   assert("approved filter includes adjusted record", approved.text.includes(`QA-OT-${S}-adjust`));
   assert("approved filter excludes rejected record", !approved.text.includes(`QA-OT-${S}-reject`));
+  const recTab = await ma.get("/overtime?status=recommended");
+  assert("recommended filter band exists", recTab.text.includes("Recommended"));
 
-  // PM is view-only.
+  // PM is view-only — cannot recommend OR approve.
   const pa = await login(app, pm);
   assert("PM GET /overtime → 200 (view)", (await pa.get("/overtime")).status === 200);
-  const pmApprove = await pa.post(`/overtime/${id4}/approve`).type("form").send({ approvedHours: "2" });
-  assert("PM approve → 403", pmApprove.status === 403);
+  assert("PM recommend → 403", (await pa.post(`/overtime/${id4}/recommend`).type("form").send({})).status === 403);
+  assert("PM approve → 403", (await pa.post(`/overtime/${id4}/approve`).type("form").send({ approvedHours: "2" })).status === 403);
   assert("PM could not change status", (await AttendanceModel.findById(id4).lean())?.overtime.status === "pending");
 
   // Supervisor is blocked entirely.
@@ -95,7 +106,7 @@ async function main(): Promise<void> {
   // Cleanup.
   await Promise.all([
     AttendanceModel.deleteMany({ empRegNo: new RegExp(`^QA-OT-${S}-`) }),
-    UserModel.deleteMany({ email: { $in: [hr, pm, sup] } }),
+    UserModel.deleteMany({ email: { $in: [hr, pm, sup, mgr] } }),
     ProjectSiteModel.deleteOne({ _id: site._id }),
     BranchModel.deleteOne({ _id: branch._id }),
   ]);

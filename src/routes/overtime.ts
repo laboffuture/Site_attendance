@@ -12,35 +12,27 @@ function flash(req: Request, type: "success" | "danger", text: string): void {
   req.session.flash = { type, text };
 }
 
-const FILTERS = ["pending", "approved", "rejected", "all"] as const;
+const STATUSES = ["pending", "recommended", "approved", "rejected"];
+const FILTERS = ["pending", "recommended", "approved", "rejected", "all"] as const;
 
 // Queue is visible to Management/HR/PM (PM view-only). Scoped to the user's sites.
-// HR + Management approve / adjust / reject OT here; a Regularization day-approval
-// also clears that day's pending OT in bulk.
+// Flow: OT auto-detected (pending) → HR recommends → Management approves/closes.
 router.get("/overtime", requireCapability("view_overtime"), async (req: Request, res: Response) => {
-  const filter = FILTERS.includes(req.query.status as never)
-    ? (req.query.status as string)
-    : "pending";
+  const filter = FILTERS.includes(req.query.status as never) ? (req.query.status as string) : "pending";
 
   const scope = siteScopeFilter(req.currentUser!);
   const query: Record<string, unknown> = { ...scope };
-  if (filter === "all") {
-    query["overtime.status"] = { $in: ["pending", "approved", "rejected"] };
-  } else {
-    query["overtime.status"] = filter;
-  }
+  query["overtime.status"] = filter === "all" ? { $in: STATUSES } : filter;
 
   const [records, countAgg] = await Promise.all([
     AttendanceModel.find(query).sort({ siteName: 1, date: -1 }).limit(500).lean(),
     AttendanceModel.aggregate([
-      { $match: { ...scope, "overtime.status": { $in: ["pending", "approved", "rejected"] } } },
+      { $match: { ...scope, "overtime.status": { $in: STATUSES } } },
       { $group: { _id: "$overtime.status", n: { $sum: 1 } } },
     ]),
   ]);
   const byStatus = new Map<string, number>(countAgg.map((c) => [c._id as string, c.n as number]));
 
-  // Group by site so Management scans per location with a clear breaker, and
-  // can approve/decline a whole site's OT at a glance.
   type Rec = (typeof records)[number];
   const bySite = new Map<string, { siteName: string; otTotal: number; records: Rec[] }>();
   for (const r of records) {
@@ -62,18 +54,35 @@ router.get("/overtime", requireCapability("view_overtime"), async (req: Request,
     filter,
     counts: {
       pending: byStatus.get("pending") ?? 0,
+      recommended: byStatus.get("recommended") ?? 0,
       approved: byStatus.get("approved") ?? 0,
       rejected: byStatus.get("rejected") ?? 0,
     },
+    canRecommend: res.locals.can("recommend_overtime"),
     canApprove: res.locals.can("approve_overtime"),
   });
 });
 
-// Approve / adjust (Management/HR only).
+// Recommend / raise (HR): pending → recommended.
+router.post("/overtime/:id/recommend", requireCapability("recommend_overtime"), async (req: Request, res: Response) => {
+  const rec = await AttendanceModel.findById(req.params.id);
+  if (!rec || rec.overtime.status !== "pending") {
+    flash(req, "danger", "Only a pending overtime record can be recommended.");
+    return res.redirect("/overtime");
+  }
+  rec.overtime.status = "recommended";
+  rec.overtime.recommendedBy = new Types.ObjectId(req.currentUser!.id);
+  rec.overtime.recommendedAt = new Date();
+  await rec.save();
+  flash(req, "success", `Recommended OT for ${rec.workerName} — awaiting Management approval.`);
+  res.redirect("/overtime?status=recommended");
+});
+
+// Approve / adjust — Management closes (from pending or recommended).
 router.post("/overtime/:id/approve", requireCapability("approve_overtime"), async (req: Request, res: Response) => {
   const rec = await AttendanceModel.findById(req.params.id);
-  if (!rec || rec.overtime.status === "none") {
-    flash(req, "danger", "Overtime record not found.");
+  if (!rec || !["pending", "recommended"].includes(rec.overtime.status)) {
+    flash(req, "danger", "Overtime record not found or already decided.");
     return res.redirect("/overtime");
   }
   const raw = Number(req.body.approvedHours);
@@ -82,6 +91,8 @@ router.post("/overtime/:id/approve", requireCapability("approve_overtime"), asyn
     computedHours: rec.overtime.computedHours,
     status: "approved",
     approvedHours,
+    recommendedBy: rec.overtime.recommendedBy ?? null,
+    recommendedAt: rec.overtime.recommendedAt ?? null,
     approvedBy: new Types.ObjectId(req.currentUser!.id),
     approvedAt: new Date(),
     notes: String(req.body.notes ?? "").trim() || null,
@@ -91,17 +102,19 @@ router.post("/overtime/:id/approve", requireCapability("approve_overtime"), asyn
   res.redirect("/overtime");
 });
 
-// Reject (Management/HR only).
+// Reject — Management closes (from pending or recommended).
 router.post("/overtime/:id/reject", requireCapability("approve_overtime"), async (req: Request, res: Response) => {
   const rec = await AttendanceModel.findById(req.params.id);
-  if (!rec || rec.overtime.status === "none") {
-    flash(req, "danger", "Overtime record not found.");
+  if (!rec || !["pending", "recommended"].includes(rec.overtime.status)) {
+    flash(req, "danger", "Overtime record not found or already decided.");
     return res.redirect("/overtime");
   }
   rec.overtime = {
     computedHours: rec.overtime.computedHours,
     status: "rejected",
     approvedHours: 0,
+    recommendedBy: rec.overtime.recommendedBy ?? null,
+    recommendedAt: rec.overtime.recommendedAt ?? null,
     approvedBy: new Types.ObjectId(req.currentUser!.id),
     approvedAt: new Date(),
     notes: String(req.body.notes ?? "").trim() || null,

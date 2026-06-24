@@ -15,11 +15,15 @@ import { Role, ROLES } from "../models/User";
  *   Enroll / register employee| yes | yes  | yes | yes | yes
  *   Add new designation       | yes | yes  | yes | yes | yes
  *   View overtime queue       | yes | yes  | yes | view| no
- *   Approve overtime          | yes | yes  | yes | no  | no
+ *   Recommend (raise) OT      | yes | no   | yes | no  | no
+ *   Approve / close OT        | yes | yes  | no  | no  | no
  *   View branches / sites     | yes | yes  | view| view| no
- *   Manage branches / sites   | yes | yes  | no  | no  | no
+ *   Manage branches / sites   | yes | yes  | yes | no  | no
  *   Manage user accounts      | yes | yes  | yes | no  | no
  *
+ * Approval authority (HR recommends → Management closes): across Overtime,
+ * Regularization and Requests, HR (and PM) RECOMMEND, and Management is the
+ * last to CLOSE (approve/decide). HR keeps full people-ops + payroll otherwise.
  * (Site scoping — "all sites" vs "own site" — is enforced via assignedSiteIds.)
  */
 export type Capability =
@@ -28,6 +32,7 @@ export type Capability =
   | "enroll_worker"
   | "add_designation"
   | "view_overtime"
+  | "recommend_overtime"
   | "approve_overtime"
   | "view_org"
   | "manage_org"
@@ -51,7 +56,8 @@ const CAPABILITY_ROLES: Record<Capability, Role[]> = {
   enroll_worker: ALL,
   add_designation: ALL,
   view_overtime: ["management", "hr", "pm"], // PM = view-only
-  approve_overtime: ["management", "hr"], // HR + Management approve/adjust/reject OT
+  recommend_overtime: ["hr"], // HR raises/recommends OT…
+  approve_overtime: ["management"], // …and Management is the last to close (approve/adjust/reject)
   view_org: ["management", "hr", "pm", "supervisor"], // supervisor = read-only, own sites
   manage_org: ["management", "hr"], // branches + stations (HR has full org access too)
   manage_sites: ["management", "hr"], // HR+ can add/edit project sites
@@ -61,13 +67,13 @@ const CAPABILITY_ROLES: Record<Capability, Role[]> = {
   // → admin decides (admins may also decide directly from pending).
   view_requests: ["management", "hr", "pm", "supervisor"],
   create_request: ["management", "hr", "pm", "supervisor"],
-  recommend_request: ["pm"],
-  decide_request: ["management", "hr"], // the admin approval group
+  recommend_request: ["hr", "pm"], // HR + PM recommend (raise)…
+  decide_request: ["management"], // …Management closes (decide)
   // Daily attendance regularization chain (submit → recommend → approve).
   submit_attendance: ["hr", "pm", "supervisor"], // Management verifies/approves, doesn't submit
   view_regularization: ["management", "hr", "pm"],
-  recommend_attendance: ["management", "pm"],
-  approve_attendance: ["management", "hr"],
+  recommend_attendance: ["hr", "pm"], // HR + PM recommend…
+  approve_attendance: ["management"], // …Management is the last to close
 };
 
 export function can(role: Role, capability: Capability): boolean {
