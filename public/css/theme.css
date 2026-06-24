@@ -516,7 +516,7 @@ code {
   position: sticky;
   top: 0;
   height: 100vh;
-  overflow-y: auto;
+  overflow: hidden; /* nav scrolls inside; header + footer stay fixed */
   display: flex;
   flex-direction: column;
 }
@@ -553,6 +553,9 @@ code {
   flex-direction: column;
   gap: 2px;
   padding: 0.75rem 0.5rem;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 .oh-sidebar__link {
   display: flex;
@@ -590,7 +593,7 @@ code {
 }
 /* Sidebar footer — "Developed by & for" + the Lab of Future maker's mark */
 .oh-sidebar__footer {
-  margin-top: auto;
+  flex: 0 0 auto;
   padding: 0.9rem 1rem 1.1rem;
   display: flex;
   flex-direction: column;
