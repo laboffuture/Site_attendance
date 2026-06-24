@@ -88,7 +88,7 @@
       <tr class="oh-clickrow" style="--spine: <%= tone %>" onclick="location.href='/dashboard?siteId=<%= s.siteId %>'">
         <td class="oh-people__spine"></td>
         <td><span class="oh-person__txt"><span class="oh-person__name"><%= s.siteName %></span><span class="oh-person__id"><%= s.code %></span></span></td>
-        <td><%= s.present %>/<%= s.active %><div class="oh-hier__bar" style="margin-top:4px"><span class="oh-hier__bar-fill" style="width:<%= s.pct %>%"></span></div></td>
+        <td><%= s.present %>/<%= s.active %><% if (s.pct > 0) { %><div class="oh-hier__bar" style="margin-top:4px"><span class="oh-hier__bar-fill" style="width:<%= s.pct %>%"></span></div><% } %></td>
         <td><%= s.pct %>%<% if (s.pct < target) { %> <span class="oh-trend oh-trend--down">▼<%= target - s.pct %></span><% } %></td>
         <td><% if (s.otPending > 0) { %><span class="oh-badge oh-badge--warning">OT <%= s.otPending %>h</span><% } else { %>—<% } %></td>
         <td><% if (s.flags > 0) { %><span class="oh-badge oh-badge--danger">⚑ <%= s.flags %></span><% } else { %>—<% } %></td>
