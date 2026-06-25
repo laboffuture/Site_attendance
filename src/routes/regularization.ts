@@ -69,6 +69,8 @@ router.get("/regularization/:siteId/:date", requireCapability("view_regularizati
     inHM: istHM(r.inTime ?? null), outHM: istHM(r.outTime ?? null),
     totalHours: r.totalHours, otHours: r.overtime?.computedHours ?? 0,
     status: r.attendanceStatus, remark: r.dailyRemark ?? "", rejectReason: r.rejectReason ?? "",
+    shiftType: r.shiftType ?? "day",
+    outSource: r.outSource ?? null, voided: r.voided ?? false, verifiedAt: r.verifiedAt ?? null, punches: r.sessions?.length ?? 0,
   }));
   const status = records[0]?.attendanceStatus ?? "scanned";
   res.render("regularization/day", {
@@ -77,6 +79,7 @@ router.get("/regularization/:siteId/:date", requireCapability("view_regularizati
     canRecommend: res.locals.can("recommend_attendance"),
     canApprove: res.locals.can("approve_attendance"),
     canReject: res.locals.can("view_regularization"),
+    canCorrect: res.locals.can("correct_attendance"),
   });
 });
 

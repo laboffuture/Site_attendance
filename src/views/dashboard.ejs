@@ -35,6 +35,12 @@
   </p>
 </div>
 
+<!-- 1b · Live band -->
+<div class="oh-statstrip">
+  <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= stats.todayCount %><span class="oh-statstrip__of">/<%= stats.activeWorkers %></span></span><span class="oh-statstrip__label">Present today</span></div>
+  <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= stats.onSiteNow %></span><span class="oh-statstrip__label">On site now</span></div>
+</div>
+
 <!-- 2 · NEEDS-YOU action band (only tiles the role can actually open) -->
 <% if (visNeeds > 0) { %>
 <div class="oh-qband oh-qband--needs">

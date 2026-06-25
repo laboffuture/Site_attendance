@@ -30,10 +30,42 @@
         <span class="oh-m-badge oh-badge--muted"><%= r.status %></span>
       </div>
       <div class="oh-m-sub" style="margin-top:0.4rem"><%= r.totalHours != null ? r.totalHours + 'h total' : '—' %><%= r.otHours > 0 ? ' · OT ' + r.otHours + 'h' : '' %></div>
+      <div class="oh-m-row" style="gap:0.35rem;flex-wrap:wrap;margin-top:0.4rem">
+        <% if (!r.outHM && !r.voided) { %><span class="oh-m-badge oh-badge--warning">No OUT — unresolved</span><% } %>
+        <% if (r.voided) { %><span class="oh-m-badge oh-badge--muted">Voided</span><% } %>
+        <% if (r.verifiedAt) { %><span class="oh-m-badge oh-badge--success">Verified</span><% } %>
+      </div>
       <% if (canReject && (r.status === "submitted" || r.status === "recommended")) { %>
       <form method="post" action="/regularization/worker/<%= r.id %>/reject" onsubmit="var x=prompt('Reason for rejecting this worker?'); if(x===null){return false;} this.reason.value=x; return true;" style="margin-top:0.5rem">
         <input type="hidden" name="reason" /><button class="oh-btn oh-btn--small oh-btn--danger" type="submit">Reject</button>
       </form>
+      <% } %>
+      <% if (canCorrect && !r.voided) { %>
+      <form method="post" action="/regularization/worker/<%= r.id %>/correct" style="margin-top:0.5rem">
+        <div class="oh-m-row" style="gap:0.35rem;flex-wrap:wrap">
+          <input class="oh-input oh-input--xs" type="time" name="inHM" value="<%= r.inHM %>" title="In time" />
+          <input class="oh-input oh-input--xs" type="time" name="outHM" value="<%= r.outHM %>" title="Out time" />
+          <select class="oh-select oh-input--xs" name="shiftType" title="Shift">
+            <option value="day" <%= r.shiftType === "day" ? "selected" : "" %>>Day</option>
+            <option value="night" <%= r.shiftType === "night" ? "selected" : "" %>>Night</option>
+            <option value="sunday" <%= r.shiftType === "sunday" ? "selected" : "" %>>Sunday</option>
+          </select>
+        </div>
+        <div class="oh-m-row" style="gap:0.35rem;flex-wrap:wrap;margin-top:0.35rem">
+          <input class="oh-input" style="flex:1 1 auto;min-width:0" type="text" name="reason" placeholder="Reason" title="Reason for correction" />
+          <button class="oh-btn oh-btn--small oh-btn--secondary" type="submit">Save</button>
+        </div>
+      </form>
+      <div class="oh-m-row" style="gap:0.35rem;flex-wrap:wrap;margin-top:0.4rem">
+        <form method="post" action="/regularization/worker/<%= r.id %>/void" class="oh-m-row" style="gap:0.35rem;margin:0">
+          <input class="oh-input oh-input--xs" type="text" name="reason" placeholder="Void reason" title="Reason for voiding" />
+          <button class="oh-btn oh-btn--small oh-btn--danger" type="submit">Void</button>
+        </form>
+        <form method="post" action="/regularization/worker/<%= r.id %>/verify" class="oh-m-row" style="gap:0.35rem;margin:0">
+          <input class="oh-input oh-input--xs" type="text" name="note" placeholder="Note" title="Optional verify note" />
+          <button class="oh-btn oh-btn--small" type="submit">Verify</button>
+        </form>
+      </div>
       <% } %>
     </div>
     <% }); %>
@@ -47,7 +79,7 @@
   <div class="oh-empty"><span class="material-icons">event_busy</span><p>No attendance for this day.</p></div>
   <% } else { %>
   <table class="oh-people">
-    <thead><tr><th class="oh-people__spinecol"></th><th>Worker</th><th>In</th><th>Out</th><th>Total</th><th>OT</th><th>Status</th><% if (canReject) { %><th class="oh-people__actcol"></th><% } %></tr></thead>
+    <thead><tr><th class="oh-people__spinecol"></th><th>Worker</th><th>In</th><th>Out</th><th>Total</th><th>OT</th><th>Status</th><% if (canReject || canCorrect) { %><th class="oh-people__actcol"></th><% } %></tr></thead>
     <tbody>
       <% rows.forEach(function (r) { %>
       <tr style="--spine: <%= dot[r.status] || 'var(--c-border)' %>">
@@ -57,17 +89,47 @@
           <% if (r.status === "rejected" && r.rejectReason) { %><div class="oh-muted" style="font-size:0.78rem">✕ <%= r.rejectReason %></div><% } %>
         </td>
         <td><%= r.inHM || "—" %></td>
-        <td><%= r.outHM || "—" %></td>
+        <td>
+          <%= r.outHM || "—" %>
+          <% if (!r.outHM && !r.voided) { %><span class="oh-badge oh-badge--warning" style="display:block;margin-top:0.25rem">No OUT — unresolved</span><% } %>
+        </td>
         <td><%= r.totalHours != null ? r.totalHours + "h" : "—" %></td>
         <td><%= r.otHours > 0 ? r.otHours + "h" : "—" %></td>
-        <td><span class="oh-stat"><span class="oh-stat__dot" style="background: <%= dot[r.status] || 'var(--c-text-muted)' %>"></span><%= r.status %></span></td>
-        <% if (canReject) { %>
+        <td>
+          <span class="oh-stat"><span class="oh-stat__dot" style="background: <%= dot[r.status] || 'var(--c-text-muted)' %>"></span><%= r.status %></span>
+          <% if (r.voided) { %><span class="oh-badge oh-badge--muted" style="display:block;margin-top:0.25rem">Voided</span><% } %>
+          <% if (r.verifiedAt) { %><span class="oh-badge oh-badge--success" style="display:block;margin-top:0.25rem">Verified</span><% } %>
+        </td>
+        <% if (canReject || canCorrect) { %>
         <td class="oh-people__actcol">
-          <% if (r.status === "submitted" || r.status === "recommended") { %>
-          <form method="post" action="/regularization/worker/<%= r.id %>/reject" onsubmit="var x=prompt('Reason for rejecting this worker?'); if(x===null){return false;} this.reason.value=x; return true;" style="margin:0">
+          <% if (canReject && (r.status === "submitted" || r.status === "recommended")) { %>
+          <form method="post" action="/regularization/worker/<%= r.id %>/reject" onsubmit="var x=prompt('Reason for rejecting this worker?'); if(x===null){return false;} this.reason.value=x; return true;" style="margin:0 0 0.5rem">
             <input type="hidden" name="reason" />
             <button class="oh-icon-btn oh-icon-btn--danger" type="submit" title="Reject"><span class="material-icons">close</span></button>
           </form>
+          <% } %>
+          <% if (canCorrect && !r.voided) { %>
+          <form method="post" action="/regularization/worker/<%= r.id %>/correct" class="oh-ot-actions" style="flex-wrap:wrap;margin-bottom:0.4rem">
+            <input class="oh-input oh-input--xs" type="time" name="inHM" value="<%= r.inHM %>" title="In time" />
+            <input class="oh-input oh-input--xs" type="time" name="outHM" value="<%= r.outHM %>" title="Out time" />
+            <select class="oh-select oh-input--xs" name="shiftType" title="Shift">
+              <option value="day" <%= r.shiftType === "day" ? "selected" : "" %>>Day</option>
+              <option value="night" <%= r.shiftType === "night" ? "selected" : "" %>>Night</option>
+              <option value="sunday" <%= r.shiftType === "sunday" ? "selected" : "" %>>Sunday</option>
+            </select>
+            <input class="oh-input oh-input--time" type="text" name="reason" placeholder="Reason" title="Reason for correction" />
+            <button class="oh-btn oh-btn--small oh-btn--secondary" type="submit">Save</button>
+          </form>
+          <div class="oh-ot-actions" style="flex-wrap:wrap">
+            <form method="post" action="/regularization/worker/<%= r.id %>/void" class="oh-ot-actions" style="margin:0">
+              <input class="oh-input oh-input--xs" type="text" name="reason" placeholder="Void reason" title="Reason for voiding" />
+              <button class="oh-btn oh-btn--small oh-btn--danger" type="submit">Void</button>
+            </form>
+            <form method="post" action="/regularization/worker/<%= r.id %>/verify" class="oh-ot-actions" style="margin:0">
+              <input class="oh-input oh-input--xs" type="text" name="note" placeholder="Note" title="Optional verify note" />
+              <button class="oh-btn oh-btn--small" type="submit">Verify</button>
+            </form>
+          </div>
           <% } %>
         </td>
         <% } %>

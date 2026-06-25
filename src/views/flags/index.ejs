@@ -27,6 +27,9 @@
       <div class="oh-m-name"><%= f.workerName || "—" %></div>
       <div class="oh-m-sub"><%= f.attemptedSiteName || "—" %><% if (f.homeSiteName) { %> · assigned <%= f.homeSiteName %><% } %></div>
       <div class="oh-m-sub"><%= ts(f.timestamp) %></div>
+      <% if (f.type === "missed_clockout") { %>
+      <div class="oh-m-sub" style="margin-top:0.35rem"><a href="<%= (f.homeSiteId && f.date) ? '/regularization/' + f.homeSiteId + '/' + f.date : '/regularization' %>">Fix attendance →</a></div>
+      <% } %>
       <% if (!showResolved) { %>
       <form method="post" action="/flags/<%= f._id %>/resolve" class="oh-m-actions">
         <button class="oh-btn oh-btn--small oh-btn--success" type="submit">Resolve</button>
@@ -50,7 +53,10 @@
       <% flags.forEach(function (f) { %>
       <tr>
         <td><%= ts(f.timestamp) %></td>
-        <td><span class="oh-badge oh-badge--danger"><%= typeLabel[f.type] || f.type %></span></td>
+        <td>
+          <span class="oh-badge oh-badge--danger"><%= typeLabel[f.type] || f.type %></span>
+          <% if (f.type === "missed_clockout") { %><div style="margin-top:0.3rem;font-size:0.8rem"><a href="<%= (f.homeSiteId && f.date) ? '/regularization/' + f.homeSiteId + '/' + f.date : '/regularization' %>">Fix attendance →</a></div><% } %>
+        </td>
         <td><%= f.workerName || "—" %></td>
         <td><%= f.attemptedSiteName || "—" %></td>
         <td><%= f.homeSiteName || "—" %></td>

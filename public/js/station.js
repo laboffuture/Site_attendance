@@ -13,6 +13,21 @@
     result.textContent = text;
   }
 
+  // A big, unmistakable standing-state card for a wall-mounted kiosk:
+  // bold headline ("CLOCKED IN"/"CLOCKED OUT") + a name/time detail line.
+  function showCard(cls, title, detail) {
+    result.className = "oh-result oh-result--" + cls + " oh-result--card";
+    result.textContent = "";
+    var head = document.createElement("div");
+    head.className = "oh-result__title";
+    head.textContent = title;
+    var sub = document.createElement("div");
+    sub.className = "oh-result__detail";
+    sub.textContent = detail;
+    result.appendChild(head);
+    result.appendChild(sub);
+  }
+
   if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
     navigator.mediaDevices
       .getUserMedia({ video: { width: 640, height: 480 } })
@@ -48,11 +63,11 @@
   function render(data) {
     switch (data.status) {
       case "in":
-        show("in", "✓ " + data.workerName + " — IN at " + data.time + locText(data));
+        showCard("in", "CLOCKED IN", data.workerName + " — since " + data.time + locText(data));
         break;
       case "out": {
-        var ot = data.overtimeHours > 0 ? " · OT " + data.overtimeHours + "h (" + data.overtimeStatus + ")" : "";
-        show("out", "✓ " + data.workerName + " — OUT at " + data.time + " · Total " + data.totalHours + "h" + ot + locText(data));
+        var ot = data.overtimeHours > 0 ? " · OT " + data.overtimeHours + "h (pending approval)" : "";
+        showCard("out", "CLOCKED OUT", data.workerName + " — at " + data.time + " · Total " + data.totalHours + "h" + ot + locText(data));
         break;
       }
       case "wrong_site":

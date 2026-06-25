@@ -483,6 +483,33 @@ code {
   color: #b3261e;
 }
 
+/* Big, unmistakable standing-state card after a scan (wall-mounted kiosk). */
+.oh-result--card {
+  padding: 1.5rem 1.75rem;
+  text-align: left;
+  border-width: 1px;
+  border-left-width: 8px;
+}
+.oh-result--card.oh-result--in {
+  border-color: var(--c-success);
+}
+.oh-result--card.oh-result--out {
+  border-color: var(--c-accent);
+}
+.oh-result__title {
+  font-size: clamp(1.6rem, 5vw, 2.4rem);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+}
+.oh-result__detail {
+  margin-top: 0.4rem;
+  font-size: clamp(1rem, 3vw, 1.25rem);
+  font-weight: 500;
+}
+.oh-result--card.oh-result--in .oh-result__title { color: #1f7a44; }
+.oh-result--card.oh-result--out .oh-result__title { color: var(--c-accent); }
+
 /* ---- Login geofence banner (PM / Supervisor) ---- */
 .oh-geo-banner {
   display: flex;

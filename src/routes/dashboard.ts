@@ -126,8 +126,9 @@ router.get("/dashboard", requireAuth, async (req: Request, res: Response) => {
   const weekStart = ymd(mon);
 
   // NEEDS-YOU counters + headline figures.
-  const [todayCount, pendingOT, activeWorkers, unresolvedFlags, pendingReg, pendingReq, otExp] = await Promise.all([
+  const [todayCount, onSiteNow, pendingOT, activeWorkers, unresolvedFlags, pendingReg, pendingReq, otExp] = await Promise.all([
     AttendanceModel.countDocuments({ ...scope, date: today }),
+    AttendanceModel.countDocuments({ ...scope, date: today, outTime: null, voided: { $ne: true } }),
     AttendanceModel.countDocuments({ ...scope, "overtime.status": "pending" }),
     WorkerModel.countDocuments({ ...scope, status: "active" }),
     FlagEventModel.countDocuments({ ...flagScope, resolved: false }),
@@ -207,7 +208,7 @@ router.get("/dashboard", requireAuth, async (req: Request, res: Response) => {
     mySites,
     selectedSiteId,
     seesAll,
-    stats: { todayCount, pendingOT, activeWorkers, unresolvedFlags, pendingReg, pendingReq },
+    stats: { todayCount, onSiteNow, pendingOT, activeWorkers, unresolvedFlags, pendingReg, pendingReq },
     pct,
     target: TARGET,
     needsYouTotal,

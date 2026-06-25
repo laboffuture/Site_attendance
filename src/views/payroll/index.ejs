@@ -41,6 +41,9 @@
   </form>
 </div>
 
+<% if (summary.unresolvedOpenDays > 0) { %>
+<div class="oh-alert oh-alert--warning">⚠ <%= summary.unresolvedOpenDays %> day(s) awaiting an OUT — these are excluded from pay until HR fixes them in <a href="/regularization">Attendance corrections</a>.</div>
+<% } %>
 <% if (summary.missingWage > 0) { %>
 <div class="oh-alert oh-alert--warning"><%= summary.missingWage %> worker(s) have no daily wage set, so their pay is ₹0. Set a daily wage on those employees for an accurate run.</div>
 <% } %>
@@ -56,7 +59,7 @@
 <div class="oh-only-mobile oh-m-list">
   <% workers.forEach(function (w) { %>
   <div class="oh-m-card" style="border-left:3px solid <%= w.hasWage ? 'var(--c-accent)' : 'var(--c-warning)' %>">
-    <div class="oh-m-row" style="justify-content:space-between"><span class="oh-m-name"><%= w.name %></span><span class="oh-m-name"><%= inr(w.gross) %></span></div>
+    <div class="oh-m-row" style="justify-content:space-between"><span class="oh-m-name"><%= w.name %><% if (w.unresolvedOpenDays > 0) { %> <span class="oh-badge oh-badge--warning"><%= w.unresolvedOpenDays %> unresolved</span><% } %></span><span class="oh-m-name"><%= inr(w.gross) %></span></div>
     <div class="oh-m-sub"><%= w.empRegNo %> · <%= w.designation %> · <%= w.days %> days</div>
     <div class="oh-m-sub">Normal <%= w.normalHrs %>h (<%= inr(w.normalPay) %>) · OT <%= w.otHrs %>h (<%= inr(w.otPay) %>) · Food <%= inr(w.foodAllowance) %><% if (w.arrears) { %> · Arrears <%= inr(w.arrears) %><% } %></div>
   </div>
@@ -72,7 +75,7 @@
       <tr style="--spine: <%= w.hasWage ? 'var(--c-accent)' : 'var(--c-warning)' %>">
         <td class="oh-people__spine"></td>
         <td><button type="button" class="oh-rowtoggle" data-tgt="d-<%= w.workerId %>" aria-label="Show daily breakdown"><span class="material-icons">expand_more</span></button></td>
-        <td><span class="oh-person__txt"><span class="oh-person__name"><%= w.name %></span><span class="oh-person__id"><%= w.empRegNo %></span></span></td>
+        <td><span class="oh-person__txt"><span class="oh-person__name"><%= w.name %><% if (w.unresolvedOpenDays > 0) { %> <span class="oh-badge oh-badge--warning"><%= w.unresolvedOpenDays %> unresolved</span><% } %></span><span class="oh-person__id"><%= w.empRegNo %></span></span></td>
         <td><%= w.designation %></td>
         <td><%= w.basic != null ? inr(w.basic) : '—' %></td>
         <td><%= w.days %></td>
