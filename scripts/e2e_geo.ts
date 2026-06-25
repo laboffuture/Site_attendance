@@ -91,6 +91,10 @@ async function main(): Promise<void> {
   assert(`distanceMeters computed (~${expected}m)`, !!rec?.inGeo && Math.abs((rec.inGeo.distanceMeters ?? -1) - expected) <= 1);
   assert("accuracy stored", rec?.inGeo?.accuracy === 12);
 
+  // Step the IN past the scan-debounce window so the next scan is a real OUT,
+  // not an accidental double-tap (which the server now correctly ignores).
+  await AttendanceModel.updateOne({ workerId: w._id, outTime: null }, { $set: { inTime: new Date(Date.now() - 2 * 3_600_000) } });
+
   // 3) Second scan (Out) WITHOUT coordinates → still logs, outGeo available:false.
   const r2 = await kiosk.post("/station/scan").set("Accept", "application/json").type("form")
     .send({ photoData: faceDataUrl() });
