@@ -129,7 +129,13 @@ export async function buildPayrollXlsx(rows: PayrollRow[], dates: string[], peri
 }
 
 /** Streams a landscape A4 PDF table directly to the response. */
-export function streamPdf(rows: Row[], meta: { title: string; subtitle: string }, res: Response): void {
+/** A PDF column: header + the key to read off each (pre-flattened) row, and its
+ *  width in points for the landscape-A4 layout (usable width ≈ 786pt). */
+export interface PdfColumn { header: string; key: string; pdf: number }
+
+/** Streams a landscape A4 PDF table for ANY column set + pre-flattened rows.
+ *  Repeats the header on each page and ellipsises overflowing cells. */
+export function streamTablePdf(rows: Record<string, string | number>[], columns: PdfColumn[], meta: { title: string; subtitle: string }, res: Response): void {
   const doc = new PDFDocument({ size: "A4", layout: "landscape", margin: 28 });
   doc.pipe(res);
 
@@ -144,31 +150,30 @@ export function streamPdf(rows: Row[], meta: { title: string; subtitle: string }
 
   const drawRow = (vals: (string | number)[], y: number, header: boolean) => {
     if (header) {
-      const totalW = COLUMNS.reduce((s, c) => s + c.pdf, 0);
+      const totalW = columns.reduce((s, c) => s + c.pdf, 0);
       doc.rect(left, y - 2, totalW, rowH).fill("#eeeeee");
       doc.fillColor("#000");
     }
     doc.fontSize(8).font(header ? "Helvetica-Bold" : "Helvetica");
     let x = left;
-    COLUMNS.forEach((c, i) => {
+    columns.forEach((c, i) => {
       doc.text(String(vals[i] ?? ""), x + 2, y + 2, { width: c.pdf - 4, height: rowH, ellipsis: true, lineBreak: false });
       x += c.pdf;
     });
   };
 
   let y = doc.y;
-  drawRow(COLUMNS.map((c) => c.header), y, true);
+  drawRow(columns.map((c) => c.header), y, true);
   y += rowH;
 
   for (const r of rows) {
     if (y + rowH > bottom) {
       doc.addPage();
       y = doc.page.margins.top;
-      drawRow(COLUMNS.map((c) => c.header), y, true);
+      drawRow(columns.map((c) => c.header), y, true);
       y += rowH;
     }
-    const f = flat(r);
-    drawRow(COLUMNS.map((c) => f[c.key]), y, false);
+    drawRow(columns.map((c) => r[c.key] ?? ""), y, false);
     y += rowH;
   }
 
@@ -176,4 +181,10 @@ export function streamPdf(rows: Row[], meta: { title: string; subtitle: string }
     doc.moveDown(2).fontSize(11).fillColor("#666").text("No records match the selected filters.");
   }
   doc.end();
+}
+
+/** Attendance PDF — the original export, now built on the generic table primitive. */
+export function streamPdf(rows: Row[], meta: { title: string; subtitle: string }, res: Response): void {
+  const cols: PdfColumn[] = COLUMNS.map((c) => ({ header: c.header, key: c.key, pdf: c.pdf }));
+  streamTablePdf(rows.map(flat), cols, meta, res);
 }
