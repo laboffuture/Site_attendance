@@ -41,7 +41,10 @@ Then **hard-refresh** the browser (Cmd/Ctrl+Shift+R).
 3. `npm run seed` (creates the 5 logins + base data) — skip if restoring real data.
 4. Start the app, behind **HTTPS** (camera + GPS need a secure context — the kiosk
    face-scan and geofence won't work over plain http except on `localhost`).
-   If behind a reverse proxy, set Express `trust proxy` so kiosk share links use https.
+   Behind a reverse proxy, the app already sets Express `trust proxy` automatically
+   when `NODE_ENV=production`, so `req.protocol` resolves to https and the kiosk
+   share links (`/station/login?key=…`) come out as https. Just terminate TLS at
+   the proxy and forward the standard `X-Forwarded-Proto` header.
 
 ## Roles (who sees what)
 
