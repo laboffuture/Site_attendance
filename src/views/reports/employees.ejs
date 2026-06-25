@@ -58,17 +58,17 @@
 </div>
 
 <div class="oh-card oh-card--flush">
-  <table class="oh-people">
+  <table class="oh-people oh-table--cards">
     <thead><tr><th class="oh-people__spinecol"></th><th>Emp ID</th><th>Name</th><th>Designation</th><th>Site</th><th>Status</th></tr></thead>
     <tbody>
       <% workers.forEach(function (w) { %>
       <tr style="--spine: <%= w.status === 'active' ? 'var(--c-accent)' : 'var(--c-border)' %>">
         <td class="oh-people__spine"></td>
         <td><span class="oh-person__id"><%= w.empRegNo %></span></td>
-        <td><span class="oh-person__name" style="font-weight:600"><%= w.name %></span></td>
-        <td><%= w.designationName %></td>
-        <td><%= w.siteName %></td>
-        <td><span class="oh-stat"><span class="oh-stat__dot" style="background: <%= w.status === 'active' ? 'var(--c-success)' : 'var(--c-text-muted)' %>"></span><%= w.status.charAt(0).toUpperCase() + w.status.slice(1) %></span></td>
+        <td data-label="Name"><span class="oh-person__name" style="font-weight:600"><%= w.name %></span></td>
+        <td data-label="Designation"><%= w.designationName %></td>
+        <td data-label="Site"><%= w.siteName %></td>
+        <td data-label="Status"><span class="oh-stat"><span class="oh-stat__dot" style="background: <%= w.status === 'active' ? 'var(--c-success)' : 'var(--c-text-muted)' %>"></span><%= w.status.charAt(0).toUpperCase() + w.status.slice(1) %></span></td>
       </tr>
       <% }); %>
     </tbody>

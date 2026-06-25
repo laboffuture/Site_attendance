@@ -305,3 +305,37 @@
 @media (max-width: 430px) {
   .oh-dash-branches { grid-template-columns: 1fr; }
 }
+
+/* ---- mobile polish (statstrip, verdict, charts, wide tables) ---- */
+@media (max-width: 768px) {
+  /* KPI strip reads better 2-up than cramped 3-up on a phone. */
+  .oh-statstrip__item { flex: 1 1 45%; padding: 0.6rem 0.9rem; }
+  /* Verdict banner: a long line + its link wrap instead of overflowing. */
+  .oh-verdict { flex-wrap: wrap; }
+  .oh-verdict__link { margin-left: 0; white-space: normal; }
+  /* Belt-and-braces: nothing scrolls the whole PAGE sideways. Inner cards keep
+     their own overflow (e.g. the payroll wide grid scrolls inside its card). */
+  html, body { overflow-x: hidden; }
+  .oh-wrapper, .oh-main, .oh-content { overflow-x: hidden; max-width: 100%; }
+  /* Report charts (ApexCharts) hard-clamped to their card so the SVG can never
+     widen the page. */
+  .oh-rpt-chart { width: 100% !important; max-width: 100%; overflow: hidden; }
+  .oh-rpt-chart .apexcharts-canvas, .oh-rpt-chart svg { max-width: 100% !important; }
+  .oh-content canvas { max-width: 100% !important; height: auto !important; }
+  /* Long names / sites in card cells wrap instead of clipping or overflowing. */
+  .oh-table--cards td { overflow-wrap: anywhere; }
+  .oh-table--cards td > * { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+
+  /* Spine-led .oh-people tables rendered as cards (add `oh-table--cards` to the
+     <table>): hide the 3px spine cell, promote the first real column to the card
+     title, and keep a coloured left edge from the row's --spine var. Pairs with
+     the generic .oh-table--cards rules already in this file. */
+  .oh-people.oh-table--cards tr { border-left: 3px solid var(--spine, var(--c-border)); }
+  .oh-people.oh-table--cards td.oh-people__spine { display: none; }
+  .oh-people.oh-table--cards td.oh-people__spine + td {
+    display: block; text-align: left;
+    font-weight: 600; font-size: 0.92rem; line-height: 1.3;
+    border-bottom: 1px solid var(--c-border-light); padding-bottom: 0.5rem; margin-bottom: 0.35rem;
+  }
+  .oh-people.oh-table--cards td.oh-people__spine + td::before { display: none; }
+}

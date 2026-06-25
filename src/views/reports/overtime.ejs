@@ -42,16 +42,16 @@
 <div class="oh-card"><div class="oh-card__label">Overtime hours by site — pending vs approved</div><div class="oh-rpt-chart" id="rpt-ot" style="min-height:280px"></div></div>
 
 <div class="oh-card oh-card--flush">
-  <table class="oh-people">
+  <table class="oh-people oh-table--cards">
     <thead><tr><th class="oh-people__spinecol"></th><th>Site</th><th>Pending OT</th><th>Approved OT</th><th>OT cost</th></tr></thead>
     <tbody>
       <% groups.forEach(function (g) { %>
       <tr style="--spine: <%= g.pending > 0 ? 'var(--c-warning)' : 'var(--c-accent)' %>">
         <td class="oh-people__spine"></td>
         <td><span class="oh-person__name" style="font-weight:600"><%= g.site %></span></td>
-        <td><span class="oh-ot-pending"><%= g.pending %>h</span></td>
-        <td><span class="oh-ot-approved"><%= g.approved %>h</span></td>
-        <td><span class="oh-person__id"><%= inr(g.cost) %></span></td>
+        <td data-label="Pending OT"><span class="oh-ot-pending"><%= g.pending %>h</span></td>
+        <td data-label="Approved OT"><span class="oh-ot-approved"><%= g.approved %>h</span></td>
+        <td data-label="OT cost"><span class="oh-person__id"><%= inr(g.cost) %></span></td>
       </tr>
       <% }); %>
     </tbody>
