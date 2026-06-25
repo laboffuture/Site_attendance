@@ -4,6 +4,7 @@ import { Types } from "mongoose";
 import { requireCapability } from "../auth/middleware";
 import { config } from "../config";
 import { buildXlsxBuffer, streamPdf, sendCsv } from "../lib/exporters";
+import { computePayroll } from "../lib/payroll";
 import { parseReportFilters, buildAttendanceQuery, groupByBranchSite, hoursBreakdown } from "../lib/report";
 import { siteScopeFilter, canUseSite, workerScopeFilter } from "../lib/scope";
 import { round2, siteLocalDate } from "../lib/time";
@@ -30,8 +31,11 @@ router.get("/reports", requireCapability("view_reports"), async (req: Request, r
   const wScope = workerScopeFilter(u);
   const today = siteLocalDate();
   const monthStart = today.slice(0, 8) + "01";
-  const STD = config.payrollStandardHours;
-  const [attMonth, attToday, activeWorkers, facesReg, facesTotal, otAgg, payAgg] = await Promise.all([
+  // Payroll headline reuses computePayroll — the single source of truth — so the
+  // hub tile reconciles EXACTLY with the /payroll page (per-site lunch, OT-approval
+  // gate, excluded open/voided/rejected days, food). Costlier than a raw aggregate
+  // but this tile is admins-only and monthly.
+  const [attMonth, attToday, activeWorkers, facesReg, facesTotal, otAgg, payroll] = await Promise.all([
     AttendanceModel.countDocuments({ ...aScope, date: { $gte: monthStart } }),
     AttendanceModel.countDocuments({ ...aScope, date: today }),
     WorkerModel.countDocuments({ ...wScope, status: "active" }),
@@ -41,20 +45,10 @@ router.get("/reports", requireCapability("view_reports"), async (req: Request, r
       { $match: { ...aScope, "overtime.status": "pending" } },
       { $group: { _id: null, hours: { $sum: "$overtime.computedHours" }, n: { $sum: 1 } } },
     ]),
-    AttendanceModel.aggregate([
-      { $match: { ...aScope, date: { $gte: monthStart } } },
-      { $lookup: { from: "workers", localField: "workerId", foreignField: "_id", as: "w" } },
-      { $addFields: { wage: { $ifNull: [{ $arrayElemAt: ["$w.dailyWage", 0] }, 0] }, foodApp: { $arrayElemAt: ["$w.foodAllowance.applicable", 0] }, foodAmt: { $ifNull: [{ $arrayElemAt: ["$w.foodAllowance.amount", 0] }, 0] }, tot: { $ifNull: ["$totalHours", 0] } } },
-      { $addFields: { normal: { $min: ["$tot", STD] }, ot: { $max: [0, { $subtract: ["$tot", STD] }] } } },
-      { $group: { _id: null, gross: { $sum: { $add: [
-        { $multiply: ["$normal", { $divide: ["$wage", STD] }] },
-        { $multiply: ["$ot", { $divide: ["$wage", STD] }, config.otMultiplier] },
-        { $cond: [{ $and: [{ $eq: ["$foodApp", true] }, { $gte: ["$tot", 5] }] }, "$foodAmt", 0] },
-      ] } }, workers: { $addToSet: "$workerId" } } },
-    ]),
+    computePayroll({ ...aScope, date: { $gte: monthStart, $lte: today } }, monthStart, today),
   ]);
   const ot = otAgg[0] ?? { hours: 0, n: 0 };
-  const pay = payAgg[0] ?? { gross: 0, workers: [] };
+  const pay = { gross: payroll.summary.gross, workers: payroll.summary.workers };
   const reports = [
     { href: "/reports/attendance", icon: "fact_check", title: "Attendance report",
       metric: attMonth.toLocaleString("en-IN"), unit: "records this month", sub: attToday.toLocaleString("en-IN") + " logged today",
@@ -69,7 +63,7 @@ router.get("/reports", requireCapability("view_reports"), async (req: Request, r
   // Payroll (money + bank details) is admins-only — hide its tile from PM/Supervisor.
   if (res.locals.can("view_payroll")) {
     reports.push({ href: "/payroll", icon: "payments", title: "Payroll report",
-      metric: "₹ " + Math.round(pay.gross).toLocaleString("en-IN"), unit: "gross this month", sub: (pay.workers ? pay.workers.length : 0).toLocaleString("en-IN") + " workers · normal + OT + food",
+      metric: "₹ " + Math.round(pay.gross).toLocaleString("en-IN"), unit: "gross this month", sub: pay.workers.toLocaleString("en-IN") + " workers · normal + OT + food",
       desc: "Per-worker hours & pay (basic, OT, food, gross) with bank details — payroll-ready CSV / Excel." });
   }
   res.render("reports/index", { title: "Reports · " + res.locals.company, active: "/reports", reports });

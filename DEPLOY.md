@@ -30,6 +30,12 @@ Then **hard-refresh** the browser (Cmd/Ctrl+Shift+R).
    COMPANY_NAME=TRG-Attendance
    UPLOAD_DIR=/var/data/uploads   # a persistent volume
    # optional knobs: OT_MULTIPLIER=1  PAYROLL_STANDARD_HOURS=8  ATTENDANCE_TARGET=85
+   # in/out exception rules (all have sane defaults; per-site overrides on the site form):
+   #   MAX_SHIFT_HOURS=26          # longest shift an Out can attach to (24h + slop)
+   #   FORGOT_GRACE_HOURS=2        # hours past shift end before an open record is flagged "forgot Out"
+   #   SCAN_DEBOUNCE_SECONDS=60    # ignore a repeat scan by the same worker within this window
+   #   OT_REQUIRES_APPROVAL=true   # pay OT only once Management-approved (set false to pay computed OT)
+   #   FOOD_MIN_HOURS=5            # minimum paid hours on a day to earn the food allowance
    ```
 2. `npm ci && npm run build`
 3. `npm run seed` (creates the 5 logins + base data) — skip if restoring real data.
