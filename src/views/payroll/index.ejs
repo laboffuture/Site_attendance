@@ -70,13 +70,14 @@
 <!-- desktop -->
 <div class="oh-card oh-card--flush oh-only-desktop">
   <table class="oh-people oh-payroll">
-    <thead><tr><th class="oh-people__spinecol"></th><th></th><th>Worker</th><th>Designation</th><th>Basic</th><th>Days</th><th>Normal h</th><th>OT h</th><th>Normal ₹</th><th>OT ₹</th><th>Food ₹</th><th>Arrears ₹</th><th>Gross ₹</th></tr></thead>
+    <thead><tr><th class="oh-people__spinecol"></th><th></th><th>Worker</th><th>Emp ID</th><th>Designation</th><th>Basic</th><th>Days</th><th>Normal h</th><th>OT h</th><th>Normal ₹</th><th>OT ₹</th><th>Food ₹</th><th>Arrears ₹</th><th>Gross ₹</th></tr></thead>
     <tbody>
       <% workers.forEach(function (w) { %>
       <tr style="--spine: <%= w.hasWage ? 'var(--c-accent)' : 'var(--c-warning)' %>">
         <td class="oh-people__spine"></td>
         <td><button type="button" class="oh-rowtoggle" data-tgt="d-<%= w.workerId %>" aria-label="Show daily breakdown"><span class="material-icons">expand_more</span></button></td>
-        <td><span class="oh-person__txt"><span class="oh-person__name"><%= w.name %><% if (w.unresolvedOpenDays > 0) { %> <span class="oh-badge oh-badge--warning"><%= w.unresolvedOpenDays %> unresolved</span><% } %></span><span class="oh-person__id"><%= w.empRegNo %></span></span></td>
+        <td><span class="oh-person__txt"><span class="oh-person__name"><%= w.name %><% if (w.unresolvedOpenDays > 0) { %> <span class="oh-badge oh-badge--warning"><%= w.unresolvedOpenDays %> unresolved</span><% } %></span></span></td>
+        <td data-label="Emp ID"><span class="oh-person__id"><%= w.empRegNo %></span></td>
         <td><%= w.designation %></td>
         <td><%= w.basic != null ? inr(w.basic) : '—' %></td>
         <td><%= w.days %></td>
@@ -99,7 +100,7 @@
       </tr>
       <tr class="oh-dayrow" id="d-<%= w.workerId %>" hidden>
         <td class="oh-people__spine"></td>
-        <td colspan="12">
+        <td colspan="13">
           <table class="oh-daygrid">
             <thead><tr><th>Date</th><th>In</th><th>Out</th><th>Lunch</th><th>Total</th><th>Normal</th><th>OT</th></tr></thead>
             <tbody>
@@ -123,7 +124,7 @@
     <tfoot>
       <tr style="--spine: var(--c-accent)">
         <td class="oh-people__spine"></td>
-        <td colspan="7"><strong>TOTAL · <%= summary.workers %> workers</strong></td>
+        <td colspan="8"><strong>TOTAL · <%= summary.workers %> workers</strong></td>
         <td><strong><%= inr(tNormalPay) %></strong></td>
         <td><strong><%= inr(tOtPay) %></strong></td>
         <td><strong><%= inr(tFood) %></strong></td>
