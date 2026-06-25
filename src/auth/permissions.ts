@@ -51,7 +51,10 @@ export type Capability =
   | "view_regularization"
   | "recommend_attendance"
   | "approve_attendance"
-  | "correct_attendance";
+  | "correct_attendance"
+  | "view_manpower"
+  | "request_manpower"
+  | "allocate_manpower";
 
 const ALL: Role[] = [...ROLES];
 
@@ -84,6 +87,10 @@ const CAPABILITY_ROLES: Record<Capability, Role[]> = {
   recommend_attendance: ["hr", "pm"], // HR + PM recommend…
   approve_attendance: ["management"], // …Management is the last to close
   correct_attendance: ["hr"], // HR-only: fix a missing/wrong punch; Management still approves the day
+  // Allocate Manpower: PM/Supervisor raise requests for their site; Management/HR allocate.
+  view_manpower: ["management", "hr", "pm", "supervisor"],
+  request_manpower: ["management", "hr", "pm", "supervisor"],
+  allocate_manpower: ["management", "hr"],
 };
 
 export function can(role: Role, capability: Capability): boolean {

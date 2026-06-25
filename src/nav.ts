@@ -16,6 +16,7 @@ export const NAV: NavItem[] = [
   { label: "Overtime", href: "/overtime", icon: "more_time", cap: "view_overtime", ready: true },
   { label: "Regularization", href: "/regularization", icon: "fact_check", cap: "view_regularization", ready: true },
   { label: "Requests", href: "/requests", icon: "assignment", cap: "view_requests", ready: true },
+  { label: "Allocate Manpower", href: "/manpower", icon: "engineering", cap: "view_manpower", ready: true },
   { label: "Employees", href: "/workers", icon: "groups", cap: "enroll_worker", ready: true },
   { label: "Designations", href: "/designations", icon: "badge", cap: "add_designation", ready: true },
   { label: "Branches & Sites", href: "/org", icon: "apartment", cap: "view_org", ready: true },

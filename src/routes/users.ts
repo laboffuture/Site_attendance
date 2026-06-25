@@ -51,6 +51,11 @@ const PERMISSION_GROUPS: { group: string; caps: { cap: Capability; label: string
     { cap: "recommend_request", label: "Recommend requests" },
     { cap: "decide_request", label: "Approve / reject requests" },
   ] },
+  { group: "Manpower", caps: [
+    { cap: "view_manpower", label: "View allocate manpower" },
+    { cap: "request_manpower", label: "Request manpower" },
+    { cap: "allocate_manpower", label: "Allocate workers (HR/Mgmt)" },
+  ] },
 ];
 
 // A user's EFFECTIVE permissions (per-user overrides, else role) for the View page.

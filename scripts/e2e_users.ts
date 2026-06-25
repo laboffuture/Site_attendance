@@ -119,6 +119,12 @@ async function main(): Promise<void> {
   // Cleanup.
   await UserModel.deleteMany({ email: { $in: [MGMT, HR, PM, SUP, SUPER, `qa-m2-${S}@trgbi.com`] } });
 
+  // Allocate Manpower: PM/Sup raise; Management/HR allocate.
+  assert("HR can allocate manpower", can("hr", "allocate_manpower"));
+  assert("PM cannot allocate manpower", !can("pm", "allocate_manpower"));
+  assert("PM can request manpower", can("pm", "request_manpower"));
+  assert("Supervisor sees manpower (scoped)", can("supervisor", "view_manpower"));
+
   // Attendance correction is HR-only (Management still approves the day).
   assert("HR can correct attendance", can("hr", "correct_attendance"));
   assert("Management cannot correct attendance", !can("management", "correct_attendance"));
