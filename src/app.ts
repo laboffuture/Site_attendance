@@ -18,6 +18,7 @@ import dashboardRouter from "./routes/dashboard";
 import designationsRouter from "./routes/designations";
 import flagsRouter from "./routes/flags";
 import indexRouter from "./routes/index";
+import manpowerRouter from "./routes/manpower";
 import orgRouter from "./routes/org";
 import overtimeRouter from "./routes/overtime";
 import payrollRouter from "./routes/payroll";
@@ -108,6 +109,7 @@ export function createApp(): Express {
   app.use("/", flagsRouter);
   app.use("/", usersRouter);
   app.use("/", requestsRouter);
+  app.use("/", manpowerRouter);
   app.use("/", attendanceRouter);
   app.use("/", regularizationRouter);
   app.use("/", meRouter);
