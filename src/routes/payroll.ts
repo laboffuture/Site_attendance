@@ -3,7 +3,7 @@ import { Types } from "mongoose";
 
 import { requireCapability } from "../auth/middleware";
 import { config } from "../config";
-import { buildPayrollXlsx, sendCsv } from "../lib/exporters";
+import { buildPayrollXlsx, sendCsv, streamTablePdf } from "../lib/exporters";
 import { computePayroll, ymd } from "../lib/payroll";
 import { siteScopeFilter, canUseSite, canUseWorker } from "../lib/scope";
 import { siteLocalDate } from "../lib/time";
@@ -96,6 +96,29 @@ router.get("/payroll/export.xlsx", requireCapability("view_payroll"), async (req
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
   res.setHeader("Content-Disposition", `attachment; filename="payroll-${filters.dateFrom}_to_${filters.dateTo}.xlsx"`);
   res.send(buf);
+});
+
+router.get("/payroll/export.pdf", requireCapability("view_payroll"), async (req: Request, res: Response) => {
+  const { workers, filters } = await payrollData(req);
+  const cols = [
+    { header: "#", key: "sno", pdf: 28 },
+    { header: "Emp Code", key: "empRegNo", pdf: 70 },
+    { header: "Worker", key: "name", pdf: 100 },
+    { header: "Designation", key: "designation", pdf: 84 },
+    { header: "Basic", key: "basic", pdf: 50 },
+    { header: "Days", key: "days", pdf: 36 },
+    { header: "Normal Hrs", key: "normalHrs", pdf: 60 },
+    { header: "OT Hrs", key: "otHrs", pdf: 48 },
+    { header: "Normal Pay", key: "normalPay", pdf: 66 },
+    { header: "OT Pay", key: "otPay", pdf: 54 },
+    { header: "Food", key: "foodAllowance", pdf: 50 },
+    { header: "Arrears", key: "arrears", pdf: 55 },
+    { header: "Gross", key: "gross", pdf: 60 },
+  ];
+  const flat = workers.map((w, i) => ({ sno: i + 1, empRegNo: String(w.empRegNo ?? ""), name: String(w.name ?? ""), designation: String(w.designation ?? ""), basic: w.basic ?? "", days: w.days, normalHrs: w.normalHrs, otHrs: w.otHrs, normalPay: w.normalPay, otPay: w.otPay, foodAllowance: w.foodAllowance, arrears: w.arrears, gross: w.gross }));
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="payroll-${filters.dateFrom}_to_${filters.dateTo}.pdf"`);
+  streamTablePdf(flat, cols, { title: `${res.locals.company} — Payroll`, subtitle: `${filters.dateFrom} -> ${filters.dateTo} · gross (normal + OT + food + arrears)` }, res);
 });
 
 export default router;

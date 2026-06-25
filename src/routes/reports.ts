@@ -3,7 +3,7 @@ import { Types } from "mongoose";
 
 import { requireCapability } from "../auth/middleware";
 import { config } from "../config";
-import { buildXlsxBuffer, streamPdf, sendCsv } from "../lib/exporters";
+import { buildXlsxBuffer, streamPdf, streamTablePdf, sendCsv } from "../lib/exporters";
 import { computePayroll } from "../lib/payroll";
 import { parseReportFilters, buildAttendanceQuery, groupByBranchSite, hoursBreakdown } from "../lib/report";
 import { siteScopeFilter, canUseSite, workerScopeFilter } from "../lib/scope";
@@ -202,6 +202,23 @@ router.get("/reports/employees/export.csv", requireCapability("view_reports"), a
     capNote(total));
 });
 
+router.get("/reports/employees/export.pdf", requireCapability("view_reports"), async (req: Request, res: Response) => {
+  const { q } = employeeQuery(req);
+  const rows = await WorkerModel.find(q).select("name empRegNo designationName siteName status dailyWage").sort({ name: 1 }).limit(TABLE_LIMIT).lean();
+  const cols = [
+    { header: "Emp ID", key: "empRegNo", pdf: 90 },
+    { header: "Name", key: "name", pdf: 150 },
+    { header: "Designation", key: "designationName", pdf: 120 },
+    { header: "Site", key: "siteName", pdf: 150 },
+    { header: "Status", key: "status", pdf: 70 },
+    { header: "Daily Wage", key: "dailyWage", pdf: 80 },
+  ];
+  const flat = rows.map((w) => ({ empRegNo: String(w.empRegNo ?? ""), name: String(w.name ?? ""), designationName: String(w.designationName ?? ""), siteName: String(w.siteName ?? ""), status: String(w.status ?? ""), dailyWage: w.dailyWage ?? "" }));
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="employees-${Date.now()}.pdf"`);
+  streamTablePdf(flat, cols, { title: `${res.locals.company} — Employee Report`, subtitle: `${flat.length} employees` }, res);
+});
+
 // ========================= Overtime report =========================
 function overtimePipeline(req: Request) {
   const dateFrom = String(req.query.dateFrom ?? "");
@@ -272,6 +289,20 @@ router.get("/reports/overtime/export.csv", requireCapability("view_reports"), as
   sendCsv(res, `overtime-${Date.now()}.csv`,
     ["Site", "Pending OT hours", "Approved OT hours", "OT cost (INR)"],
     groups.map((g) => [g.site, g.pending, g.approved, g.cost]));
+});
+
+router.get("/reports/overtime/export.pdf", requireCapability("view_reports"), async (req: Request, res: Response) => {
+  const { groups } = await overtimeData(req);
+  const cols = [
+    { header: "Site", key: "site", pdf: 240 },
+    { header: "Pending OT (h)", key: "pending", pdf: 120 },
+    { header: "Approved OT (h)", key: "approved", pdf: 120 },
+    { header: "OT Cost (Rs)", key: "cost", pdf: 140 },
+  ];
+  const flat = groups.map((g) => ({ site: String(g.site ?? ""), pending: g.pending, approved: g.approved, cost: g.cost }));
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="overtime-${Date.now()}.pdf"`);
+  streamTablePdf(flat, cols, { title: `${res.locals.company} — Overtime Report`, subtitle: "OT hours & cost by site" }, res);
 });
 
 // Payroll is its own first-class module — see src/routes/payroll.ts (/payroll).

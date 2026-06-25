@@ -6,7 +6,10 @@
     <h1 class="oh-page-title">Employee report</h1>
     <p class="oh-page-subtitle">Workforce headcount by designation &amp; site.</p>
   </div>
-  <a class="oh-btn oh-btn--small oh-btn--secondary" href="/reports/employees/export.csv<%= query %>"><span class="material-icons">download</span> Export CSV</a>
+  <div class="oh-actions">
+    <a class="oh-btn oh-btn--small oh-btn--secondary" href="/reports/employees/export.csv<%= query %>"><span class="material-icons">download</span> Export CSV</a>
+    <a class="oh-btn oh-btn--small oh-btn--secondary" href="/reports/employees/export.pdf<%= query %>"><span class="material-icons">picture_as_pdf</span> PDF</a>
+  </div>
 </div>
 
 <div class="oh-statstrip">
