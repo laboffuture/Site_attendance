@@ -9,3 +9,5 @@ export * from "./FlagEvent";
 export * from "./LoginGeoCheck";
 export * from "./Counter";
 export * from "./Request";
+export * from "./ManpowerRequest";
+export * from "./OutsourceEmployee";
