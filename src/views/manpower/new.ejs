@@ -1,0 +1,116 @@
+<%- include('../partials/app-top', { title: title, active: active }) %>
+<%- include('../partials/breadcrumb', { back: '/manpower', trail: [ { label: 'Manpower', href: '/manpower' }, { label: 'New manpower request' } ] }) %>
+<div class="oh-page-header">
+  <h1 class="oh-page-title">New manpower request</h1>
+  <p class="oh-page-subtitle">Raise a request for the manpower you need at a site. Add a role for each designation and how many of each.</p>
+</div>
+
+<form method="post" action="/manpower">
+  <div class="oh-card oh-form-card oh-form-card--full">
+
+    <div class="oh-form-section">
+      <h3 class="oh-kv-section__title">Where &amp; when</h3>
+
+      <div class="oh-frow">
+        <label class="oh-frow__label" for="siteId">Site</label>
+        <div class="oh-frow__field">
+          <select class="oh-select" id="siteId" name="siteId" required>
+            <% sites.forEach(function (s) { %><option value="<%= String(s._id) %>"><%= s.name %></option><% }); %>
+          </select>
+        </div>
+      </div>
+
+      <div class="oh-frow">
+        <label class="oh-frow__label" for="shiftType">Shift</label>
+        <div class="oh-frow__field">
+          <select class="oh-select" id="shiftType" name="shiftType">
+            <option value="day">Day</option>
+            <option value="night">Night</option>
+            <option value="sunday">Sunday</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="oh-frow">
+        <label class="oh-frow__label">Date range <span class="oh-muted">From &amp; to</span></label>
+        <div class="oh-frow__field oh-frow__pair" style="max-width:320px">
+          <input class="oh-input" id="dateFrom" type="date" name="dateFrom" aria-label="From" required />
+          <input class="oh-input" id="dateTo" type="date" name="dateTo" aria-label="To" required />
+        </div>
+      </div>
+    </div>
+
+    <div class="oh-form-section">
+      <h3 class="oh-kv-section__title">Roles needed</h3>
+
+      <div id="role-rows">
+        <div class="oh-frow oh-role-row">
+          <label class="oh-frow__label">Role</label>
+          <div class="oh-frow__field oh-frow__pair">
+            <select class="oh-select" name="lineDesignationId" aria-label="Designation">
+              <% designations.forEach(function (d) { %><option value="<%= String(d._id) %>"><%= d.name %></option><% }); %>
+            </select>
+            <input class="oh-input" type="number" name="lineQty" min="1" value="1" aria-label="Quantity" style="max-width:100px" />
+            <button type="button" class="oh-btn oh-btn--small oh-role-row__remove" aria-label="Remove role">Remove</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:0.75rem">
+        <button type="button" class="oh-btn oh-btn--small" id="add-role">+ Add role</button>
+      </div>
+    </div>
+
+    <div class="oh-form-section">
+      <div class="oh-frow">
+        <label class="oh-frow__label" for="requesterRemarks">Remarks <span class="oh-muted">(optional)</span></label>
+        <div class="oh-frow__field"><textarea class="oh-input" id="requesterRemarks" name="requesterRemarks" rows="3" placeholder="Optional note"></textarea></div>
+      </div>
+    </div>
+
+    <div class="oh-form-actions">
+      <a class="oh-btn oh-btn--small" href="/manpower">Cancel</a>
+      <button class="oh-btn oh-btn--accent" type="submit">Create request</button>
+    </div>
+  </div>
+</form>
+
+<script>
+  (function () {
+    var rows = document.getElementById('role-rows');
+    var addBtn = document.getElementById('add-role');
+    if (!rows || !addBtn) return;
+
+    // Server reads lineDesignationId[] and lineQty[] as parallel arrays:
+    // each cloned row contributes one <select name="lineDesignationId"> and
+    // one <input name="lineQty">, kept in the same DOM order.
+    function bindRemove(row) {
+      var btn = row.querySelector('.oh-role-row__remove');
+      if (!btn) return;
+      btn.addEventListener('click', function () {
+        // Keep at least one role row.
+        if (rows.querySelectorAll('.oh-role-row').length > 1) {
+          row.parentNode.removeChild(row);
+        }
+      });
+    }
+
+    addBtn.addEventListener('click', function () {
+      var first = rows.querySelector('.oh-role-row');
+      if (!first) return;
+      var clone = first.cloneNode(true);
+      // Reset the cloned row's values to defaults.
+      var sel = clone.querySelector('select[name="lineDesignationId"]');
+      if (sel) sel.selectedIndex = 0;
+      var qty = clone.querySelector('input[name="lineQty"]');
+      if (qty) qty.value = '1';
+      rows.appendChild(clone);
+      bindRemove(clone);
+    });
+
+    // Wire up the role row(s) rendered on load.
+    Array.prototype.forEach.call(rows.querySelectorAll('.oh-role-row'), bindRemove);
+  })();
+</script>
+
+<%- include('../partials/app-bottom') %>

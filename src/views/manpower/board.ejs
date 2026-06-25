@@ -1,0 +1,75 @@
+<%- include('../partials/app-top', { title: title, active: active }) %>
+
+<%- include('../partials/breadcrumb', { back: '/manpower', trail: [{ label: 'Manpower', href: '/manpower' }, { label: 'Board' }] }) %>
+
+<div class="oh-page-header">
+  <h1 class="oh-page-title">Manpower board</h1>
+</div>
+
+<div class="oh-card oh-stack">
+  <form class="oh-form-inline" method="get" action="/manpower/board">
+    <div class="oh-input-group">
+      <label class="oh-label" for="siteId">Site</label>
+      <select class="oh-select" id="siteId" name="siteId"><option value="">All sites</option>
+        <% sites.forEach(function (s) { %><option value="<%= s._id %>" <%= String(siteId) === String(s._id) ? "selected" : "" %>><%= s.name %></option><% }); %>
+      </select>
+    </div>
+    <div class="oh-input-group"><label class="oh-label" for="from">From</label><input class="oh-input" id="from" type="date" name="from" value="<%= from %>" /></div>
+    <div class="oh-input-group"><label class="oh-label" for="to">To</label><input class="oh-input" id="to" type="date" name="to" value="<%= to %>" /></div>
+    <button class="oh-btn oh-btn--secondary" type="submit">Apply</button>
+  </form>
+</div>
+
+<% if (!siteId) { %>
+<div class="oh-empty"><span class="material-icons">grid_view</span><p>Pick a site to see its board.</p></div>
+<% } else if (rows.length === 0) { %>
+<div class="oh-empty"><span class="material-icons">event_busy</span><p>No active requests in this range.</p></div>
+<% } else { %>
+
+<div class="oh-card">
+  <table class="oh-board">
+    <thead>
+      <tr>
+        <th class="oh-board__rolecol">Role</th>
+        <% days.forEach(function (day) { %><th class="oh-board__daycol"><%= day.slice(5) %></th><% }); %>
+      </tr>
+    </thead>
+    <tbody>
+      <% rows.forEach(function (row) { %>
+      <tr>
+        <td class="oh-board__rolecol">
+          <a href="/manpower/<%= row.reqId %>"><%= row.role %></a>
+          <span class="oh-board__sub oh-muted"><%= row.reqCode %></span>
+        </td>
+        <% days.forEach(function (day) { %>
+          <% if (row.spanFrom <= day && day <= row.spanTo) { %>
+          <td class="oh-board__cell">
+            <a href="/manpower/<%= row.reqId %>" class="oh-badge <%= row.filled >= row.qty ? 'oh-badge--success' : 'oh-badge--warning' %>"><%= row.filled %>/<%= row.qty %></a>
+          </td>
+          <% } else { %>
+          <td class="oh-board__cell"></td>
+          <% } %>
+        <% }); %>
+      </tr>
+      <% }); %>
+    </tbody>
+  </table>
+</div>
+
+<% } %>
+
+<style>
+  .oh-board { width: 100%; border-collapse: collapse; font-family: 'Poppins', sans-serif; }
+  .oh-board th, .oh-board td { border: 1px solid var(--c-border, #e0e0e0); padding: 0.5rem 0.65rem; text-align: center; white-space: nowrap; }
+  .oh-board thead th { background: #f4f6f9; font-weight: 600; color: #1c4d8c; }
+  .oh-board__rolecol { text-align: left; position: sticky; left: 0; background: #fff; min-width: 11rem; }
+  .oh-board thead .oh-board__rolecol { background: #f4f6f9; }
+  .oh-board__rolecol a { color: #1c4d8c; font-weight: 600; text-decoration: none; }
+  .oh-board__rolecol a:hover { text-decoration: underline; }
+  .oh-board__sub { display: block; font-size: 0.72rem; margin-top: 0.15rem; }
+  .oh-board__daycol { font-size: 0.78rem; }
+  .oh-board__cell { font-size: 0.8rem; }
+  .oh-board .oh-badge { text-decoration: none; }
+</style>
+
+<%- include('../partials/app-bottom') %>

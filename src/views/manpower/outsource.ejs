@@ -1,0 +1,70 @@
+<%- include('../partials/app-top', { title: title, active: active }) %>
+<%- include('../partials/breadcrumb', { back: '/manpower', trail: [ { label: 'Manpower', href: '/manpower' }, { label: 'Outsource employees' } ] }) %>
+
+<div class="oh-page-header oh-page-header--row">
+  <div>
+    <h1 class="oh-page-title">Outsource employees</h1>
+    <p class="oh-page-subtitle">Contracted workers supplied by outsource companies.</p>
+  </div>
+</div>
+
+<!-- add outsource employee -->
+<div class="oh-card oh-form-card">
+  <form class="oh-form-inline" method="post" action="/manpower/outsource">
+    <div class="oh-input-group">
+      <label class="oh-label" for="name">Name</label>
+      <input class="oh-input" id="name" type="text" name="name" placeholder="Full name" required />
+    </div>
+    <div class="oh-input-group">
+      <label class="oh-label" for="designationId">Role</label>
+      <select class="oh-select" id="designationId" name="designationId">
+        <option value="">— role —</option>
+        <% designations.forEach(function (d) { %><option value="<%= String(d._id) %>"><%= d.name %></option><% }); %>
+      </select>
+    </div>
+    <div class="oh-input-group">
+      <label class="oh-label" for="outsourceCompany">Company</label>
+      <input class="oh-input" id="outsourceCompany" type="text" name="outsourceCompany" placeholder="Outsource company" />
+    </div>
+    <div class="oh-input-group">
+      <label class="oh-label" for="payRate">Pay/day</label>
+      <input class="oh-input" id="payRate" type="number" name="payRate" placeholder="₹/day" step="any" min="0" />
+    </div>
+    <div class="oh-input-group">
+      <label class="oh-label" for="phone">Phone</label>
+      <input class="oh-input" id="phone" type="text" name="phone" placeholder="Phone" />
+    </div>
+    <button class="oh-btn oh-btn--accent" type="submit">Add</button>
+  </form>
+</div>
+
+<!-- ledger -->
+<div class="oh-card oh-card--flush">
+  <% if (people.length) { %>
+  <table class="oh-people oh-table--cards">
+    <thead><tr><th class="oh-people__spinecol"></th><th>Code</th><th>Name</th><th>Role</th><th>Company</th><th>Pay/day</th><th>Active</th></tr></thead>
+    <tbody>
+      <% people.forEach(function (p) { %>
+      <tr style="--spine: <%= p.active ? 'var(--c-success)' : 'var(--c-border)' %>">
+        <td class="oh-people__spine"></td>
+        <td><span class="oh-person__name" style="font-weight:600"><%= p.code %></span></td>
+        <td data-label="Name"><span class="oh-person__name"><%= p.name %></span></td>
+        <td data-label="Role"><%= p.designationName || '—' %></td>
+        <td data-label="Company"><%= p.outsourceCompany || '—' %></td>
+        <td data-label="Pay/day"><span class="oh-person__id"><%= p.payRate != null ? '₹ ' + p.payRate : '—' %></span></td>
+        <td data-label="Active">
+          <form method="post" action="/manpower/outsource/<%= String(p._id) %>">
+            <input type="hidden" name="action" value="toggle" />
+            <button class="oh-badge-btn oh-badge-btn--<%= p.active ? 'success' : 'muted' %>" type="submit"><%= p.active ? 'Active' : 'Inactive' %></button>
+          </form>
+        </td>
+      </tr>
+      <% }); %>
+    </tbody>
+  </table>
+  <% } else { %>
+  <div class="oh-empty"><span class="material-icons">groups</span><p>No outsource employees yet — add the first above.</p></div>
+  <% } %>
+</div>
+
+<%- include('../partials/app-bottom') %>

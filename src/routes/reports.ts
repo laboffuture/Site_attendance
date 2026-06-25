@@ -11,6 +11,7 @@ import { round2, siteLocalDate } from "../lib/time";
 import { AttendanceModel } from "../models/Attendance";
 import { BranchModel } from "../models/Branch";
 import { DesignationModel } from "../models/Designation";
+import { ManpowerRequestModel } from "../models/ManpowerRequest";
 import { ProjectSiteModel } from "../models/ProjectSite";
 import { WorkerModel } from "../models/Worker";
 
@@ -65,6 +66,12 @@ router.get("/reports", requireCapability("view_reports"), async (req: Request, r
     reports.push({ href: "/payroll", icon: "payments", title: "Payroll report",
       metric: "₹ " + Math.round(pay.gross).toLocaleString("en-IN"), unit: "gross this month", sub: pay.workers.toLocaleString("en-IN") + " workers · normal + OT + food",
       desc: "Per-worker hours & pay (basic, OT, food, gross) with bank details — payroll-ready CSV / Excel." });
+  }
+  if (res.locals.can("view_manpower")) {
+    const openReqs = await ManpowerRequestModel.countDocuments({ ...aScope, status: { $in: ["open", "partial"] } });
+    reports.push({ href: "/manpower/allocations", icon: "engineering", title: "Allocations report",
+      metric: openReqs.toLocaleString("en-IN"), unit: "open requests", sub: "manpower by site, role & date",
+      desc: "Who is allocated where — manpower allocations with CSV / PDF export." });
   }
   res.render("reports/index", { title: "Reports · " + res.locals.company, active: "/reports", reports });
 });

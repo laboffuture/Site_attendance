@@ -99,6 +99,20 @@ async function main(): Promise<void> {
   const pdf = await raw(hr, "/manpower/allocations?format=pdf");
   assert("allocations PDF streams (%PDF)", pdf.status === 200 && String(pdf.headers["content-type"]).includes("pdf") && Buffer.isBuffer(pdf.body) && pdf.body.slice(0, 4).toString("latin1") === "%PDF");
 
+  // ---- HTML pages render (views exist) ----
+  const listPage = await hr.get("/manpower?tab=all");
+  assert("list page renders with the request", listPage.status === 200 && listPage.text.includes(reqDoc!.reqCode));
+  const newPage = await hr.get("/manpower/new");
+  assert("new-request form renders", newPage.status === 200 && newPage.text.includes('name="lineDesignationId"'));
+  const detailPage = await hr.get(`/manpower/${reqId}`);
+  assert("detail page renders (reqCode + role)", detailPage.status === 200 && detailPage.text.includes(reqDoc!.reqCode) && detailPage.text.includes("Carpenter"));
+  const boardPage = await hr.get(`/manpower/board?siteId=${site._id}&from=2026-07-01&to=2026-07-07`);
+  assert("board renders the request line", boardPage.status === 200 && boardPage.text.includes(reqDoc!.reqCode));
+  const outPage = await hr.get("/manpower/outsource");
+  assert("outsource page renders the added person", outPage.status === 200 && outPage.text.includes(`QA Out2 ${S}`));
+  const reportPage = await hr.get("/manpower/allocations");
+  assert("allocations report HTML renders", reportPage.status === 200 && reportPage.text.includes(reqDoc!.reqCode));
+
   // ---- cleanup ----
   await Promise.all([
     ManpowerRequestModel.deleteMany({ siteId: site._id }),

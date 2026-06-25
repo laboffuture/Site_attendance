@@ -1,0 +1,226 @@
+<%- include('../partials/app-top', { title: title, active: active }) %>
+<%
+  // status → oh-badge variant. accent (info) for open/partial, success for fulfilled, muted for cancelled.
+  var statusBadge = {
+    open: "info",
+    partial: "info",
+    fulfilled: "success",
+    cancelled: "muted",
+  };
+  var spine = {
+    open: "var(--c-accent)",
+    partial: "var(--c-accent)",
+    fulfilled: "var(--c-success)",
+    cancelled: "var(--c-text-muted)",
+  };
+  var isCancelled = r.status === "cancelled";
+  var showControls = canAllocate && !isCancelled;
+%>
+
+<div class="oh-detail-topbar">
+  <%- include('../partials/breadcrumb', { back: '/manpower', trail: [ { label: 'Allocate Manpower', href: '/manpower' }, { label: r.reqCode } ] }) %>
+  <% if (showControls) { %>
+  <div class="oh-actions">
+    <form method="post" action="/manpower/<%= r.id %>/cancel" onsubmit="return confirm('Cancel this manpower request? Allocations will be released.')" style="margin:0">
+      <button class="oh-btn oh-btn--small oh-btn--danger" type="submit"><span class="material-icons">cancel</span> Cancel request</button>
+    </form>
+  </div>
+  <% } %>
+</div>
+
+<!-- ── Request header ───────────────────────────────────────────── -->
+<div class="oh-card oh-form-card oh-form-card--wide">
+  <div class="oh-detail-head">
+    <span class="oh-detail-head__photo oh-detail-head__photo--ph"><span class="material-icons">engineering</span></span>
+    <div>
+      <h2 class="oh-detail-head__name"><%= r.reqCode %></h2>
+      <div class="oh-detail-head__meta">
+        <span class="oh-badge oh-badge--<%= statusBadge[r.status] || 'muted' %>"><%= r.status %></span>
+        <% if (r.branchName) { %><span class="oh-badge oh-badge--secondary"><%= r.branchName %></span><% } %>
+        <span class="oh-stat"><span class="oh-stat__dot" style="background: <%= spine[r.status] || 'var(--c-text-muted)' %>"></span><%= r.shiftType %> shift</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="oh-kv-section">
+    <h3 class="oh-kv-section__title">Request</h3>
+    <div class="oh-kv">
+      <div class="oh-kv__label">Site</div><div class="oh-kv__value"><%= r.siteName %></div>
+      <div class="oh-kv__label">Shift</div><div class="oh-kv__value"><%= r.shiftType %></div>
+      <div class="oh-kv__label">Dates</div><div class="oh-kv__value"><%= r.dateFrom %> &rarr; <%= r.dateTo %></div>
+      <div class="oh-kv__label">Requested by</div><div class="oh-kv__value"><%= r.requestedByName || '—' %></div>
+      <% if (r.requesterRemarks) { %>
+      <div class="oh-kv__label">Remarks</div><div class="oh-kv__value"><%= r.requesterRemarks %></div>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<!-- ── Roles needed vs filled (+ allocate) ──────────────────────── -->
+<div class="oh-kv-section" style="margin-top:1rem">
+  <span class="oh-section-title">Roles</span>
+</div>
+
+<% if (!lines.length) { %>
+<div class="oh-empty"><span class="material-icons">badge</span><p>No roles on this request.</p></div>
+<% } else { %>
+
+<!-- mobile -->
+<div class="oh-only-mobile">
+  <div class="oh-m-section"><div class="oh-m-list">
+    <% lines.forEach(function (line) {
+         var done = line.filled >= line.qty;
+    %>
+    <div class="oh-m-card" style="--spine: <%= done ? 'var(--c-success)' : 'var(--c-accent)' %>;border-left:3px solid var(--spine)">
+      <div class="oh-m-row" style="justify-content:space-between;align-items:flex-start">
+        <span class="oh-m-grow"><span class="oh-m-name"><%= line.designationName %></span><span class="oh-m-sub">Needed <%= line.qty %> · Filled <%= line.filled %></span></span>
+        <span class="oh-m-badge oh-badge--<%= done ? 'success' : 'info' %>"><%= line.filled %>/<%= line.qty %></span>
+      </div>
+      <% if (showControls) { %>
+      <form method="post" action="/manpower/<%= r.id %>/allocate" style="margin-top:0.5rem">
+        <input type="hidden" name="lineDesignationId" value="<%= line.designationId %>">
+        <div class="oh-m-row" style="gap:0.35rem;flex-wrap:wrap">
+          <select class="oh-select oh-input--xs" name="kind" title="Who" required>
+            <option value="worker">Worker</option>
+            <option value="outsource">Outsource</option>
+          </select>
+          <select class="oh-select" style="flex:1 1 auto;min-width:0" name="refId" title="Person" required>
+            <option value="">Select person…</option>
+            <optgroup label="Matching role">
+              <% workers.filter(function (w) { return w.designationId === line.designationId; }).forEach(function (w) { %>
+              <option value="<%= w.id %>"><%= w.name %> · <%= w.empRegNo %></option>
+              <% }); %>
+            </optgroup>
+            <optgroup label="Other workers">
+              <% workers.filter(function (w) { return w.designationId !== line.designationId; }).forEach(function (w) { %>
+              <option value="<%= w.id %>"><%= w.name %> · <%= w.empRegNo %></option>
+              <% }); %>
+            </optgroup>
+            <optgroup label="Outsource">
+              <% outsource.forEach(function (o) { %>
+              <option value="<%= o.id %>"><%= o.name %> · <%= o.code %></option>
+              <% }); %>
+            </optgroup>
+          </select>
+        </div>
+        <div class="oh-m-row" style="margin-top:0.35rem">
+          <button class="oh-btn oh-btn--small oh-btn--accent" type="submit"><span class="material-icons">person_add</span> Allocate</button>
+        </div>
+      </form>
+      <% } %>
+    </div>
+    <% }); %>
+  </div></div>
+</div>
+
+<!-- desktop -->
+<div class="oh-card oh-card--flush oh-only-desktop">
+  <table class="oh-people">
+    <thead><tr><th class="oh-people__spinecol"></th><th>Role</th><th>Needed</th><th>Filled</th><% if (showControls) { %><th class="oh-people__actcol">Allocate</th><% } %></tr></thead>
+    <tbody>
+      <% lines.forEach(function (line) {
+           var done = line.filled >= line.qty;
+      %>
+      <tr style="--spine: <%= done ? 'var(--c-success)' : 'var(--c-accent)' %>">
+        <td class="oh-people__spine"></td>
+        <td><span class="oh-person__name"><%= line.designationName %></span></td>
+        <td><%= line.qty %></td>
+        <td><span class="oh-person__id"><%= line.filled %> / <%= line.qty %></span></td>
+        <% if (showControls) { %>
+        <td class="oh-people__actcol">
+          <form method="post" action="/manpower/<%= r.id %>/allocate" class="oh-ot-actions" style="flex-wrap:wrap;margin:0">
+            <input type="hidden" name="lineDesignationId" value="<%= line.designationId %>">
+            <select class="oh-select oh-input--xs" name="kind" title="Worker or outsource" required>
+              <option value="worker">Worker</option>
+              <option value="outsource">Outsource</option>
+            </select>
+            <select class="oh-select" name="refId" title="Person — pick the kind that matches" required>
+              <option value="">Select person…</option>
+              <optgroup label="Matching role">
+                <% workers.filter(function (w) { return w.designationId === line.designationId; }).forEach(function (w) { %>
+                <option value="<%= w.id %>"><%= w.name %> · <%= w.empRegNo %></option>
+                <% }); %>
+              </optgroup>
+              <optgroup label="Other workers">
+                <% workers.filter(function (w) { return w.designationId !== line.designationId; }).forEach(function (w) { %>
+                <option value="<%= w.id %>"><%= w.name %> · <%= w.empRegNo %></option>
+                <% }); %>
+              </optgroup>
+              <optgroup label="Outsource">
+                <% outsource.forEach(function (o) { %>
+                <option value="<%= o.id %>"><%= o.name %> · <%= o.code %></option>
+                <% }); %>
+              </optgroup>
+            </select>
+            <button class="oh-btn oh-btn--small oh-btn--accent" type="submit">Allocate</button>
+          </form>
+        </td>
+        <% } %>
+      </tr>
+      <% }); %>
+    </tbody>
+  </table>
+</div>
+<% } %>
+
+<!-- ── Allocations ──────────────────────────────────────────────── -->
+<div class="oh-kv-section" style="margin-top:1.2rem">
+  <span class="oh-section-title">Allocations</span>
+</div>
+
+<% if (!r.allocations.length) { %>
+<div class="oh-empty"><span class="material-icons">group_off</span><p>No one allocated yet.</p></div>
+<% } else { %>
+
+<!-- mobile -->
+<div class="oh-only-mobile">
+  <div class="oh-m-section"><div class="oh-m-list">
+    <% r.allocations.forEach(function (a) { %>
+    <div class="oh-m-card" style="--spine: var(--c-accent);border-left:3px solid var(--spine)">
+      <div class="oh-m-row" style="justify-content:space-between;align-items:flex-start">
+        <span class="oh-m-grow"><span class="oh-m-name"><%= a.name %></span><span class="oh-m-sub"><%= a.code %> · <%= a.designationName %></span></span>
+        <span class="oh-m-badge oh-badge--<%= a.kind === 'worker' ? 'secondary' : 'muted' %>"><%= a.kind %></span>
+      </div>
+      <div class="oh-m-sub" style="margin-top:0.4rem">By <%= a.allocatedByName || '—' %><%= a.allocatedAt ? ' · ' + a.allocatedAt : '' %></div>
+      <% if (canAllocate) { %>
+      <form method="post" action="/manpower/<%= r.id %>/deallocate" onsubmit="return confirm('Remove this allocation?')" style="margin-top:0.5rem">
+        <input type="hidden" name="refId" value="<%= a.refId %>">
+        <input type="hidden" name="lineDesignationId" value="<%= a.lineDesignationId %>">
+        <button class="oh-btn oh-btn--small oh-btn--danger" type="submit">Remove</button>
+      </form>
+      <% } %>
+    </div>
+    <% }); %>
+  </div></div>
+</div>
+
+<!-- desktop -->
+<div class="oh-card oh-card--flush oh-only-desktop">
+  <table class="oh-people">
+    <thead><tr><th class="oh-people__spinecol"></th><th>Person</th><th>Code</th><th>Role</th><th>Kind</th><th>Allocated by</th><% if (canAllocate) { %><th class="oh-people__actcol"></th><% } %></tr></thead>
+    <tbody>
+      <% r.allocations.forEach(function (a) { %>
+      <tr style="--spine: var(--c-accent)">
+        <td class="oh-people__spine"></td>
+        <td><span class="oh-person__name"><%= a.name %></span></td>
+        <td><span class="oh-person__id"><%= a.code %></span></td>
+        <td><%= a.designationName %></td>
+        <td><span class="oh-badge oh-badge--<%= a.kind === 'worker' ? 'secondary' : 'muted' %>"><%= a.kind %></span></td>
+        <td><%= a.allocatedByName || '—' %><% if (a.allocatedAt) { %><div class="oh-muted" style="font-size:0.78rem"><%= a.allocatedAt %></div><% } %></td>
+        <% if (canAllocate) { %>
+        <td class="oh-people__actcol">
+          <form method="post" action="/manpower/<%= r.id %>/deallocate" onsubmit="return confirm('Remove this allocation?')" style="margin:0">
+            <input type="hidden" name="refId" value="<%= a.refId %>">
+            <input type="hidden" name="lineDesignationId" value="<%= a.lineDesignationId %>">
+            <button class="oh-icon-btn oh-icon-btn--danger" type="submit" title="Remove"><span class="material-icons">close</span></button>
+          </form>
+        </td>
+        <% } %>
+      </tr>
+      <% }); %>
+    </tbody>
+  </table>
+</div>
+<% } %>
+
+<%- include('../partials/app-bottom') %>

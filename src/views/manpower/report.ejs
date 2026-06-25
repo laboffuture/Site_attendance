@@ -1,0 +1,40 @@
+<%- include('../partials/app-top', { title: title, active: active }) %>
+<%- include('../partials/breadcrumb', { back: '/manpower', trail: [ { label: 'Manpower', href: '/manpower' }, { label: 'Allocations report' } ] }) %>
+<div class="oh-page-header oh-page-header--row">
+  <div>
+    <h1 class="oh-page-title">Allocations report</h1>
+    <p class="oh-page-subtitle">Who is allocated where, by site, role &amp; date.</p>
+  </div>
+  <div class="oh-actions">
+    <a class="oh-btn oh-btn--small oh-btn--secondary" href="/manpower/allocations?format=csv"><span class="material-icons">download</span> Export CSV</a>
+    <a class="oh-btn oh-btn--small oh-btn--secondary" href="/manpower/allocations?format=pdf"><span class="material-icons">picture_as_pdf</span> PDF</a>
+  </div>
+</div>
+
+<% if (rows.length === 0) { %>
+<div class="oh-empty"><span class="material-icons">groups</span><p>No allocations yet.</p></div>
+<% } else { %>
+<div class="oh-card oh-card--flush">
+  <table class="oh-people oh-table--cards">
+    <thead><tr><th class="oh-people__spinecol"></th><th>Req</th><th>Site</th><th>Shift</th><th>Dates</th><th>Role</th><th>Type</th><th>Name</th><th>Code</th><th>By</th></tr></thead>
+    <tbody>
+      <% rows.forEach(function (r) { %>
+      <tr>
+        <td class="oh-people__spine"></td>
+        <td><span class="oh-person__name" style="font-weight:600"><%= r.reqCode %></span></td>
+        <td data-label="Site"><%= r.site %></td>
+        <td data-label="Shift"><%= r.shift %></td>
+        <td data-label="Dates"><%= r.dateFrom %> &rarr; <%= r.dateTo %></td>
+        <td data-label="Role"><%= r.role %></td>
+        <td data-label="Type"><%= r.kind %></td>
+        <td data-label="Name"><%= r.name %></td>
+        <td data-label="Code"><span class="oh-person__id"><%= r.code %></span></td>
+        <td data-label="By"><%= r.allocatedByName %></td>
+      </tr>
+      <% }); %>
+    </tbody>
+  </table>
+</div>
+<% } %>
+
+<%- include('../partials/app-bottom') %>

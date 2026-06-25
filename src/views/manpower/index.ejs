@@ -1,0 +1,65 @@
+<%- include('../partials/app-top', { title: title, active: active }) %>
+<%
+  var spine = {
+    open: "var(--c-accent)",
+    partial: "var(--c-accent)",
+    fulfilled: "var(--c-success)",
+    cancelled: "var(--c-text-muted)",
+  };
+  var statusBadge = {
+    open: "info",
+    partial: "warning",
+    fulfilled: "success",
+    cancelled: "muted",
+  };
+  var tabs = [
+    { key: "open", label: "Open", n: counts.open },
+    { key: "partial", label: "Partial", n: counts.partial },
+    { key: "fulfilled", label: "Fulfilled", n: counts.fulfilled },
+    { key: "cancelled", label: "Cancelled", n: counts.cancelled },
+    { key: "all", label: "All", n: counts.open + counts.partial + counts.fulfilled + counts.cancelled },
+  ];
+%>
+
+<div class="oh-page-header oh-page-header--row">
+  <div>
+    <h1 class="oh-page-title">Allocate Manpower</h1>
+    <p class="oh-page-subtitle">Site manpower requests &amp; allocation. Track what's needed vs filled per shift.</p>
+  </div>
+  <div class="oh-actions">
+    <% if (canRequest) { %><a class="oh-btn oh-btn--accent" href="/manpower/new"><span class="material-icons">add</span> New request</a><% } %>
+    <a class="oh-btn oh-btn--secondary" href="/manpower/board"><span class="material-icons">dashboard</span> Board</a>
+    <% if (canAllocate) { %><a class="oh-btn oh-btn--secondary" href="/manpower/outsource"><span class="material-icons">groups</span> Outsource employees</a><% } %>
+  </div>
+</div>
+
+<div class="oh-filter-tabs">
+  <% tabs.forEach(function (t) { %>
+  <a class="oh-filter-tab <%= tab === t.key ? 'oh-filter-tab--active' : '' %>" href="/manpower?tab=<%= t.key %>"><%= t.label %> (<%= t.n %>)</a>
+  <% }); %>
+</div>
+
+<% if (requests.length === 0) { %>
+<div class="oh-empty"><span class="material-icons">engineering</span><p>No manpower requests yet.</p></div>
+<% } else { %>
+<div class="oh-card oh-card--flush">
+  <table class="oh-people oh-table--cards">
+    <thead><tr><th class="oh-people__spinecol"></th><th>Req</th><th>Site</th><th>Shift</th><th>Dates</th><th>Filled</th><th>Status</th></tr></thead>
+    <tbody>
+      <% requests.forEach(function (r) { %>
+      <tr style="--spine: <%= spine[r.status] || 'var(--c-border)' %>">
+        <td class="oh-people__spine"></td>
+        <td><a class="oh-person__name" style="font-weight:600" href="/manpower/<%= r.id %>"><%= r.reqCode %></a><div class="oh-muted" style="font-size:0.78rem"><%= r.branchName %></div></td>
+        <td data-label="Site"><%= r.siteName %></td>
+        <td data-label="Shift"><%= r.shiftType %></td>
+        <td data-label="Dates"><%= r.dateFrom %> &rarr; <%= r.dateTo %></td>
+        <td data-label="Filled"><span class="oh-person__id"><%= r.filled %> / <%= r.needed %></span></td>
+        <td data-label="Status"><span class="oh-badge oh-badge--<%= statusBadge[r.status] || 'muted' %>"><%= r.status %></span></td>
+      </tr>
+      <% }); %>
+    </tbody>
+  </table>
+</div>
+<% } %>
+
+<%- include('../partials/app-bottom') %>
