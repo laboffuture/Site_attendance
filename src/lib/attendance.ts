@@ -1,12 +1,11 @@
 import { Types, type HydratedDocument } from "mongoose";
 
+import { config } from "../config";
 import { AttendanceModel, type Attendance } from "../models/Attendance";
 import type { GeoCapture } from "./geo";
-import { selectShift, computeShiftOT, DEFAULT_SHIFTS, type SiteShifts, type ShiftType } from "./shift";
+import { selectShift, DEFAULT_SHIFTS, type SiteShifts, type ShiftType } from "./shift";
 import { isDuplicateKeyError } from "./validate";
 import { siteLocalDate, round2 } from "./time";
-
-const OPEN_SESSION_LOOKBACK_MS = 20 * 3_600_000; // attach an Out to an In up to 20h old
 
 interface ScanWorker {
   _id: Types.ObjectId;
@@ -21,6 +20,9 @@ interface ScanSite {
   name: string;
   branchId: Types.ObjectId;
   shifts?: SiteShifts | null;
+  lunchHours?: number | null;
+  maxShiftHours?: number | null;
+  scanDebounceSeconds?: number | null;
 }
 
 export interface ScanResult {
@@ -36,11 +38,38 @@ export interface ScanResult {
 }
 
 /**
- * Records a scan. A scan attaches to the worker's most-recent OPEN record (no
- * Out) whose In is within the last 20h — that scan becomes the Out, even across
- * midnight. Otherwise it's a new In, keyed to the shift's start date, with the
- * shift auto-selected from the scan time. On Out, standard + overtime are
- * computed via the shift engine; OT is left pending until approved.
+ * One closed day's hours under the client OT sheet: paid = span − lunch;
+ * normal = min(paid, standardDay); OT = flat max(0, paid − standardDay), with NO
+ * second-break deduction. Single source of truth for the scan close AND HR
+ * corrections, so the approval screen, dashboard and payslip all read the same OT.
+ */
+export function reckonHours(
+  inTime: Date,
+  outTime: Date,
+  lunch: number,
+): { totalHours: number; standardHours: number; overtimeHours: number } {
+  const span = round2(Math.max(0, (outTime.getTime() - inTime.getTime()) / 3_600_000));
+  const paid = round2(Math.max(0, span - lunch));
+  const std = config.payrollStandardHours;
+  return { totalHours: span, standardHours: round2(Math.min(paid, std)), overtimeHours: round2(Math.max(0, paid - std)) };
+}
+
+/** Idempotent "still IN" result (returned when a re-tap is debounced). */
+function inState(rec: HydratedDocument<Attendance>): ScanResult {
+  return { action: "in", date: rec.date, inTime: rec.inTime, outTime: null, totalHours: null, standardHours: null, overtimeHours: 0, overtimeStatus: "none", shiftType: (rec.shiftType as ShiftType) ?? "day" };
+}
+/** Idempotent "still OUT" result (returned when a re-tap is debounced). */
+function outState(rec: HydratedDocument<Attendance>): ScanResult {
+  return { action: "out", date: rec.date, inTime: rec.inTime, outTime: rec.outTime ?? null, totalHours: rec.totalHours ?? null, standardHours: rec.standardHours ?? null, overtimeHours: rec.overtime?.computedHours ?? 0, overtimeStatus: rec.overtime?.status ?? "none", shiftType: (rec.shiftType as ShiftType) ?? "day" };
+}
+
+/**
+ * Records a scan (punch-clock). A scan attaches to the worker's most-recent OPEN
+ * record (no Out) whose In is within `maxShiftHours` — that scan becomes the Out,
+ * even across midnight (so a true ~24h shift closes correctly). If the day is
+ * already closed and the worker scans again, the day re-opens as IN (they came
+ * back); the first In stays locked and the last Out wins, so pay = first-In →
+ * last-Out − lunch. A repeat scan within `scanDebounceSeconds` is ignored.
  */
 export async function recordScan(
   worker: ScanWorker,
@@ -50,25 +79,33 @@ export async function recordScan(
 ): Promise<ScanResult> {
   const now = new Date();
   const shifts = site.shifts ?? DEFAULT_SHIFTS;
+  const lunch = site.lunchHours ?? 1;
+  const maxMs = (site.maxShiftHours ?? config.maxShiftHours) * 3_600_000;
+  const debounceMs = (site.scanDebounceSeconds ?? config.scanDebounceSeconds) * 1000;
 
-  // Currently clocked IN (an open session within the last 20h, across midnight)?
+  // Currently clocked IN (an open session within maxShiftHours, across midnight)?
   // Then this scan is the OUT.
   const open = await AttendanceModel.findOne({
     workerId: worker._id,
     outTime: null,
-    inTime: { $gte: new Date(now.getTime() - OPEN_SESSION_LOOKBACK_MS) },
+    inTime: { $gte: new Date(now.getTime() - maxMs) },
   }).sort({ inTime: -1 });
-  if (open) return closeSession(open, shifts, now, geo);
+  if (open) {
+    // Debounce: a re-tap moments after clocking in must not close the session.
+    if (now.getTime() - new Date(open.inTime).getTime() < debounceMs) return inState(open);
+    return closeSession(open, lunch, now, geo);
+  }
 
-  // No open session. If today's record already has an Out, the worker is coming
-  // BACK — toggle to IN by re-opening it (punch-clock style). The first In stays
-  // locked; the final Out still wins, so the day resolves to first-In / last-Out.
+  // No open session. Today's record?
   const date = siteLocalDate(now);
   const existing = await AttendanceModel.findOne({ workerId: worker._id, date });
   if (existing) {
-    // Open but older than the 20h window (the lookup above missed it) → close it.
-    if (existing.outTime == null) return closeSession(existing, shifts, now, geo);
-    return reopenSession(existing);
+    // Debounce: a re-tap moments after clocking out must not re-open the day.
+    if (existing.outTime && now.getTime() - new Date(existing.outTime).getTime() < debounceMs) return outState(existing);
+    // Open but older than the window (the lookup above missed it) → close it.
+    if (existing.outTime == null) return closeSession(existing, lunch, now, geo);
+    // Already closed and the worker is back → re-open as IN (punch-clock).
+    return reopenSession(existing, now, geo);
   }
 
   // Brand-new day → first IN.
@@ -89,6 +126,7 @@ export async function recordScan(
       shiftType,
       inGeo: geo ?? undefined,
       source: "scan",
+      sessions: [{ inTime: now, outTime: null, inGeo: geo ?? null, outGeo: null, source: "scan" }],
     });
     return { action: "in", date, inTime: now, outTime: null, totalHours: null, standardHours: null, overtimeHours: 0, overtimeStatus: "none", shiftType };
   } catch (err) {
@@ -96,41 +134,53 @@ export async function recordScan(
     if (!isDuplicateKeyError(err)) throw err;
     const same = await AttendanceModel.findOne({ workerId: worker._id, date });
     if (!same) throw err;
-    return same.outTime == null ? closeSession(same, shifts, now, geo) : reopenSession(same);
+    return same.outTime == null ? closeSession(same, lunch, now, geo) : reopenSession(same, now, geo);
   }
 }
 
 /** Coming back after an Out — re-open the same day's record as IN. The first In
- *  stays; the Out + computed hours are cleared and recomputed on the final Out. */
-async function reopenSession(rec: HydratedDocument<Attendance>): Promise<ScanResult> {
+ *  stays locked; the Out + computed hours are cleared (recomputed on the final
+ *  Out); a new punch is logged in sessions[]. */
+async function reopenSession(rec: HydratedDocument<Attendance>, now: Date, geo?: GeoCapture): Promise<ScanResult> {
   rec.outTime = null;
   rec.totalHours = null;
   rec.standardHours = null;
-  rec.overtime = { computedHours: 0, status: "none", approvedHours: null, approvedBy: null, approvedAt: null, notes: null };
+  rec.breakHours = null;
+  rec.outSource = null;
+  rec.overtime = { computedHours: 0, status: "none", approvedHours: null, recommendedBy: null, recommendedAt: null, approvedBy: null, approvedAt: null, notes: null };
+  rec.sessions.push({ inTime: now, outTime: null, inGeo: (geo ?? null) as never, outGeo: null, source: "scan" });
   await rec.save();
-  const shiftType = (rec.shiftType as ShiftType) ?? "day";
-  return { action: "in", date: rec.date, inTime: rec.inTime, outTime: null, totalHours: null, standardHours: null, overtimeHours: 0, overtimeStatus: "none", shiftType };
+  return inState(rec);
 }
 
-async function closeSession(rec: HydratedDocument<Attendance>, shifts: SiteShifts, now: Date, geo?: GeoCapture): Promise<ScanResult> {
+/** This scan is the Out: compute hours via the flat client-sheet reckoner, mark
+ *  the Out as scanned, and close the open punch in sessions[]. */
+async function closeSession(rec: HydratedDocument<Attendance>, lunch: number, now: Date, geo?: GeoCapture): Promise<ScanResult> {
   const shiftType = (rec.shiftType as ShiftType) ?? "day";
-  const shift = shifts[shiftType] ?? DEFAULT_SHIFTS[shiftType];
-  const { standardHours, overtimeHours, breakHours } = computeShiftOT(shift, rec.inTime, now);
-  const totalHours = round2((now.getTime() - rec.inTime.getTime()) / 3_600_000);
+  const { totalHours, standardHours, overtimeHours } = reckonHours(rec.inTime, now, lunch);
 
   rec.outTime = now;
   if (geo) rec.outGeo = geo;
   rec.totalHours = totalHours;
   rec.standardHours = standardHours;
-  rec.breakHours = breakHours;
+  rec.breakHours = lunch;
+  rec.outSource = "scanned";
   rec.overtime = {
     computedHours: overtimeHours,
     status: overtimeHours > 0 ? "pending" : "none",
     approvedHours: null,
+    recommendedBy: null,
+    recommendedAt: null,
     approvedBy: null,
     approvedAt: null,
     notes: null,
   };
+  // Close the open punch in the session log.
+  const last = rec.sessions?.[rec.sessions.length - 1];
+  if (last && last.outTime == null) {
+    last.outTime = now;
+    if (geo) last.outGeo = geo as never;
+  }
   await rec.save();
 
   return {

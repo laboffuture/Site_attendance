@@ -35,6 +35,18 @@ async function main(): Promise<void> {
   const rec = await AttendanceModel.findOne({ workerId: worker._id, outTime: null });
   assert("open record created with a shiftType", !!rec && !!rec.shiftType);
 
+  // A rapid re-scan within the debounce window must NOT toggle to OUT.
+  const rDup = await recordScan(worker, siteArg as never, branch.name);
+  assert("rapid re-scan stays IN (debounced)", rDup.action === "in");
+  assert("debounced re-scan left the record open", !!(await AttendanceModel.findOne({ workerId: worker._id, outTime: null })));
+
+  // A genuine ~24h continuous shift: IN backdated 24h, the OUT must still attach.
+  const wLong = { _id: new Types.ObjectId(), empRegNo: `QA-LONG-${S}`, name: `QA Long ${S}`, designationId: new Types.ObjectId(), designationName: "Carpenter" };
+  await recordScan(wLong, siteArg as never, branch.name);
+  await AttendanceModel.updateOne({ workerId: wLong._id, outTime: null }, { $set: { inTime: new Date(Date.now() - 24 * 3_600_000) } });
+  const rLong = await recordScan(wLong, siteArg as never, branch.name);
+  assert("24h-old IN still attaches an OUT (26h window)", rLong.action === "out");
+
   // Simulate a night shift: backdate the In to 11h ago and tag it night, so the
   // Out (now) lands beyond the 9h window → ~2h OT (2 <= 5 threshold → no break).
   const inAt = new Date(Date.now() - 11 * 3_600_000);
@@ -61,14 +73,22 @@ async function main(): Promise<void> {
   assert("scan >20h after a stale open record → new in (not out)", r3.action === "in");
 
   // Same-day re-scan AFTER a session closed → toggles back to IN (punch-clock:
-  // worker went out and came back). First In stays; the next scan is the Out.
+  // worker went out and came back). Backdate the Out past the debounce window so
+  // the return scan is a real re-entry, not an accidental double-tap.
+  await AttendanceModel.updateOne({ _id: rec!._id }, { $set: { outTime: new Date(Date.now() - 120_000) } });
   const r4 = await recordScan(worker, siteArg as never, branch.name);
   assert("same-day re-scan after close → in (re-open / coming back)", r4.action === "in");
+  const reopened = await AttendanceModel.findById(rec!._id);
+  assert("re-open clears breakHours + outSource", reopened!.breakHours == null && reopened!.outSource == null);
   const r5 = await recordScan(worker, siteArg as never, branch.name);
   assert("scan after re-open → out again (last Out wins)", r5.action === "out");
+  const finalRec = await AttendanceModel.findById(rec!._id);
+  assert("scanned OUT marks outSource=scanned", finalRec!.outSource === "scanned");
+  assert("sessions log has 2 punch pairs (in/out/in/out)", (finalRec!.sessions?.length ?? 0) === 2);
+  assert("first session keeps original In, last is closed", finalRec!.sessions[0].outTime != null && finalRec!.sessions[1].outTime != null);
 
   await Promise.all([
-    AttendanceModel.deleteMany({ workerId: { $in: [worker._id, worker2._id] } }),
+    AttendanceModel.deleteMany({ workerId: { $in: [worker._id, worker2._id, wLong._id] } }),
     ProjectSiteModel.deleteOne({ _id: site._id }),
     BranchModel.deleteOne({ _id: branch._id }),
   ]);
