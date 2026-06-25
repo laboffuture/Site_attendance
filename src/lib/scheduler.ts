@@ -47,5 +47,7 @@ export function startDailySweep(): void {
 
   const mins = Math.round(nextFireDelayMs(hm) / 60000);
   console.log(`Missed-clockout sweep scheduled for ${hm} IST daily (next in ~${mins} min).`);
+  // Catch-up: run once on boot (idempotent) so a restart past SWEEP_TIME still flags.
+  sweepMissedClockouts().catch((err) => console.error("Boot missed-clockout sweep failed:", (err as Error)?.message ?? err));
   schedule();
 }

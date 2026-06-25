@@ -52,7 +52,20 @@ async function main(): Promise<void> {
     date: today, workerId: openWorker._id, empRegNo: openWorker.empRegNo, workerName: openWorker.name,
     designationId: openWorker.designationId, designationName: "Carpenter",
     siteId: vbw._id, siteName: vbw.name, branchId: vbw.branchId, branchName: "QA",
-    inTime: new Date(Date.now() - 8 * 3_600_000), outTime: null, source: "scan",
+    // 14h ago — past the day shift window (9h) + grace (2h) → genuinely forgotten.
+    inTime: new Date(Date.now() - 14 * 3_600_000), outTime: null, source: "scan",
+  });
+
+  // An in-progress open record (IN 3h ago, still inside the shift window) — must NOT be flagged.
+  const liveWorker = await WorkerModel.create({
+    empRegNo: `QA-ML-${S}`, name: `QA Live ${S}`, designationId: new Types.ObjectId(),
+    designationName: "Carpenter", siteId: vbw._id, siteName: vbw.name, faceEncoding: [], status: "active",
+  });
+  const liveRec = await AttendanceModel.create({
+    date: today, workerId: liveWorker._id, empRegNo: liveWorker.empRegNo, workerName: liveWorker.name,
+    designationId: liveWorker.designationId, designationName: "Carpenter",
+    siteId: vbw._id, siteName: vbw.name, branchId: vbw.branchId, branchName: "QA",
+    inTime: new Date(Date.now() - 3 * 3_600_000), outTime: null, source: "scan",
   });
 
   // A completed record (has Out) at VBW today — must never be flagged.
@@ -81,6 +94,8 @@ async function main(): Promise<void> {
     (await FlagEventModel.countDocuments({ type: "missed_clockout", attendanceId: openRec._id })) === 1);
   assert("completed record not flagged",
     (await FlagEventModel.countDocuments({ type: "missed_clockout", attendanceId: doneRec._id })) === 0);
+  assert("in-progress open record (within shift+grace) not flagged",
+    (await FlagEventModel.countDocuments({ type: "missed_clockout", attendanceId: liveRec._id })) === 0);
 
   const afterSweep = await AttendanceModel.findById(openRec._id);
   assert("attendance record left unchanged (still open)",
@@ -102,9 +117,9 @@ async function main(): Promise<void> {
 
   // Cleanup
   await Promise.all([
-    FlagEventModel.deleteMany({ attendanceId: { $in: [openRec._id, doneRec._id] } }),
-    AttendanceModel.deleteMany({ empRegNo: { $in: [`QA-MO-${S}`, `QA-MD-${S}`] } }),
-    WorkerModel.deleteMany({ empRegNo: { $in: [`QA-MO-${S}`, `QA-MD-${S}`] } }),
+    FlagEventModel.deleteMany({ attendanceId: { $in: [openRec._id, doneRec._id, liveRec._id] } }),
+    AttendanceModel.deleteMany({ empRegNo: { $in: [`QA-MO-${S}`, `QA-MD-${S}`, `QA-ML-${S}`] } }),
+    WorkerModel.deleteMany({ empRegNo: { $in: [`QA-MO-${S}`, `QA-MD-${S}`, `QA-ML-${S}`] } }),
     UserModel.deleteOne({ email: SUP_EMAIL }),
   ]);
 

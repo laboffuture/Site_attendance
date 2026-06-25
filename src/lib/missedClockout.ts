@@ -12,9 +12,12 @@
  * so the existing flag scoping / resolve checks (keyed on attemptedSiteId)
  * and the /flags view work unchanged.
  */
+import { config } from "../config";
 import * as db from "../db";
 import { AttendanceModel } from "../models/Attendance";
 import { FlagEventModel } from "../models/FlagEvent";
+import { ProjectSiteModel } from "../models/ProjectSite";
+import { DEFAULT_SHIFTS, windowHours, type ShiftType } from "./shift";
 import { siteLocalDate } from "./time";
 import { isDuplicateKeyError } from "./validate";
 
@@ -36,12 +39,26 @@ export async function sweepMissedClockouts(asOfDate: string = siteLocalDate()): 
     return summary;
   }
 
-  const open = await AttendanceModel.find({ outTime: null, date: { $lte: asOfDate } })
-    .select("workerId workerName siteId siteName date")
+  const open = await AttendanceModel.find({ outTime: null, voided: { $ne: true }, date: { $lte: asOfDate } })
+    .select("workerId workerName siteId siteName date inTime shiftType")
     .lean();
+
+  // Resolve each record's shift window so we only flag genuinely forgotten ones.
+  const siteIds = [...new Set(open.map((r) => String(r.siteId)))];
+  const sites = await ProjectSiteModel.find({ _id: { $in: siteIds } }).select("shifts forgotGraceHours").lean();
+  const siteMap = new Map(sites.map((s) => [String(s._id), s]));
+  const nowMs = Date.now();
 
   for (const rec of open) {
     summary.scanned++;
+    // Shift-window aware: flag only records open past (shift end + grace). A worker
+    // still inside their shift — including a night shift in progress — is NOT forgotten.
+    const site = siteMap.get(String(rec.siteId));
+    const shifts = (site?.shifts ?? DEFAULT_SHIFTS) as Record<ShiftType, typeof DEFAULT_SHIFTS.day>;
+    const shift = (shifts[(rec.shiftType as ShiftType) ?? "day"] ?? DEFAULT_SHIFTS.day) as typeof DEFAULT_SHIFTS.day;
+    const grace = typeof site?.forgotGraceHours === "number" ? site.forgotGraceHours : config.forgotGraceHours;
+    const dueMs = new Date(rec.inTime).getTime() + (windowHours(shift) + grace) * 3_600_000;
+    if (nowMs <= dueMs) { summary.skipped++; continue; } // still within shift + grace
     try {
       await FlagEventModel.create({
         type: "missed_clockout",
