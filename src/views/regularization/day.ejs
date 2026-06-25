@@ -140,4 +140,26 @@
   <% } %>
 </div>
 
+<% if (canCorrect && addableWorkers.length) { %>
+<div class="oh-card" style="margin-top:1rem;padding:1rem">
+  <div class="oh-card__label">Add a worker who didn't scan</div>
+  <p class="oh-muted" style="margin:0.2rem 0 0.7rem;font-size:0.8rem">Creates a manual day (recommended) for Management to approve.</p>
+  <form method="post" action="/regularization/<%= siteId %>/<%= date %>/create" class="oh-form-inline">
+    <select class="oh-select" name="workerId" required title="Worker">
+      <option value="">Select worker…</option>
+      <% addableWorkers.forEach(function (w) { %><option value="<%= w.id %>"><%= w.name %> · <%= w.empRegNo %></option><% }); %>
+    </select>
+    <input class="oh-input oh-input--time" type="time" name="inHM" required title="In time" />
+    <input class="oh-input oh-input--time" type="time" name="outHM" title="Out time (optional)" />
+    <select class="oh-select oh-input--time" name="shiftType" title="Shift">
+      <option value="day">Day</option>
+      <option value="night">Night</option>
+      <option value="sunday">Sunday</option>
+    </select>
+    <input class="oh-input" type="text" name="reason" placeholder="Reason (e.g. scanner down)" title="Reason" />
+    <button class="oh-btn oh-btn--accent" type="submit"><span class="material-icons">person_add</span> Add day</button>
+  </form>
+</div>
+<% } %>
+
 <%- include('../partials/app-bottom') %>

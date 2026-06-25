@@ -64,6 +64,18 @@ async function main(): Promise<void> {
   const voided = await AttendanceModel.findById(bogusRec._id);
   assert("record voided + reason", voided!.voided === true && voided!.voidReason === "accidental double scan");
 
+  // HR creates a manual day for a worker who never scanned (08:00–17:00, lunch 1h → 8h, 0 OT).
+  const w2 = await WorkerModel.create({ empRegNo: `QA-CR3-${S}`, name: `QA NoScan ${S}`, designationId: new Types.ObjectId(), designationName: "Carpenter", siteId: site._id, siteName: site.name, faceEncoding: [], status: "active" });
+  // The day page now offers w2 (no record yet) in the HR add-worker form.
+  const dayPage = await hr.get(`/regularization/${site._id}/${today}`);
+  assert("day page renders the HR add-worker form with the eligible worker", dayPage.status === 200 && dayPage.text.includes("Add a worker who didn't scan") && dayPage.text.includes(`QA NoScan ${S}`));
+  const created = await hr.post(`/regularization/${site._id}/${today}/create`).type("form").send({ workerId: String(w2._id), inHM: "08:00", outHM: "17:00", shiftType: "day", reason: "Scanner was down" });
+  assert("HR create-day redirects (success)", created.status === 302);
+  const newRec = await AttendanceModel.findOne({ workerId: w2._id, date: today });
+  assert("manual day created (manual source, recommended)", !!newRec && newRec.source === "manual" && newRec.attendanceStatus === "recommended");
+  assert("manual day hours computed (9h span → 8 std, 0 OT)", newRec!.totalHours === 9 && newRec!.standardHours === 8 && (newRec!.overtime?.computedHours ?? -1) === 0);
+  assert("manual day audited (create entry)", (newRec!.corrections?.length ?? 0) >= 1 && newRec!.corrections.some((c) => c.field === "create"));
+
   // Management is NOT allowed to correct (HR-only).
   const mgmt = await login(app, MGMT_EMAIL);
   const denied = await mgmt.post(`/regularization/worker/${openRec._id}/correct`).type("form").send({ outHM: "18:00" });
@@ -71,7 +83,7 @@ async function main(): Promise<void> {
 
   await Promise.all([
     AttendanceModel.deleteMany({ siteId: site._id }),
-    WorkerModel.deleteOne({ _id: worker._id }),
+    WorkerModel.deleteMany({ siteId: site._id }),
     UserModel.deleteMany({ email: { $in: [HR_EMAIL, MGMT_EMAIL] } }),
     ProjectSiteModel.deleteOne({ _id: site._id }),
     BranchModel.deleteOne({ _id: branch._id }),

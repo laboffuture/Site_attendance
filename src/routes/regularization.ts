@@ -73,6 +73,14 @@ router.get("/regularization/:siteId/:date", requireCapability("view_regularizati
     outSource: r.outSource ?? null, voided: r.voided ?? false, verifiedAt: r.verifiedAt ?? null, punches: r.sessions?.length ?? 0,
   }));
   const status = records[0]?.attendanceStatus ?? "scanned";
+  // HR-only: active workers assigned to this site who have no record yet today —
+  // these are the ones HR can add a manual day for (someone who never scanned).
+  let addableWorkers: { id: string; name: string; empRegNo: string }[] = [];
+  if (res.locals.can("correct_attendance")) {
+    const present = new Set(records.map((r) => String(r.workerId)));
+    const ws = await WorkerModel.find({ siteId, status: "active" }).select("name empRegNo").sort({ name: 1 }).lean();
+    addableWorkers = ws.filter((w) => !present.has(String(w._id))).map((w) => ({ id: String(w._id), name: w.name, empRegNo: w.empRegNo }));
+  }
   res.render("regularization/day", {
     title: "Regularization · " + res.locals.company, active: "/regularization",
     siteName: records[0]?.siteName ?? "", siteId, date, rows, status,
@@ -80,6 +88,7 @@ router.get("/regularization/:siteId/:date", requireCapability("view_regularizati
     canApprove: res.locals.can("approve_attendance"),
     canReject: res.locals.can("view_regularization"),
     canCorrect: res.locals.can("correct_attendance"),
+    addableWorkers,
   });
 });
 
