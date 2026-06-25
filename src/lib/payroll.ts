@@ -26,10 +26,10 @@ export interface PayrollWorker {
   account: string; ifsc: string; basic: number | null; food: number;
   days: number; normalHrs: number; otHrs: number; foodDays: number;
   normalPay: number; otPay: number; foodAllowance: number; arrears: number; arrearsNote: string;
-  gross: number; hasWage: boolean; byDate: Record<string, PayrollDay>;
+  gross: number; hasWage: boolean; unresolvedOpenDays: number; byDate: Record<string, PayrollDay>;
 }
 export interface PayrollSummary {
-  workers: number; normalHrs: number; otHrs: number; otCost: number; arrears: number; gross: number; missingWage: number; capped: boolean;
+  workers: number; normalHrs: number; otHrs: number; otCost: number; arrears: number; gross: number; missingWage: number; unresolvedOpenDays: number; capped: boolean;
 }
 
 /** Single source of truth for a payroll run over `match` across [dateFrom, dateTo].
@@ -39,7 +39,7 @@ export async function computePayroll(match: Record<string, unknown>, dateFrom: s
   const mult = config.otMultiplier;
 
   const att = await AttendanceModel.find(match)
-    .select("workerId empRegNo workerName designationName siteId siteName date inTime outTime totalHours")
+    .select("workerId empRegNo workerName designationName siteId siteName date inTime outTime totalHours overtime attendanceStatus voided")
     .sort({ workerName: 1, date: 1 }).limit(ROW_CAP).lean();
 
   const siteIds = [...new Set(att.map((r) => String(r.siteId)).filter(Boolean))];
@@ -56,13 +56,26 @@ export async function computePayroll(match: Record<string, unknown>, dateFrom: s
   const dates: string[] = [];
   for (let d = new Date(dateFrom + "T00:00:00"), end = new Date(dateTo + "T00:00:00"); d <= end; d.setDate(d.getDate() + 1)) dates.push(ymd(d));
 
-  const byWorker = new Map<string, { empRegNo: string; name: string; designation: string; siteName: string; byDate: Record<string, PayrollDay> }>();
+  const reqApproval = config.otRequiresApproval;
+  let unresolvedTotal = 0;
+  const byWorker = new Map<string, { empRegNo: string; name: string; designation: string; siteName: string; byDate: Record<string, PayrollDay>; unresolved: number }>();
   for (const r of att) {
+    if (r.voided) continue;                          // discarded by HR
+    if (r.attendanceStatus === "rejected") continue; // a rejected day is a non-day
     const key = String(r.workerId);
-    if (!byWorker.has(key)) byWorker.set(key, { empRegNo: r.empRegNo, name: r.workerName, designation: r.designationName, siteName: r.siteName, byDate: {} });
+    if (!byWorker.has(key)) byWorker.set(key, { empRegNo: r.empRegNo, name: r.workerName, designation: r.designationName, siteName: r.siteName, byDate: {}, unresolved: 0 });
+    const wd = byWorker.get(key)!;
+    if (r.outTime == null) { wd.unresolved++; unresolvedTotal++; continue; } // forgotten OUT → pay nil, flagged
     const lunch = lunchBySite.get(String(r.siteId)) ?? 1;
     const total = dayHours(r.inTime, r.outTime, lunch, r.totalHours);
-    byWorker.get(key)!.byDate[r.date] = { inT: istTime(r.inTime), outT: istTime(r.outTime), lunch, total, normal: Math.min(total, STD), ot: round2(Math.max(0, total - STD)) };
+    // OT pays only once Management-approved (config.otRequiresApproval). Normal pays on any
+    // non-rejected, non-open, non-voided day. Keeps payslip OT == approval-screen OT.
+    const ov = (r.overtime ?? {}) as { status?: string; computedHours?: number; approvedHours?: number | null };
+    const otComputed = round2(Math.max(0, total - STD));
+    const otPaid = reqApproval
+      ? (ov.status === "approved" ? (ov.approvedHours ?? otComputed) : 0)
+      : otComputed;
+    wd.byDate[r.date] = { inT: istTime(r.inTime), outT: istTime(r.outTime), lunch, total, normal: Math.min(total, STD), ot: round2(otPaid) };
   }
 
   const workers: PayrollWorker[] = [...byWorker.entries()].map(([id, wd]) => {
@@ -74,7 +87,7 @@ export async function computePayroll(match: Record<string, unknown>, dateFrom: s
     const days = Object.keys(wd.byDate).length;
     for (const date of Object.keys(wd.byDate)) {
       const d = wd.byDate[date];
-      normalHrs += d.normal; otHrs += d.ot; if (d.total >= 5) foodDays++;
+      normalHrs += d.normal; otHrs += d.ot; if (d.total >= config.foodMinHours) foodDays++;
     }
     const normalPay = Math.round(normalHrs * hourly);
     const otPay = Math.round(otHrs * hourly * mult);
@@ -86,7 +99,7 @@ export async function computePayroll(match: Record<string, unknown>, dateFrom: s
       account: w?.bank?.accountNumber ?? "", ifsc: w?.bank?.ifsc ?? "",
       basic: wage, food: foodRate, days, normalHrs: round2(normalHrs), otHrs: round2(otHrs), foodDays,
       normalPay, otPay, foodAllowance, arrears, arrearsNote: adj?.note ?? "",
-      gross: normalPay + otPay + foodAllowance + arrears, hasWage: wage != null, byDate: wd.byDate,
+      gross: normalPay + otPay + foodAllowance + arrears, hasWage: wage != null, unresolvedOpenDays: wd.unresolved, byDate: wd.byDate,
     };
   }).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
@@ -98,6 +111,7 @@ export async function computePayroll(match: Record<string, unknown>, dateFrom: s
     arrears: workers.reduce((a, w) => a + w.arrears, 0),
     gross: workers.reduce((a, w) => a + w.gross, 0),
     missingWage: workers.filter((w) => !w.hasWage).length,
+    unresolvedOpenDays: unresolvedTotal,
     capped: att.length >= ROW_CAP,
   };
   return { workers, summary, dates };

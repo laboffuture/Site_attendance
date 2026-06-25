@@ -41,7 +41,8 @@
     "e2e:face-onboarding": "tsx scripts/e2e_face_onboarding.ts",
     "e2e:logingeo": "tsx scripts/e2e_login_geo.ts",
     "e2e:multisite": "tsx scripts/e2e_multisite.ts",
-    "e2e:management": "tsx scripts/e2e_management.ts"
+    "e2e:management": "tsx scripts/e2e_management.ts",
+    "e2e:payroll": "tsx scripts/e2e_payroll.ts"
   },
   "dependencies": {
     "@tensorflow/tfjs": "^4.22.0",
