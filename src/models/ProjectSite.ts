@@ -52,6 +52,10 @@ const projectSiteSchema = new Schema(
     // Payroll lunch deduction (hours) subtracted from each day's worked hours
     // before normal/OT are split — matches the client OT sheet's lunch column.
     lunchHours: { type: Number, default: 1 },
+    // Per-site overrides for the in/out exception rules (null → global config).
+    maxShiftHours: { type: Number, default: null },
+    forgotGraceHours: { type: Number, default: null },
+    scanDebounceSeconds: { type: Number, default: null },
     designationOverrides: { type: [designationOverrideSchema], default: [] },
 
     // Per-site day/night/sunday shift definitions (matrix defaults on create).

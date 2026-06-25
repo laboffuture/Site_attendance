@@ -31,6 +31,32 @@ const geoSchema = new Schema(
   { _id: false },
 );
 
+// One punch pair within a day (audit/visibility only — pay uses first-In/last-Out).
+const sessionSchema = new Schema(
+  {
+    inTime: { type: Date, required: true },
+    outTime: { type: Date, default: null },
+    inGeo: { type: geoSchema, default: null },
+    outGeo: { type: geoSchema, default: null },
+    source: { type: String, enum: ["scan", "manual"], default: "scan" },
+  },
+  { _id: false },
+);
+
+// Append-only audit of HR corrections to a record.
+const correctionSchema = new Schema(
+  {
+    // "inTime" | "outTime" | "shiftType" | "void" | "verify" | "create"
+    field: { type: String, required: true },
+    oldValue: { type: String, default: null },
+    newValue: { type: String, default: null },
+    by: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    at: { type: Date, default: null },
+    reason: { type: String, default: null },
+  },
+  { _id: false },
+);
+
 const attendanceSchema = new Schema(
   {
     date: { type: String, required: true }, // site-local day, "YYYY-MM-DD"
@@ -79,6 +105,20 @@ const attendanceSchema = new Schema(
     // manual = marked/corrected by a user on the Attendance page.
     source: { type: String, enum: ["scan", "manual"], default: "scan" },
     markedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
+
+    // Every punch in the day (first-In/last-Out still drive pay).
+    sessions: { type: [sessionSchema], default: [] },
+    // How the Out was set: a real scan vs an HR fill-in.
+    outSource: { type: String, enum: ["scanned", "hr-filled"], default: null },
+    // HR correction audit + lifecycle.
+    corrections: { type: [correctionSchema], default: [] },
+    voided: { type: Boolean, default: false },
+    voidedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    voidedAt: { type: Date, default: null },
+    voidReason: { type: String, default: null },
+    verifiedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    verifiedAt: { type: Date, default: null },
+    verifyNote: { type: String, default: null },
   },
   { timestamps: true },
 );

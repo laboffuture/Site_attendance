@@ -25,6 +25,18 @@ export const config = {
   // Dashboard attendance target (% of active workers present) — drives the
   // health verdict colour and the exception-ranked site list.
   attendanceTarget: Number(process.env.ATTENDANCE_TARGET) || 85,
+  // In/out exception rules (env-overridable; per-site overrides on ProjectSite).
+  // Longest continuous shift an Out can still attach to (also the "forgotten" cap)
+  // — covers a true 24h shift + slop. Beyond this an open record is "forgot Out".
+  maxShiftHours: Number(process.env.MAX_SHIFT_HOURS) || 26,
+  // Hours past a shift's scheduled end before an open record is flagged "forgot Out".
+  forgotGraceHours: Number(process.env.FORGOT_GRACE_HOURS) || 2,
+  // A repeat scan by the same worker within this window is ignored (anti double-tap).
+  scanDebounceSeconds: Number(process.env.SCAN_DEBOUNCE_SECONDS) || 60,
+  // Pay OT only once Management-approved (matches "Management is last to close").
+  otRequiresApproval: (process.env.OT_REQUIRES_APPROVAL ?? "true") !== "false",
+  // Minimum paid hours on a day to earn the food allowance.
+  foodMinHours: Number(process.env.FOOD_MIN_HOURS) || 5,
   // Where worker enrollment photos are stored. Point this at a persistent
   // volume in production so uploads survive redeploys; served at /static/uploads.
   uploadDir: process.env.UPLOAD_DIR || path.join(process.cwd(), "public", "uploads"),
