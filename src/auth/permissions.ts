@@ -50,7 +50,8 @@ export type Capability =
   | "submit_attendance"
   | "view_regularization"
   | "recommend_attendance"
-  | "approve_attendance";
+  | "approve_attendance"
+  | "correct_attendance";
 
 const ALL: Role[] = [...ROLES];
 
@@ -82,6 +83,7 @@ const CAPABILITY_ROLES: Record<Capability, Role[]> = {
   view_regularization: ["management", "hr", "pm"],
   recommend_attendance: ["hr", "pm"], // HR + PM recommend…
   approve_attendance: ["management"], // …Management is the last to close
+  correct_attendance: ["hr"], // HR-only: fix a missing/wrong punch; Management still approves the day
 };
 
 export function can(role: Role, capability: Capability): boolean {

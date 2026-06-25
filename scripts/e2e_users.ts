@@ -10,6 +10,7 @@ import mongoose from "mongoose";
 import { createApp } from "../src/app";
 import { connectDb } from "../src/db";
 import * as db from "../src/db";
+import { can } from "../src/auth/permissions";
 import { ProjectSiteModel, UserModel } from "../src/models";
 
 const ADMIN_EMAIL = (process.env.SEED_ADMIN_EMAIL || "admin@trgbi.com").toLowerCase();
@@ -117,6 +118,12 @@ async function main(): Promise<void> {
 
   // Cleanup.
   await UserModel.deleteMany({ email: { $in: [MGMT, HR, PM, SUP, SUPER, `qa-m2-${S}@trgbi.com`] } });
+
+  // Attendance correction is HR-only (Management still approves the day).
+  assert("HR can correct attendance", can("hr", "correct_attendance"));
+  assert("Management cannot correct attendance", !can("management", "correct_attendance"));
+  assert("PM cannot correct attendance", !can("pm", "correct_attendance"));
+  assert("Supervisor cannot correct attendance", !can("supervisor", "correct_attendance"));
 
   await mongoose.connection.close();
   console.log(process.exitCode ? "\nE2E USERS FAILED" : "\nE2E USERS PASSED");

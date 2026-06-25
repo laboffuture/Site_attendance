@@ -26,6 +26,7 @@ const PERMISSION_GROUPS: { group: string; caps: { cap: Capability; label: string
     { cap: "view_regularization", label: "View corrections" },
     { cap: "recommend_attendance", label: "Recommend corrections" },
     { cap: "approve_attendance", label: "Approve corrections" },
+    { cap: "correct_attendance", label: "Correct attendance (HR)" },
   ] },
   { group: "Overtime", caps: [
     { cap: "view_overtime", label: "View overtime" },
