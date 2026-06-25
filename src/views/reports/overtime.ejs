@@ -61,6 +61,43 @@
 <div class="oh-empty"><span class="material-icons">more_time</span><p><%= filtering ? 'No overtime in this range.' : 'No pending or approved overtime yet.' %></p></div>
 <% } %>
 
+<!-- Approved OT log: who approved each OT and exactly when -->
+<div class="oh-page-header oh-page-header--row" style="margin-top:1.6rem">
+  <div>
+    <h2 class="oh-page-title" style="font-size:1.1rem">Approved OT — log</h2>
+    <p class="oh-page-subtitle">Each approved overtime entry, with who approved it and the exact date &amp; time.</p>
+  </div>
+  <% if (approved.length) { %>
+  <div class="oh-actions">
+    <a class="oh-btn oh-btn--small oh-btn--secondary" href="/reports/overtime/approved.csv<%= query %>"><span class="material-icons">download</span> CSV</a>
+    <a class="oh-btn oh-btn--small oh-btn--secondary" href="/reports/overtime/approved.pdf<%= query %>"><span class="material-icons">picture_as_pdf</span> PDF</a>
+  </div>
+  <% } %>
+</div>
+<% if (approved.length) { %>
+<div class="oh-card oh-card--flush">
+  <table class="oh-people oh-table--cards">
+    <thead><tr><th class="oh-people__spinecol"></th><th>Worker</th><th>Emp ID</th><th>Site</th><th>Date</th><th>OT hrs</th><th>Approved by</th><th>Approved on</th></tr></thead>
+    <tbody>
+      <% approved.forEach(function (a) { %>
+      <tr style="--spine: var(--c-success)">
+        <td class="oh-people__spine"></td>
+        <td><span class="oh-person__name" style="font-weight:600"><%= a.workerName %></span></td>
+        <td data-label="Emp ID"><span class="oh-person__id"><%= a.empRegNo %></span></td>
+        <td data-label="Site"><%= a.siteName %></td>
+        <td data-label="Date"><%= a.date %></td>
+        <td data-label="OT hrs"><span class="oh-ot-approved"><%= a.otHours %>h</span></td>
+        <td data-label="Approved by"><%= a.approvedByName %></td>
+        <td data-label="Approved on"><%= a.approvedOn %></td>
+      </tr>
+      <% }); %>
+    </tbody>
+  </table>
+</div>
+<% } else { %>
+<div class="oh-empty"><span class="material-icons">verified</span><p>No approved overtime yet.</p></div>
+<% } %>
+
 <% if (groups.length) { %>
 <script>window.__OT_RPT__ = <%- JSON.stringify(charts) %>;</script>
 <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.54.1/dist/apexcharts.min.js"></script>

@@ -104,6 +104,15 @@ async function main(): Promise<void> {
   const sa = await login(app, sup);
   assert("Supervisor GET /overtime → 403", (await sa.get("/overtime")).status === 403);
 
+  // --- Approved-OT log in the Overtime report (who approved + exactly when) ---
+  const otReport = await ma.get("/reports/overtime");
+  assert("OT report shows the Approved-OT log section", otReport.status === 200 && otReport.text.includes("Approved OT — log"));
+  assert("Approved-OT log lists the worker + the approver name", otReport.text.includes(`QA-OT-${S}-adjust`) && otReport.text.includes("QA OT Mgr"));
+  const apprCsv = await ma.get("/reports/overtime/approved.csv");
+  assert("Approved-OT CSV streams with worker + approver", apprCsv.status === 200 && String(apprCsv.headers["content-type"]).includes("csv") && apprCsv.text.includes(`QA-OT-${S}-adjust`) && apprCsv.text.includes("QA OT Mgr"));
+  const apprPdf = await ma.get("/reports/overtime/approved.pdf").buffer(true).parse((res, cb) => { const ch: Buffer[] = []; res.on("data", (c: Buffer) => ch.push(c)); res.on("end", () => cb(null, Buffer.concat(ch))); });
+  assert("Approved-OT PDF streams (%PDF)", apprPdf.status === 200 && Buffer.isBuffer(apprPdf.body) && apprPdf.body.subarray(0, 4).toString("latin1") === "%PDF");
+
   // Cleanup.
   await Promise.all([
     AttendanceModel.deleteMany({ empRegNo: new RegExp(`^QA-OT-${S}-`) }),

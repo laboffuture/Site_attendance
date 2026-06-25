@@ -278,8 +278,31 @@ async function overtimeData(req: Request) {
   return { groups, summary, filters };
 }
 
+/** Date+time in IST for the approval log (e.g. "25 Jun 2026, 18:30"). */
+function fmtDT(d: unknown): string {
+  return d ? new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(d as string)) : "—";
+}
+
+/** Per-record APPROVED overtime — who approved it and exactly when (newest first). */
+async function approvedOtData(req: Request) {
+  const { match } = overtimePipeline(req);
+  const rows = await AttendanceModel.aggregate([
+    { $match: { ...match, "overtime.status": "approved" } },
+    { $lookup: { from: "users", localField: "overtime.approvedBy", foreignField: "_id", as: "appr" } },
+    { $project: {
+      workerName: 1, empRegNo: 1, siteName: 1, date: 1,
+      otHours: { $round: [{ $ifNull: ["$overtime.approvedHours", "$overtime.computedHours"] }, 2] },
+      approvedByName: { $ifNull: [{ $arrayElemAt: ["$appr.name", 0] }, null] },
+      approvedAt: "$overtime.approvedAt",
+    } },
+    { $sort: { approvedAt: -1 } },
+    { $limit: 1000 },
+  ]);
+  return rows as { workerName: string; empRegNo: string; siteName: string; date: string; otHours: number; approvedByName: string | null; approvedAt: Date | null }[];
+}
+
 router.get("/reports/overtime", requireCapability("view_reports"), async (req: Request, res: Response) => {
-  const { groups, summary, filters } = await overtimeData(req);
+  const [{ groups, summary, filters }, approvedRows] = await Promise.all([overtimeData(req), approvedOtData(req)]);
   const sites = await ProjectSiteModel.find().sort({ name: 1 }).lean();
   res.render("reports/overtime", {
     title: "Overtime report · " + res.locals.company,
@@ -287,6 +310,7 @@ router.get("/reports/overtime", requireCapability("view_reports"), async (req: R
     groups, summary, filters, sites,
     otMultiplier: config.otMultiplier,
     charts: { labels: groups.map((g) => g.site), pending: groups.map((g) => g.pending), approved: groups.map((g) => g.approved) },
+    approved: approvedRows.map((a) => ({ workerName: a.workerName, empRegNo: a.empRegNo, siteName: a.siteName, date: a.date, otHours: a.otHours, approvedByName: a.approvedByName ?? "—", approvedOn: fmtDT(a.approvedAt) })),
     query: req.originalUrl.includes("?") ? req.originalUrl.slice(req.originalUrl.indexOf("?")) : "",
   });
 });
@@ -296,6 +320,27 @@ router.get("/reports/overtime/export.csv", requireCapability("view_reports"), as
   sendCsv(res, `overtime-${Date.now()}.csv`,
     ["Site", "Pending OT hours", "Approved OT hours", "OT cost (INR)"],
     groups.map((g) => [g.site, g.pending, g.approved, g.cost]));
+});
+
+// Approved-OT log exports (who approved + exact time).
+router.get("/reports/overtime/approved.csv", requireCapability("view_reports"), async (req: Request, res: Response) => {
+  const rows = await approvedOtData(req);
+  sendCsv(res, `approved-ot-${Date.now()}.csv`,
+    ["Worker", "Emp ID", "Site", "Date", "OT hours", "Approved by", "Approved on (IST)"],
+    rows.map((r) => [r.workerName, r.empRegNo, r.siteName, r.date, r.otHours, r.approvedByName ?? "—", fmtDT(r.approvedAt)]));
+});
+
+router.get("/reports/overtime/approved.pdf", requireCapability("view_reports"), async (req: Request, res: Response) => {
+  const rows = await approvedOtData(req);
+  const cols = [
+    { header: "Worker", key: "workerName", pdf: 116 }, { header: "Emp ID", key: "empRegNo", pdf: 78 },
+    { header: "Site", key: "siteName", pdf: 104 }, { header: "Date", key: "date", pdf: 64 },
+    { header: "OT h", key: "otHours", pdf: 40 }, { header: "Approved by", key: "approvedByName", pdf: 104 },
+    { header: "Approved on (IST)", key: "approvedOn", pdf: 140 },
+  ];
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="approved-ot-${Date.now()}.pdf"`);
+  streamTablePdf(rows.map((r) => ({ workerName: r.workerName, empRegNo: r.empRegNo, siteName: r.siteName, date: r.date, otHours: r.otHours, approvedByName: r.approvedByName ?? "—", approvedOn: fmtDT(r.approvedAt) })), cols, { title: `${res.locals.company} — Approved OT log`, subtitle: `${rows.length} approved OT entries` }, res);
 });
 
 router.get("/reports/overtime/export.pdf", requireCapability("view_reports"), async (req: Request, res: Response) => {
