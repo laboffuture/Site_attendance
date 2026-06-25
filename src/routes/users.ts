@@ -14,7 +14,12 @@ const router = Router();
 // Capabilities grouped + labelled for the read-only "what this role can do"
 // matrix on the user detail page (truthful to CAPABILITY_ROLES).
 const PERMISSION_GROUPS: { group: string; caps: { cap: Capability; label: string }[] }[] = [
-  { group: "Dashboard", caps: [{ cap: "view_dashboard", label: "View dashboard & reports" }] },
+  { group: "Dashboard & reports", caps: [
+    { cap: "view_dashboard", label: "View dashboard" },
+    { cap: "view_reports", label: "View & download reports" },
+    { cap: "view_payroll", label: "View payroll" },
+    { cap: "view_flags", label: "View flagged events" },
+  ] },
   { group: "Attendance", caps: [
     { cap: "mark_attendance", label: "Log attendance" },
     { cap: "submit_attendance", label: "Submit attendance" },
@@ -24,6 +29,7 @@ const PERMISSION_GROUPS: { group: string; caps: { cap: Capability; label: string
   ] },
   { group: "Overtime", caps: [
     { cap: "view_overtime", label: "View overtime" },
+    { cap: "recommend_overtime", label: "Recommend overtime" },
     { cap: "approve_overtime", label: "Approve overtime" },
   ] },
   { group: "Employees", caps: [
@@ -31,10 +37,11 @@ const PERMISSION_GROUPS: { group: string; caps: { cap: Capability; label: string
     { cap: "add_designation", label: "Add designations" },
     { cap: "delete_worker", label: "Delete employees" },
   ] },
-  { group: "Org & sites", caps: [
+  { group: "Org, sites & stations", caps: [
     { cap: "view_org", label: "View branches & sites" },
     { cap: "manage_sites", label: "Manage sites" },
-    { cap: "manage_org", label: "Manage branches & stations" },
+    { cap: "manage_org", label: "Manage branches" },
+    { cap: "manage_stations", label: "Manage stations / kiosk" },
   ] },
   { group: "Users", caps: [{ cap: "manage_users", label: "Manage user accounts" }] },
   { group: "Requests", caps: [
