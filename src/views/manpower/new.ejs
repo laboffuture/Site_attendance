@@ -47,10 +47,10 @@
         <div class="oh-frow oh-role-row">
           <label class="oh-frow__label">Role</label>
           <div class="oh-frow__field oh-frow__pair">
-            <select class="oh-select" name="lineDesignationId" aria-label="Designation">
+            <select class="oh-select" name="lineDesignationId" aria-label="Designation" style="flex:1 1 auto;min-width:0">
               <% designations.forEach(function (d) { %><option value="<%= String(d._id) %>"><%= d.name %></option><% }); %>
             </select>
-            <input class="oh-input" type="number" name="lineQty" min="1" value="1" aria-label="Quantity" style="max-width:100px" />
+            <input class="oh-input" type="number" name="lineQty" min="1" value="1" aria-label="Quantity" title="How many of this role" style="flex:0 0 84px;width:84px;text-align:center" />
             <button type="button" class="oh-btn oh-btn--small oh-role-row__remove" aria-label="Remove role">Remove</button>
           </div>
         </div>
