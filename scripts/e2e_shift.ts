@@ -60,9 +60,12 @@ async function main(): Promise<void> {
   const r3 = await recordScan(worker2, siteArg as never, branch.name);
   assert("scan >20h after a stale open record → new in (not out)", r3.action === "in");
 
-  // Same-day re-scan AFTER a session closed → updates Out (last-scan-wins).
+  // Same-day re-scan AFTER a session closed → toggles back to IN (punch-clock:
+  // worker went out and came back). First In stays; the next scan is the Out.
   const r4 = await recordScan(worker, siteArg as never, branch.name);
-  assert("same-day re-scan after close → out (last-scan-wins)", r4.action === "out");
+  assert("same-day re-scan after close → in (re-open / coming back)", r4.action === "in");
+  const r5 = await recordScan(worker, siteArg as never, branch.name);
+  assert("scan after re-open → out again (last Out wins)", r5.action === "out");
 
   await Promise.all([
     AttendanceModel.deleteMany({ workerId: { $in: [worker._id, worker2._id] } }),
