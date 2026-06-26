@@ -177,7 +177,7 @@ async function main(): Promise<void> {
   assert("supervisor GET /payroll → 403", (await sup.get("/payroll")).status === 403);
   assert("supervisor GET /stations → 200 (kiosk key + share)", (await sup.get("/stations")).status === 200);
   assert("supervisor GET /users → 403 (no user management)", (await sup.get("/users")).status === 403);
-  assert("supervisor GET /flags → 403", (await sup.get("/flags")).status === 403);
+  assert("supervisor GET /flags → 200 (site-scoped flag queue, fixable inline)", (await sup.get("/flags")).status === 200);
 
   // Cleanup.
   await Promise.all([

@@ -62,7 +62,7 @@ const CAPABILITY_ROLES: Record<Capability, Role[]> = {
   view_dashboard: ALL, // home dashboard (scoped per role)
   view_reports: ALL, // view + download reports (all roles)
   view_payroll: ["management", "hr"], // payroll run + money — admins only
-  view_flags: ["management", "hr"], // spoof/geofence flags queue — admins only
+  view_flags: ["management", "hr", "pm", "supervisor"], // flags queue — Mgmt/HR see all; PM/Supervisor site-scoped (revocable per-user)
   mark_attendance: ["hr", "pm", "supervisor"], // who LOGS attendance; Management verifies, not logs
   enroll_worker: ALL, // register/enrol workers (incl. field face-enrolment)
   add_designation: ["management", "hr"],

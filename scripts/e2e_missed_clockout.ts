@@ -115,12 +115,35 @@ async function main(): Promise<void> {
   const supFlags = await sup.get("/flags");
   assert("off-site supervisor does not see the flag", !supFlags.text.includes(openWorker.name));
 
+  // --- Close the loop: fix the missed clock-out straight from the queue ---
+  const flag = await FlagEventModel.findOne({ type: "missed_clockout", attendanceId: openRec._id });
+  // Off-site supervisor (PVM) cannot fix a VBW flag.
+  const denied = await sup.post(`/flags/${flag!._id}/fix-clockout`).type("form").send({ outHM: "18:00" });
+  assert("off-site supervisor cannot fix the flag (403)", denied.status === 403);
+
+  // In-scope supervisor (VBW) now sees it AND can fix it.
+  const VSUP_EMAIL = `qa-vsup-${S}@trgbi.com`;
+  await UserModel.updateOne(
+    { email: VSUP_EMAIL },
+    { $set: { name: "QA VSup", role: "supervisor", assignedSiteIds: [vbw._id], active: true, passwordHash: await hashPassword(PW) } },
+    { upsert: true },
+  );
+  const vsup = await login(app, VSUP_EMAIL, PW);
+  assert("in-scope supervisor now sees the flag", (await vsup.get("/flags")).text.includes(openWorker.name));
+  const fix = await vsup.post(`/flags/${flag!._id}/fix-clockout`).type("form").send({ outHM: "18:30" });
+  assert("fix-clockout redirects", fix.status === 302);
+  assert("fix-clockout auto-resolves the flag", (await FlagEventModel.findById(flag!._id).lean())!.resolved === true);
+  const fixedRec = await AttendanceModel.findById(openRec._id).lean();
+  assert("fix-clockout set OUT + submitted + supervisor-filled",
+    !!fixedRec && fixedRec.outTime != null && fixedRec.attendanceStatus === "submitted" && fixedRec.outSource === "supervisor-filled");
+
   // Cleanup
   await Promise.all([
     FlagEventModel.deleteMany({ attendanceId: { $in: [openRec._id, doneRec._id, liveRec._id] } }),
     AttendanceModel.deleteMany({ empRegNo: { $in: [`QA-MO-${S}`, `QA-MD-${S}`, `QA-ML-${S}`] } }),
     WorkerModel.deleteMany({ empRegNo: { $in: [`QA-MO-${S}`, `QA-MD-${S}`, `QA-ML-${S}`] } }),
     UserModel.deleteOne({ email: SUP_EMAIL }),
+    UserModel.deleteOne({ email: VSUP_EMAIL }),
   ]);
 
   await mongoose.connection.close();

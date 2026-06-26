@@ -2,6 +2,7 @@ import { Types, type HydratedDocument } from "mongoose";
 
 import { config } from "../config";
 import { AttendanceModel, type Attendance } from "../models/Attendance";
+import { resolveMissedClockout } from "./flagResolve";
 import type { GeoCapture } from "./geo";
 import { selectShift, DEFAULT_SHIFTS, type SiteShifts, type ShiftType } from "./shift";
 import { isDuplicateKeyError } from "./validate";
@@ -207,6 +208,8 @@ async function closeSession(rec: HydratedDocument<Attendance>, lunch: number, no
     if (geo) last.outGeo = geo as never;
   }
   await rec.save();
+  // A real OUT closes the loop — clear any missed_clockout flag on this record.
+  await resolveMissedClockout(rec._id);
 
   return {
     outcome: "out",

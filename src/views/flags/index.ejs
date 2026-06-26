@@ -6,7 +6,7 @@
 
 <div class="oh-page-header">
   <h1 class="oh-page-title">Flagged events</h1>
-  <p class="oh-page-subtitle">Wrong-site scan attempts and other anomalies for your sites.</p>
+  <p class="oh-page-subtitle">Anomalies for your sites. Fix one here and its flag clears itself.</p>
 </div>
 
 <div class="oh-filter-tabs">
@@ -27,16 +27,25 @@
       <div class="oh-m-name"><%= f.workerName || f.attemptedSiteName || "—" %><% if (f.type === "forgot_submit" && f.date) { %> · <%= f.date %><% } %></div>
       <div class="oh-m-sub"><%= f.attemptedSiteName || "—" %><% if (f.homeSiteName && f.type !== "forgot_submit") { %> · assigned <%= f.homeSiteName %><% } %></div>
       <div class="oh-m-sub"><%= ts(f.timestamp) %></div>
-      <% if (f.type === "missed_clockout") { %>
-      <div class="oh-m-sub" style="margin-top:0.35rem"><a href="<%= (f.homeSiteId && f.date) ? '/regularization/' + f.homeSiteId + '/' + f.date : '/regularization' %>">Fix attendance →</a></div>
-      <% } %>
-      <% if (f.type === "forgot_submit") { %>
-      <div class="oh-m-sub" style="margin-top:0.35rem"><a href="<%= (f.homeSiteId && f.date) ? '/attendance/submit?siteId=' + f.homeSiteId + '&date=' + f.date : '/attendance/submit' %>">Submit day →</a></div>
-      <% } %>
       <% if (!showResolved) { %>
-      <form method="post" action="/flags/<%= f._id %>/resolve" class="oh-m-actions">
-        <button class="oh-btn oh-btn--small oh-btn--success" type="submit">Resolve</button>
-      </form>
+      <div class="oh-flag-fix" style="margin-top:0.5rem">
+        <% if (f.type === "missed_clockout") { %>
+        <form method="post" action="/flags/<%= f._id %>/fix-clockout" class="oh-flag-fix__form">
+          <input class="oh-input oh-input--time" type="time" name="outHM" required aria-label="Clock-out time" />
+          <button class="oh-btn oh-btn--small oh-btn--success" type="submit">Fix &amp; resolve</button>
+        </form>
+        <% if (can("correct_attendance")) { %><a class="oh-flag-fix__more" href="<%= (f.homeSiteId && f.date) ? '/regularization/' + f.homeSiteId + '/' + f.date : '/regularization' %>">Open full editor →</a><% } %>
+        <% } else if (f.type === "forgot_submit") { %>
+        <form method="post" action="/flags/<%= f._id %>/submit-day" class="oh-flag-fix__form">
+          <button class="oh-btn oh-btn--small oh-btn--success" type="submit">Submit day &amp; resolve</button>
+        </form>
+        <% if (can("submit_attendance")) { %><a class="oh-flag-fix__more" href="<%= (f.homeSiteId && f.date) ? '/attendance/submit?siteId=' + f.homeSiteId + '&date=' + f.date : '/attendance/submit' %>">Open submit screen →</a><% } %>
+        <% } else { %>
+        <form method="post" action="/flags/<%= f._id %>/resolve" class="oh-flag-fix__form">
+          <button class="oh-btn oh-btn--small oh-btn--success" type="submit">Acknowledge</button>
+        </form>
+        <% } %>
+      </div>
       <% } %>
     </div>
     <% }); %>
@@ -58,17 +67,30 @@
         <td><%= ts(f.timestamp) %></td>
         <td>
           <span class="oh-badge oh-badge--danger"><%= typeLabel[f.type] || f.type %></span>
-          <% if (f.type === "missed_clockout") { %><div style="margin-top:0.3rem;font-size:0.8rem"><a href="<%= (f.homeSiteId && f.date) ? '/regularization/' + f.homeSiteId + '/' + f.date : '/regularization' %>">Fix attendance →</a></div><% } %>
-          <% if (f.type === "forgot_submit") { %><div style="margin-top:0.3rem;font-size:0.8rem"><a href="<%= (f.homeSiteId && f.date) ? '/attendance/submit?siteId=' + f.homeSiteId + '&date=' + f.date : '/attendance/submit' %>">Submit day →</a></div><% } %>
         </td>
         <td><%= f.workerName || "—" %></td>
         <td><%= f.attemptedSiteName || "—" %></td>
         <td><%= f.homeSiteName || "—" %></td>
         <% if (!showResolved) { %>
         <td class="oh-col-action">
-          <form method="post" action="/flags/<%= f._id %>/resolve" style="margin:0">
-            <button class="oh-btn oh-btn--small" type="submit">Resolve</button>
-          </form>
+          <div class="oh-flag-fix">
+            <% if (f.type === "missed_clockout") { %>
+            <form method="post" action="/flags/<%= f._id %>/fix-clockout" class="oh-flag-fix__form">
+              <input class="oh-input oh-input--time" type="time" name="outHM" required aria-label="Clock-out time" />
+              <button class="oh-btn oh-btn--small oh-btn--success" type="submit">Fix &amp; resolve</button>
+            </form>
+            <% if (can("correct_attendance")) { %><a class="oh-flag-fix__more" href="<%= (f.homeSiteId && f.date) ? '/regularization/' + f.homeSiteId + '/' + f.date : '/regularization' %>">Full editor →</a><% } %>
+            <% } else if (f.type === "forgot_submit") { %>
+            <form method="post" action="/flags/<%= f._id %>/submit-day" class="oh-flag-fix__form">
+              <button class="oh-btn oh-btn--small oh-btn--success" type="submit">Submit day &amp; resolve</button>
+            </form>
+            <% if (can("submit_attendance")) { %><a class="oh-flag-fix__more" href="<%= (f.homeSiteId && f.date) ? '/attendance/submit?siteId=' + f.homeSiteId + '&date=' + f.date : '/attendance/submit' %>">Submit screen →</a><% } %>
+            <% } else { %>
+            <form method="post" action="/flags/<%= f._id %>/resolve" style="margin:0">
+              <button class="oh-btn oh-btn--small oh-btn--success" type="submit">Acknowledge</button>
+            </form>
+            <% } %>
+          </div>
         </td>
         <% } %>
       </tr>

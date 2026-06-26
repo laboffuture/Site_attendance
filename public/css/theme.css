@@ -261,6 +261,12 @@ code {
   text-align: right;
 }
 
+/* Inline fix-and-resolve actions on the flags queue. */
+.oh-flag-fix { display: flex; flex-direction: column; gap: 0.4rem; align-items: flex-start; }
+.oh-col-action .oh-flag-fix { align-items: flex-end; }
+.oh-flag-fix__form { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; margin: 0; }
+.oh-flag-fix__more { font-size: 0.8rem; }
+
 /* ---- Inline / stacked forms ---- */
 .oh-stack > * + * {
   margin-top: 1.15rem;

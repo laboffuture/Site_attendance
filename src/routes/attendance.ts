@@ -5,6 +5,7 @@ import { requireCapability } from "../auth/middleware";
 import { seesAllSites } from "../auth/permissions";
 import type { CurrentUser } from "../auth/types";
 import { recordScan, fillOut } from "../lib/attendance";
+import { resolveMissedClockout, resolveForgotSubmit } from "../lib/flagResolve";
 import { encodeFace, bestMatch } from "../lib/face";
 import { buildGeoCapture, checkGeofence } from "../lib/geo";
 import { dataUrlToBuffer } from "../lib/image";
@@ -267,7 +268,11 @@ router.post("/attendance/submit", requireCapability("submit_attendance"), async 
     rec.submittedBy = new Types.ObjectId(user.id);
     rec.submittedAt = new Date();
     await rec.save();
+    // A filled OUT closes the loop on that record's missed_clockout flag.
+    if (rec.outTime) await resolveMissedClockout(rec._id);
   }
+  // Submitting the day closes the loop on its forgot_submit flag.
+  await resolveForgotSubmit(siteId, date);
   flash(req, "success", `Submitted ${records.length} record(s)${filled ? ` · ${filled} clock-out${filled > 1 ? "s" : ""} filled` : ""} for ${date}.`);
   res.redirect(`/attendance/submit?siteId=${siteId}&date=${date}`);
 });

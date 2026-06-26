@@ -141,6 +141,23 @@ async function main(): Promise<void> {
   assert("supervisor filled the forgotten OUT (8h std, supervisor-filled, submitted)", !!filled!.outTime && filled!.outSource === "supervisor-filled" && filled!.attendanceStatus === "submitted" && filled!.totalHours === 9 && filled!.standardHours === 8);
   assert("OUT-fill is audited", (filled!.corrections?.length ?? 0) >= 1 && filled!.corrections.some((c) => c.field === "outTime"));
 
+  // --- Phase 6: forgot_submit flag → "Submit day" from the queue submits + resolves ---
+  const fsDate = "2002-02-02";
+  const wFS = await mkWorker(`QA-LS-FS-${S}`, siteB);
+  await AttendanceModel.create({
+    date: fsDate, workerId: wFS._id, empRegNo: wFS.empRegNo, workerName: wFS.name,
+    designationId: desig, designationName: "Carpenter",
+    siteId: siteB._id, siteName: siteB.name, branchId: branch._id, branchName: "QA",
+    inTime: istDateTime(fsDate, "08:00"), outTime: istDateTime(fsDate, "17:00"), shiftType: "day", source: "scan",
+    attendanceStatus: "scanned",
+  });
+  const fsFlag = await FlagEventModel.create({ type: "forgot_submit", attemptedSiteId: siteB._id, attemptedSiteName: siteB.name, homeSiteId: siteB._id, homeSiteName: siteB.name, date: fsDate });
+  assert("supervisor sees the forgot_submit flag for their site", (await sup.get("/flags")).text.includes(fsDate));
+  const sd = await sup.post(`/flags/${fsFlag._id}/submit-day`).type("form").send({});
+  assert("submit-day redirects", sd.status === 302);
+  assert("submit-day auto-resolves the forgot_submit flag", (await FlagEventModel.findById(fsFlag._id).lean())!.resolved === true);
+  assert("submit-day submitted the scanned record", (await AttendanceModel.findOne({ workerId: wFS._id }).lean())!.attendanceStatus === "submitted");
+
   // Cleanup
   await Promise.all([
     UserModel.deleteOne({ email: SUP_EMAIL }),
@@ -148,6 +165,7 @@ async function main(): Promise<void> {
     BranchModel.deleteOne({ _id: branch._id }),
     WorkerModel.deleteMany({ empRegNo: new RegExp(`QA-LS-.*-${S}`) }),
     AttendanceModel.deleteMany({ empRegNo: new RegExp(`QA-LS-.*-${S}`) }),
+    FlagEventModel.deleteMany({ attemptedSiteId: { $in: [siteA._id, siteB._id, siteC._id] } }),
   ]);
 
   await mongoose.connection.close();

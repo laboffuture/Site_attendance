@@ -3,6 +3,7 @@ import { Types, type HydratedDocument } from "mongoose";
 
 import { requireCapability } from "../auth/middleware";
 import { reckonHours } from "../lib/attendance";
+import { resolveMissedClockout } from "../lib/flagResolve";
 import { canUseSite, siteScopeFilter } from "../lib/scope";
 import { istHM, istDateTime } from "../lib/time";
 import { AttendanceModel, type Attendance } from "../models/Attendance";
@@ -206,6 +207,8 @@ router.post("/regularization/worker/:attendanceId/correct", requireCapability("c
   await recompute(rec);
   reRecommend(rec, uid);
   await rec.save();
+  // If the correction filled the missing OUT, clear the record's missed_clockout flag.
+  if (rec.outTime) await resolveMissedClockout(rec._id);
   flash(req, "success", `Corrected ${rec.workerName}.`);
   res.redirect(`/regularization/${rec.siteId}/${rec.date}`);
 });
