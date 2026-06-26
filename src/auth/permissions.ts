@@ -86,7 +86,7 @@ const CAPABILITY_ROLES: Record<Capability, Role[]> = {
   view_regularization: ["management", "hr", "pm"],
   recommend_attendance: ["hr", "pm"], // HR + PM recommend…
   approve_attendance: ["management"], // …Management is the last to close
-  correct_attendance: ["hr"], // HR-only: fix a missing/wrong punch; Management still approves the day
+  correct_attendance: ["management", "hr"], // fix a missing/wrong punch, void, manual day (Mgmt + HR; revocable per-user)
   // Allocate Manpower: PM/Supervisor raise requests for their site; Management/HR allocate.
   view_manpower: ["management", "hr", "pm", "supervisor"],
   request_manpower: ["management", "hr", "pm", "supervisor"],

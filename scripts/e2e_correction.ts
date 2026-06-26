@@ -76,10 +76,11 @@ async function main(): Promise<void> {
   assert("manual day hours computed (9h span → 8 std, 0 OT)", newRec!.totalHours === 9 && newRec!.standardHours === 8 && (newRec!.overtime?.computedHours ?? -1) === 0);
   assert("manual day audited (create entry)", (newRec!.corrections?.length ?? 0) >= 1 && newRec!.corrections.some((c) => c.field === "create"));
 
-  // Management is NOT allowed to correct (HR-only).
+  // Management can now use the full correction editor too (Management + HR).
   const mgmt = await login(app, MGMT_EMAIL);
-  const denied = await mgmt.post(`/regularization/worker/${openRec._id}/correct`).type("form").send({ outHM: "18:00" });
-  assert("Management blocked from correcting (403)", denied.status === 403);
+  const mgmtFix = await mgmt.post(`/regularization/worker/${openRec._id}/correct`).type("form").send({ outHM: "18:00", reason: "Mgmt close-out" });
+  assert("Management can correct attendance (302, not 403)", mgmtFix.status === 302);
+  assert("Management's correction set the OUT", (await AttendanceModel.findById(openRec._id).lean())!.outTime != null);
 
   await Promise.all([
     AttendanceModel.deleteMany({ siteId: site._id }),

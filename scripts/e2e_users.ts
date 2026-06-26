@@ -125,9 +125,9 @@ async function main(): Promise<void> {
   assert("PM can request manpower", can("pm", "request_manpower"));
   assert("Supervisor sees manpower (scoped)", can("supervisor", "view_manpower"));
 
-  // Attendance correction is HR-only (Management still approves the day).
+  // Attendance correction (full editor: fix punch, void, manual day) is Management + HR.
   assert("HR can correct attendance", can("hr", "correct_attendance"));
-  assert("Management cannot correct attendance", !can("management", "correct_attendance"));
+  assert("Management can correct attendance (full editor)", can("management", "correct_attendance"));
   assert("PM cannot correct attendance", !can("pm", "correct_attendance"));
   assert("Supervisor cannot correct attendance", !can("supervisor", "correct_attendance"));
 
