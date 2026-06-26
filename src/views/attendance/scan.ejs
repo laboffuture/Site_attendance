@@ -27,11 +27,15 @@
         <% } else { %>
         <div class="oh-scan-split">
           <div class="oh-scan-stage">
+            <div class="oh-scan-actions oh-scan-io" style="margin-bottom:0.6rem">
+              <button id="att-in" type="button" class="oh-btn oh-btn--success oh-io-btn">Clock IN</button>
+              <button id="att-out" type="button" class="oh-btn oh-btn--secondary oh-io-btn">Clock OUT</button>
+            </div>
             <div class="oh-scan-stage__video-frame">
               <video id="video" class="oh-kiosk__video" autoplay playsinline muted></video>
               <canvas id="canvas" hidden></canvas>
             </div>
-            <div id="result" class="oh-result oh-result--idle">Pick the site you're at, then step up — auto-scan is on.</div>
+            <div id="result" class="oh-result oh-result--idle">Pick Clock IN or Clock OUT and your site, then step up.</div>
             <div class="oh-scan-actions">
               <button id="autoToggle" type="button" class="oh-btn oh-btn--small oh-autotoggle is-on" data-on="1">Auto-scan: On</button>
               <button id="scanBtn" class="oh-btn oh-btn--secondary oh-scan-btn">Scan now</button>

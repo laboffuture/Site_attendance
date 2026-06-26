@@ -18,10 +18,10 @@
       <main class="oh-kiosk__main">
         <video id="video" class="oh-kiosk__video" autoplay playsinline muted></video>
         <canvas id="canvas" hidden></canvas>
-        <div id="result" class="oh-result oh-result--idle">Ready — step up and face the camera. Auto-scan is on.</div>
-        <div class="oh-scan-actions">
-          <button id="autoToggle" type="button" class="oh-btn oh-btn--small oh-autotoggle is-on" data-on="1">Auto-scan: On</button>
-          <button id="scanBtn" class="oh-btn oh-btn--secondary oh-scan-btn">Scan now</button>
+        <div id="result" class="oh-result oh-result--idle">Pick Clock In or Clock Out, then face the camera.</div>
+        <div class="oh-scan-actions oh-scan-actions--pick">
+          <button id="mp-in" type="button" class="oh-pick oh-pick--in">Clock In</button>
+          <button id="mp-out" type="button" class="oh-pick oh-pick--out">Clock Out</button>
         </div>
         <p id="camNote" class="oh-muted"></p>
       </main>

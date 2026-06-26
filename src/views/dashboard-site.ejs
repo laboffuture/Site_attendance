@@ -100,7 +100,7 @@
       <tr>
         <td><%= ts(f.timestamp) %></td>
         <td data-label="Worker"><%= f.workerName || "—" %></td>
-        <td data-label="Type"><%= f.type === "wrong_site_scan" ? "Wrong site" : f.type === "missed_clockout" ? "Missed clock-out" : f.type %></td>
+        <td data-label="Type"><%= f.type === "wrong_site_scan" ? "Wrong site" : f.type === "missed_clockout" ? "Missed clock-out" : f.type === "forgot_submit" ? "Forgot to submit" : f.type %></td>
         <td data-label="Assigned to"><%= f.homeSiteName || "—" %></td>
       </tr>
       <% }); %>

@@ -12,10 +12,13 @@
   var geoNote = document.getElementById("geoNote");
   var siteSelect = document.getElementById("siteSelect");
   var autoToggle = document.getElementById("autoToggle");
+  var inBtn = document.getElementById("att-in");
+  var outBtn = document.getElementById("att-out");
   if (!scanBtn) return; // no sites assigned
 
   var lastGeo = null; // most recent fix, reused by the scan post
   var geoOk = false;  // is the picked site allowed right now (geofence)?
+  var selectedAction = null; // "in" | "out" — set by the IN/OUT selector; persists across workers
   function autoOn() { return autoToggle ? autoToggle.getAttribute("data-on") === "1" : true; }
 
   function show(cls, text) {
@@ -127,6 +130,12 @@
       case "no_face":
         show("warn", "No face detected — center the face and tap Scan again.");
         break;
+      case "already_in":
+        show("warn", data.workerName + " is already clocked in" + (data.time ? " since " + data.time : "") + ".");
+        break;
+      case "not_clocked_in":
+        show("warn", data.workerName + " is not clocked in — choose Clock In to clock them in.");
+        break;
       default:
         show("error", data.message || "Something went wrong. Try again.");
     }
@@ -135,6 +144,7 @@
   // One scan: capture the current frame + GPS and POST it. Used by the manual
   // button AND by the live auto-scan loop.
   function doScan() {
+    if (!selectedAction) { show("warn", "Pick Clock In or Clock Out first."); return Promise.resolve(); }
     if (!video.videoWidth) { show("warn", "Camera not ready yet."); return Promise.resolve(); }
     scanBtn.disabled = true;
     show("idle", "Scanning…");
@@ -144,7 +154,7 @@
         canvas.height = video.videoHeight;
         canvas.getContext("2d").drawImage(video, 0, 0);
         var dataUrl = canvas.toDataURL("image/jpeg", 0.9);
-        var body = "photoData=" + encodeURIComponent(dataUrl) + "&siteId=" + encodeURIComponent(siteSelect.value);
+        var body = "photoData=" + encodeURIComponent(dataUrl) + "&siteId=" + encodeURIComponent(siteSelect.value) + "&action=" + selectedAction;
         if (geo && geo.available) body += "&lat=" + geo.lat + "&lng=" + geo.lng + "&accuracy=" + geo.accuracy;
         return fetch("/attendance/scan", {
           method: "POST",
@@ -174,9 +184,20 @@
 
   // Live auto-scan: fire doScan when a face holds steady, gated by the geofence
   // + the toggle. Falls back silently to the manual button if the model fails.
+  // IN/OUT selector — set before scanning; persists across workers so a supervisor
+  // can log a batch (all IN, then switch to OUT). Scanning is inert until one is picked.
+  function setAction(a) {
+    selectedAction = a;
+    if (inBtn) inBtn.classList.toggle("is-on", a === "in");
+    if (outBtn) outBtn.classList.toggle("is-on", a === "out");
+    if (geoOk) show("idle", "Clock " + (a === "in" ? "IN" : "OUT") + " — face the camera" + (autoOn() ? " (auto-scan on)." : " and tap Scan."));
+  }
+  if (inBtn) inBtn.addEventListener("click", function () { setAction("in"); });
+  if (outBtn) outBtn.addEventListener("click", function () { setAction("out"); });
+
   if (window.FaceAutoScan) {
     FaceAutoScan.start(video, {
-      canScan: function () { return autoOn() && geoOk; },
+      canScan: function () { return autoOn() && geoOk && !!selectedAction; },
       onCapture: doScan,
       onStatus: function (state) {
         if (state === "holding") show("idle", "Hold still…");

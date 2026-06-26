@@ -1,7 +1,7 @@
 <%- include('../partials/app-top', { title: title, active: active }) %>
 <%
   function ts(d) { return d ? new Date(d).toLocaleString("en-GB", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" }) : ""; }
-  var typeLabel = { wrong_site_scan: "Wrong-site scan", missed_clockout: "Missed clock-out" };
+  var typeLabel = { wrong_site_scan: "Wrong-site scan", missed_clockout: "Missed clock-out", forgot_submit: "Forgot to submit" };
 %>
 
 <div class="oh-page-header">
@@ -24,11 +24,14 @@
         <span class="material-icons" style="font-size:20px;color:#b3261e;">flag</span>
         <span class="oh-m-badge oh-badge--danger"><%= typeLabel[f.type] || f.type %></span>
       </div>
-      <div class="oh-m-name"><%= f.workerName || "—" %></div>
-      <div class="oh-m-sub"><%= f.attemptedSiteName || "—" %><% if (f.homeSiteName) { %> · assigned <%= f.homeSiteName %><% } %></div>
+      <div class="oh-m-name"><%= f.workerName || f.attemptedSiteName || "—" %><% if (f.type === "forgot_submit" && f.date) { %> · <%= f.date %><% } %></div>
+      <div class="oh-m-sub"><%= f.attemptedSiteName || "—" %><% if (f.homeSiteName && f.type !== "forgot_submit") { %> · assigned <%= f.homeSiteName %><% } %></div>
       <div class="oh-m-sub"><%= ts(f.timestamp) %></div>
       <% if (f.type === "missed_clockout") { %>
       <div class="oh-m-sub" style="margin-top:0.35rem"><a href="<%= (f.homeSiteId && f.date) ? '/regularization/' + f.homeSiteId + '/' + f.date : '/regularization' %>">Fix attendance →</a></div>
+      <% } %>
+      <% if (f.type === "forgot_submit") { %>
+      <div class="oh-m-sub" style="margin-top:0.35rem"><a href="<%= (f.homeSiteId && f.date) ? '/attendance/submit?siteId=' + f.homeSiteId + '&date=' + f.date : '/attendance/submit' %>">Submit day →</a></div>
       <% } %>
       <% if (!showResolved) { %>
       <form method="post" action="/flags/<%= f._id %>/resolve" class="oh-m-actions">
@@ -56,6 +59,7 @@
         <td>
           <span class="oh-badge oh-badge--danger"><%= typeLabel[f.type] || f.type %></span>
           <% if (f.type === "missed_clockout") { %><div style="margin-top:0.3rem;font-size:0.8rem"><a href="<%= (f.homeSiteId && f.date) ? '/regularization/' + f.homeSiteId + '/' + f.date : '/regularization' %>">Fix attendance →</a></div><% } %>
+          <% if (f.type === "forgot_submit") { %><div style="margin-top:0.3rem;font-size:0.8rem"><a href="<%= (f.homeSiteId && f.date) ? '/attendance/submit?siteId=' + f.homeSiteId + '&date=' + f.date : '/attendance/submit' %>">Submit day →</a></div><% } %>
         </td>
         <td><%= f.workerName || "—" %></td>
         <td><%= f.attemptedSiteName || "—" %></td>

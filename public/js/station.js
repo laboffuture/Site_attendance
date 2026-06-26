@@ -1,17 +1,27 @@
-// Kiosk capture: snap a webcam frame, POST it to /station/scan, show the result.
+// Kiosk capture: worker picks CLOCK IN / CLOCK OUT, then a face scan POSTs to /station/scan.
 (function () {
   var video = document.getElementById("video");
   var canvas = document.getElementById("canvas");
-  var scanBtn = document.getElementById("scanBtn");
   var result = document.getElementById("result");
   var camNote = document.getElementById("camNote");
-  var autoToggle = document.getElementById("autoToggle");
-  function autoOn() { return autoToggle ? autoToggle.getAttribute("data-on") === "1" : true; }
+  var inBtn = document.getElementById("mp-in");
+  var outBtn = document.getElementById("mp-out");
+
+  var selectedAction = null; // "in" | "out" — must be set before any scan/POST
+  var scanning = false;      // guards against overlapping captures
+  var autoLive = false;      // face auto-scan loaded & running
+  var camReady = true;
+  var auto = null;
+
+  var IDLE_TEXT = "Pick Clock In or Clock Out, then face the camera.";
+
+  function actionLabel(a) { return a === "in" ? "CLOCK IN" : "CLOCK OUT"; }
 
   function show(cls, text) {
     result.className = "oh-result oh-result--" + cls;
     result.textContent = text;
   }
+  function showIdle() { show("idle", IDLE_TEXT); }
 
   // A big, unmistakable standing-state card for a wall-mounted kiosk:
   // bold headline ("CLOCKED IN"/"CLOCKED OUT") + a name/time detail line.
@@ -28,17 +38,32 @@
     result.appendChild(sub);
   }
 
+  function setButtonsDisabled(d) {
+    if (inBtn) inBtn.disabled = d;
+    if (outBtn) outBtn.disabled = d;
+  }
+  function markActive(a) {
+    if (inBtn) inBtn.classList.toggle("is-active", a === "in");
+    if (outBtn) outBtn.classList.toggle("is-active", a === "out");
+  }
+  function clearAction() {
+    selectedAction = null;
+    markActive(null);
+  }
+
   if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
     navigator.mediaDevices
       .getUserMedia({ video: { width: 640, height: 480 } })
       .then(function (stream) { video.srcObject = stream; })
       .catch(function () {
+        camReady = false;
         camNote.textContent = "Camera unavailable. Check permissions and reload.";
-        scanBtn.disabled = true;
+        setButtonsDisabled(true);
       });
   } else {
+    camReady = false;
     camNote.textContent = "Camera not supported in this browser.";
-    scanBtn.disabled = true;
+    setButtonsDisabled(true);
   }
 
   // Best-effort GPS — captured if the device allows it; never blocks a scan.
@@ -70,6 +95,12 @@
         showCard("out", "CLOCKED OUT", data.workerName + " — at " + data.time + " · Total " + data.totalHours + "h" + ot + locText(data));
         break;
       }
+      case "already_in":
+        showCard("warn", "ALREADY CLOCKED IN", data.workerName + " — already clocked in" + (data.time ? " since " + data.time : "") + ".");
+        break;
+      case "not_clocked_in":
+        showCard("warn", "NOT CLOCKED IN", data.workerName + " — not clocked in (tap Clock In).");
+        break;
       case "wrong_site":
         show("error", "✗ " + data.workerName + " is assigned to " + data.homeSite + ", not " + data.thisSite + ". Scan rejected and flagged.");
         break;
@@ -77,25 +108,33 @@
         show("warn", "Face not recognized. Please try again or see your supervisor.");
         break;
       case "no_face":
-        show("warn", "No face detected — center your face and tap Scan again.");
+        show("warn", "No face detected — center your face and tap Clock In or Clock Out again.");
         break;
       default:
         show("error", data.message || "Something went wrong. Try again.");
     }
   }
 
-  // One scan: snap the frame + GPS and POST it. Used by the button + auto-scan.
+  // One scan: snap the frame + GPS and POST it WITH the chosen action.
+  // Never POSTs without an action — both this guard and FaceAutoScan's canScan
+  // gate on selectedAction, and the body always carries &action=.
   function doScan() {
+    if (!selectedAction) { showIdle(); return Promise.resolve(); }
+    if (scanning) return Promise.resolve();
     if (!video.videoWidth) { show("warn", "Camera not ready yet."); return Promise.resolve(); }
+
+    var action = selectedAction; // pin it for the body before clearAction() runs
+    scanning = true;
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     canvas.getContext("2d").drawImage(video, 0, 0);
     var dataUrl = canvas.toDataURL("image/jpeg", 0.9);
 
-    scanBtn.disabled = true;
-    show("idle", "Scanning…");
+    setButtonsDisabled(true);
+    show("idle", "Scanning to " + actionLabel(action) + "…");
     return getLocation().then(function (loc) {
-      var body = "photoData=" + encodeURIComponent(dataUrl);
+      var body = "photoData=" + encodeURIComponent(dataUrl) +
+                 "&action=" + encodeURIComponent(action);
       if (loc) {
         body += "&lat=" + encodeURIComponent(loc.lat) +
                 "&lng=" + encodeURIComponent(loc.lng) +
@@ -113,30 +152,50 @@
       })
       .then(function (data) { if (data) render(data); })
       .catch(function () { show("error", "Network error. Try again."); })
-      .finally(function () { scanBtn.disabled = false; });
+      .finally(function () {
+        scanning = false;
+        setButtonsDisabled(!camReady);
+        clearAction(); // back to the idle two-button state — the next worker picks again
+      });
   }
 
-  scanBtn.addEventListener("click", doScan);
-
-  if (autoToggle) {
-    autoToggle.addEventListener("click", function () {
-      var on = autoToggle.getAttribute("data-on") === "1";
-      autoToggle.setAttribute("data-on", on ? "0" : "1");
-      autoToggle.textContent = on ? "Auto-scan: Off" : "Auto-scan: On";
-      autoToggle.classList.toggle("is-on", !on);
-    });
+  // Tapping CLOCK IN / CLOCK OUT selects the action and (re)starts the capture.
+  function pick(action) {
+    if (!camReady || scanning) return;
+    selectedAction = action;
+    markActive(action);
+    show("idle", "Hold still — clocking " + (action === "in" ? "in" : "out") + "…");
+    if (auto && auto.rearm) auto.rearm();
+    if (!autoLive) doScan(); // no live face detection → capture immediately
   }
 
-  // Live auto-scan: fire a scan when a worker's face holds steady, then wait
-  // until they step away before re-arming. Manual button stays as a fallback.
+  if (inBtn) inBtn.addEventListener("click", function () { pick("in"); });
+  if (outBtn) outBtn.addEventListener("click", function () { pick("out"); });
+
+  // Live auto-scan: fires a scan when a worker's face holds steady, then waits
+  // until they step away before re-arming. It is gated on a chosen action, so it
+  // can never POST until a button has been tapped.
   if (window.FaceAutoScan) {
-    FaceAutoScan.start(video, {
-      canScan: function () { return autoOn(); },
+    auto = FaceAutoScan.start(video, {
+      canScan: function () { return !!selectedAction && !scanning; },
       onCapture: doScan,
       onStatus: function (state) {
-        if (state === "holding") show("idle", "Hold still…");
-        else if (state === "capturing") show("idle", "Scanning…");
-        else if (state === "ready" || state === "searching") show("idle", autoOn() ? "Step up and face the camera — auto-scan is on." : "Face the camera and tap Scan.");
+        if (state === "error") { autoLive = false; return; }
+        autoLive = true;
+        if (state === "capturing") return; // doScan owns the on-screen message
+        if (state === "holding") {
+          if (selectedAction) show("idle", "Hold still…");
+          return;
+        }
+        if (state === "ready" || state === "searching") {
+          if (selectedAction) show("idle", "Face the camera to clock " + (selectedAction === "in" ? "in" : "out") + "…");
+          else showIdle();
+          return;
+        }
+        if (state === "blocked") {
+          // No action picked yet — keep a fresh result card visible, else prompt.
+          if (!selectedAction && !result.classList.contains("oh-result--card")) showIdle();
+        }
       },
     });
   }
