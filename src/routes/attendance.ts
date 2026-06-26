@@ -194,19 +194,26 @@ router.post("/attendance/scan", requireCapability("mark_attendance"), async (req
   }
 
   const branch = await BranchModel.findById(site.branchId).lean();
+  // Explicit action — validated after the geofence + match + location-lock checks.
+  const action = String(req.body.action);
+  if (action !== "in" && action !== "out") {
+    return res.json({ status: "error", message: "Pick Clock In or Clock Out." });
+  }
   const result = await recordScan(
     { _id: worker._id, empRegNo: worker.empRegNo, name: worker.name, designationId: worker.designationId, designationName: worker.designationName },
     site,
     branch?.name ?? "",
+    action,
     geo,
   );
 
+  const punched = result.outcome === "in" || result.outcome === "out";
   res.json({
-    status: result.action, // "in" | "out"
+    status: result.outcome, // in | out | already_in | not_clocked_in
     workerName: worker.name,
     empRegNo: worker.empRegNo,
-    time: istHM(result.action === "in" ? result.inTime : result.outTime),
-    totalHours: result.totalHours,
+    time: result.outcome === "in" ? istHM(result.inTime) : result.outcome === "out" ? istHM(result.outTime) : null,
+    totalHours: punched ? result.totalHours : null,
     overtimeHours: round2(result.overtimeHours),
     overtimeStatus: result.overtimeStatus,
     geo: { available: geo.available, distanceMeters: geo.distanceMeters },

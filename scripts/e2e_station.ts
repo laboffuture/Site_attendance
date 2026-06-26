@@ -38,8 +38,8 @@ function blankDataUrl(): string {
   const out = jpeg.encode({ data: Buffer.alloc(w * h * 4, 255), width: w, height: h }, 90);
   return "data:image/jpeg;base64," + Buffer.from(out.data).toString("base64");
 }
-function scan(agent: ReturnType<typeof request.agent>, dataUrl: string) {
-  return agent.post("/station/scan").set("Accept", "application/json").type("form").send({ photoData: dataUrl });
+function scan(agent: ReturnType<typeof request.agent>, dataUrl: string, action: "in" | "out" = "in") {
+  return agent.post("/station/scan").set("Accept", "application/json").type("form").send({ photoData: dataUrl, action });
 }
 
 async function main(): Promise<void> {
@@ -95,7 +95,7 @@ async function main(): Promise<void> {
     { workerId: y._id, date: siteLocalDate() },
     { $set: { inTime: new Date(Date.now() - 10 * 3_600_000) } },
   );
-  const r2 = (await scan(kiosk, faceDataUrl())).body;
+  const r2 = (await scan(kiosk, faceDataUrl(), "out")).body;
   assert("second scan → OUT", r2.status === "out");
   assert("OUT computed ~10h total", r2.totalHours >= 9.8 && r2.totalHours <= 10.2);
   assert("overtime booked as pending", r2.overtimeHours > 0 && r2.overtimeStatus === "pending");

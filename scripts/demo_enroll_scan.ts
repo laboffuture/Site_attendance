@@ -74,7 +74,7 @@ async function main(): Promise<void> {
   });
   const kiosk = request.agent(app);
   await kiosk.post("/station/login").type("form").send({ stationKey: key });
-  const scan = await kiosk.post("/station/scan").set("Accept", "application/json").type("form").send({ photoData: faceDataUrl() });
+  const scan = await kiosk.post("/station/scan").set("Accept", "application/json").type("form").send({ photoData: faceDataUrl(), action: "in" });
   console.log(`Station bound to : ${vbw.name}`);
   console.log(`Scan result     : ${JSON.stringify(scan.body)}`);
 

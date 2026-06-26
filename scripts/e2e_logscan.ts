@@ -79,10 +79,10 @@ async function main(): Promise<void> {
 
   // --- Phase 1: IN then OUT at the picked site ---
   const wA = await mkWorker(`QA-LS-A-${S}`, siteA);
-  const r1 = (await scan(sup, { photoData: faceUrl(), siteId: String(siteA._id) })).body;
+  const r1 = (await scan(sup, { photoData: faceUrl(), siteId: String(siteA._id), action: "in" })).body;
   assert("first scan → IN", r1.status === "in" && r1.workerName === wA.name);
   await AttendanceModel.updateOne({ workerId: wA._id, date: siteLocalDate() }, { $set: { inTime: new Date(Date.now() - 10 * 3_600_000) } });
-  const r2 = (await scan(sup, { photoData: faceUrl(), siteId: String(siteA._id) })).body;
+  const r2 = (await scan(sup, { photoData: faceUrl(), siteId: String(siteA._id), action: "out" })).body;
   assert("second scan → OUT ~10h + OT pending", r2.status === "out" && r2.totalHours >= 9.5 && r2.overtimeStatus === "pending");
   await AttendanceModel.deleteMany({ workerId: wA._id });
   await WorkerModel.deleteOne({ _id: wA._id });
@@ -102,7 +102,7 @@ async function main(): Promise<void> {
   assert("geofenced + no GPS → location_required", noFix.status === "location_required");
   const far = (await scan(sup, { photoData: faceUrl(), siteId: String(siteA._id), lat: "13.1", lng: "80.0", accuracy: "10" })).body;
   assert("geofenced + far GPS → out_of_range", far.status === "out_of_range" && far.distanceMeters > 200);
-  const near = (await scan(sup, { photoData: faceUrl(), siteId: String(siteA._id), lat: "13.0", lng: "80.0", accuracy: "10" })).body;
+  const near = (await scan(sup, { photoData: faceUrl(), siteId: String(siteA._id), lat: "13.0", lng: "80.0", accuracy: "10", action: "in" })).body;
   assert("geofenced + near GPS → IN", near.status === "in");
   await AttendanceModel.deleteMany({ workerId: wA2._id });
   await WorkerModel.deleteOne({ _id: wA2._id });

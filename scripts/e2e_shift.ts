@@ -1,13 +1,15 @@
-/* E2E for the shift/OT engine via recordScan: an overnight session (In one
-   evening, Out next morning) attaches across midnight and computes night OT;
-   a fresh scan >20h after a stale open record starts a NEW session. Self-
-   contained; cleans up. Run: npm run e2e:shift */
+/* E2E for the EXPLICIT-action scan engine (recordScan with action "in"|"out").
+   Covers: explicit IN/OUT, already_in (no dup), not_clocked_in, reopen/come-back,
+   a real 24h shift closing on explicit OUT, and the Teja fix — a prior-day open
+   record + IN today => a NEW IN, yesterday left untouched. Self-contained; cleans
+   up. Run: npm run e2e:shift */
 import mongoose, { Types } from "mongoose";
 
 import { connectDb } from "../src/db";
 import * as db from "../src/db";
 import { recordScan } from "../src/lib/attendance";
 import { DEFAULT_SHIFTS } from "../src/lib/shift";
+import { siteLocalDate } from "../src/lib/time";
 import { BranchModel, ProjectSiteModel, AttendanceModel } from "../src/models";
 
 const S = Date.now().toString(36);
@@ -27,68 +29,65 @@ async function main(): Promise<void> {
     standardStartTime: "08:00", standardEndTime: "17:00", shifts: DEFAULT_SHIFTS,
   });
   const siteArg = { _id: site._id, name: site.name, branchId: branch._id, shifts: DEFAULT_SHIFTS };
+  const today = siteLocalDate();
   const worker = { _id: new Types.ObjectId(), empRegNo: `QA-SH-${S}`, name: `QA Sh ${S}`, designationId: new Types.ObjectId(), designationName: "Carpenter" };
 
-  // First scan → IN (no open session yet)
-  const r1 = await recordScan(worker, siteArg as never, branch.name);
-  assert("first scan → in", r1.action === "in");
-  const rec = await AttendanceModel.findOne({ workerId: worker._id, outTime: null });
-  assert("open record created with a shiftType", !!rec && !!rec.shiftType);
+  // Explicit IN
+  const r1 = await recordScan(worker, siteArg as never, branch.name, "in");
+  assert("explicit IN → outcome in", r1.outcome === "in");
+  const rec = await AttendanceModel.findOne({ workerId: worker._id, date: today });
+  assert("open record created with a shiftType", !!rec && !!rec.shiftType && rec.outTime == null);
 
-  // A rapid re-scan within the debounce window must NOT toggle to OUT.
-  const rDup = await recordScan(worker, siteArg as never, branch.name);
-  assert("rapid re-scan stays IN (debounced)", rDup.action === "in");
-  assert("debounced re-scan left the record open", !!(await AttendanceModel.findOne({ workerId: worker._id, outTime: null })));
+  // IN again while already open → already_in (no duplicate)
+  const rDup = await recordScan(worker, siteArg as never, branch.name, "in");
+  assert("IN while already in → already_in", rDup.outcome === "already_in");
+  assert("no duplicate record created", (await AttendanceModel.countDocuments({ workerId: worker._id, date: today })) === 1);
 
-  // A genuine ~24h continuous shift: IN backdated 24h, the OUT must still attach.
-  const wLong = { _id: new Types.ObjectId(), empRegNo: `QA-LONG-${S}`, name: `QA Long ${S}`, designationId: new Types.ObjectId(), designationName: "Carpenter" };
-  await recordScan(wLong, siteArg as never, branch.name);
-  await AttendanceModel.updateOne({ workerId: wLong._id, outTime: null }, { $set: { inTime: new Date(Date.now() - 24 * 3_600_000) } });
-  const rLong = await recordScan(wLong, siteArg as never, branch.name);
-  assert("24h-old IN still attaches an OUT (26h window)", rLong.action === "out");
-
-  // Simulate a night shift: backdate the In to 11h ago and tag it night, so the
-  // Out (now) lands beyond the 9h window → ~2h OT (2 <= 5 threshold → no break).
-  const inAt = new Date(Date.now() - 11 * 3_600_000);
-  await AttendanceModel.updateOne({ _id: rec!._id }, { $set: { inTime: inAt, shiftType: "night" } });
-
-  // Second scan → OUT, attaches to the open session across the gap
-  const r2 = await recordScan(worker, siteArg as never, branch.name);
-  assert("second scan → out (session matched)", r2.action === "out");
-  assert("total ~11h", near(r2.totalHours, 11));
-  assert("night OT ~2h, no break (2<5)", near(r2.overtimeHours, 2) && r2.overtimeStatus === "pending");
+  // Backdate the In 11h + tag night, then explicit OUT closes it.
+  await AttendanceModel.updateOne({ _id: rec!._id }, { $set: { inTime: new Date(Date.now() - 11 * 3_600_000), shiftType: "night" } });
+  const r2 = await recordScan(worker, siteArg as never, branch.name, "out");
+  assert("explicit OUT → out, ~11h total, ~2h OT pending", r2.outcome === "out" && near(r2.totalHours, 11) && near(r2.overtimeHours, 2) && r2.overtimeStatus === "pending");
   const closed = await AttendanceModel.findById(rec!._id);
-  assert("record closed with outTime + breakHours set", !!closed && !!closed.outTime && closed.breakHours != null);
+  assert("closed: outTime + breakHours set, outSource=scanned", !!closed!.outTime && closed!.breakHours != null && closed!.outSource === "scanned");
 
-  // A stale open record >20h old must NOT capture a new scan. Use a FRESH
-  // worker (no record today) so this isolates the 20h-lookback boundary.
-  const worker2 = { _id: new Types.ObjectId(), empRegNo: `QA-SH2-${S}`, name: `QA Sh2 ${S}`, designationId: new Types.ObjectId(), designationName: "Carpenter" };
-  await AttendanceModel.create({
-    date: "2000-01-01", workerId: worker2._id, empRegNo: worker2.empRegNo, workerName: worker2.name,
-    designationId: worker2.designationId, designationName: "Carpenter",
-    siteId: site._id, siteName: site.name, branchId: branch._id, branchName: branch.name,
-    inTime: new Date(Date.now() - 30 * 3_600_000), shiftType: "day", source: "scan",
-  });
-  const r3 = await recordScan(worker2, siteArg as never, branch.name);
-  assert("scan >20h after a stale open record → new in (not out)", r3.action === "in");
-
-  // Same-day re-scan AFTER a session closed → toggles back to IN (punch-clock:
-  // worker went out and came back). Backdate the Out past the debounce window so
-  // the return scan is a real re-entry, not an accidental double-tap.
+  // OUT again when not clocked in (closed, beyond debounce) → not_clocked_in (no change).
   await AttendanceModel.updateOne({ _id: rec!._id }, { $set: { outTime: new Date(Date.now() - 120_000) } });
-  const r4 = await recordScan(worker, siteArg as never, branch.name);
-  assert("same-day re-scan after close → in (re-open / coming back)", r4.action === "in");
+  const r3 = await recordScan(worker, siteArg as never, branch.name, "out");
+  assert("OUT when not clocked in → not_clocked_in", r3.outcome === "not_clocked_in");
+
+  // Come back: explicit IN re-opens (first-In stays), then OUT closes again.
+  const r4 = await recordScan(worker, siteArg as never, branch.name, "in");
+  assert("IN after close → reopen (outcome in)", r4.outcome === "in");
   const reopened = await AttendanceModel.findById(rec!._id);
-  assert("re-open clears breakHours + outSource", reopened!.breakHours == null && reopened!.outSource == null);
-  const r5 = await recordScan(worker, siteArg as never, branch.name);
-  assert("scan after re-open → out again (last Out wins)", r5.action === "out");
+  assert("reopen clears breakHours + outSource", reopened!.breakHours == null && reopened!.outSource == null);
+  const r5 = await recordScan(worker, siteArg as never, branch.name, "out");
+  assert("OUT after reopen → out", r5.outcome === "out");
   const finalRec = await AttendanceModel.findById(rec!._id);
-  assert("scanned OUT marks outSource=scanned", finalRec!.outSource === "scanned");
-  assert("sessions log has 2 punch pairs (in/out/in/out)", (finalRec!.sessions?.length ?? 0) === 2);
-  assert("first session keeps original In, last is closed", finalRec!.sessions[0].outTime != null && finalRec!.sessions[1].outTime != null);
+  assert("sessions log: 2 punch pairs, both closed", (finalRec!.sessions?.length ?? 0) === 2 && finalRec!.sessions[0].outTime != null && finalRec!.sessions[1].outTime != null);
+
+  // A real ~24h shift: IN backdated 24h, explicit OUT still closes it.
+  const wLong = { _id: new Types.ObjectId(), empRegNo: `QA-LONG-${S}`, name: `QA Long ${S}`, designationId: new Types.ObjectId(), designationName: "Carpenter" };
+  await recordScan(wLong, siteArg as never, branch.name, "in");
+  await AttendanceModel.updateOne({ workerId: wLong._id, outTime: null }, { $set: { inTime: new Date(Date.now() - 24 * 3_600_000) } });
+  const rLong = await recordScan(wLong, siteArg as never, branch.name, "out");
+  assert("24h-old open + explicit OUT → out (closes the long shift)", rLong.outcome === "out");
+
+  // THE TEJA FIX: a prior-day OPEN record + explicit IN today → a NEW IN; yesterday untouched.
+  const teja = { _id: new Types.ObjectId(), empRegNo: `QA-TEJA-${S}`, name: `QA Teja ${S}`, designationId: new Types.ObjectId(), designationName: "Carpenter" };
+  const yest = await AttendanceModel.create({
+    date: "2000-01-02", workerId: teja._id, empRegNo: teja.empRegNo, workerName: teja.name,
+    designationId: teja.designationId, designationName: "Carpenter",
+    siteId: site._id, siteName: site.name, branchId: branch._id, branchName: branch.name,
+    inTime: new Date(Date.now() - 24 * 3_600_000), outTime: null, source: "scan",
+  });
+  const rTeja = await recordScan(teja, siteArg as never, branch.name, "in");
+  assert("Teja IN today → new IN (not yesterday's OUT)", rTeja.outcome === "in" && rTeja.date === today);
+  const yestAfter = await AttendanceModel.findById(yest._id).lean();
+  assert("Teja's prior-day open record is UNTOUCHED (still open)", yestAfter!.outTime == null);
+  assert("Teja now has 2 records (yesterday + a fresh today)", (await AttendanceModel.countDocuments({ workerId: teja._id })) === 2);
 
   await Promise.all([
-    AttendanceModel.deleteMany({ workerId: { $in: [worker._id, worker2._id, wLong._id] } }),
+    AttendanceModel.deleteMany({ workerId: { $in: [worker._id, wLong._id, teja._id] } }),
     ProjectSiteModel.deleteOne({ _id: site._id }),
     BranchModel.deleteOne({ _id: branch._id }),
   ]);

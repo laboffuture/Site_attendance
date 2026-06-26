@@ -144,6 +144,13 @@ router.post("/station/scan", requireStation, async (req: Request, res: Response)
   // Capture the device GPS sent with the scan (capture-only; never blocks).
   const geo = buildGeoCapture(req.body.lat, req.body.lng, req.body.accuracy, site);
 
+  // Explicit action — validated AFTER the match + location-lock so wrong_site /
+  // unknown / no_face still short-circuit before we get here.
+  const action = String(req.body.action);
+  if (action !== "in" && action !== "out") {
+    return res.json({ status: "error", message: "Pick Clock In or Clock Out." });
+  }
+
   const result = await recordScan(
     {
       _id: worker._id,
@@ -154,15 +161,17 @@ router.post("/station/scan", requireStation, async (req: Request, res: Response)
     },
     site,
     branch?.name ?? "",
+    action,
     geo,
   );
 
+  const punched = result.outcome === "in" || result.outcome === "out";
   res.json({
-    status: result.action, // "in" | "out"
+    status: result.outcome, // in | out | already_in | not_clocked_in
     workerName: worker.name,
     empRegNo: worker.empRegNo,
-    time: istTime(result.action === "in" ? result.inTime : result.outTime!),
-    totalHours: result.totalHours,
+    time: result.outcome === "in" ? istTime(result.inTime!) : result.outcome === "out" ? istTime(result.outTime!) : null,
+    totalHours: punched ? result.totalHours : null,
     overtimeHours: round2(result.overtimeHours),
     overtimeStatus: result.overtimeStatus,
     geo: { available: geo.available, distanceMeters: geo.distanceMeters },

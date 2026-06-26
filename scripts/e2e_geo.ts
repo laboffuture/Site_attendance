@@ -81,7 +81,7 @@ async function main(): Promise<void> {
 
   // 2) Scan WITH coordinates → inGeo stored with distance.
   const r1 = await kiosk.post("/station/scan").set("Accept", "application/json").type("form")
-    .send({ photoData: faceDataUrl(), lat: String(SCAN_LAT), lng: String(SCAN_LNG), accuracy: "12" });
+    .send({ photoData: faceDataUrl(), action: "in", lat: String(SCAN_LAT), lng: String(SCAN_LNG), accuracy: "12" });
   assert("scan with GPS → in", r1.body.status === "in");
   assert("response reports geo available", r1.body.geo && r1.body.geo.available === true);
 
@@ -97,7 +97,7 @@ async function main(): Promise<void> {
 
   // 3) Second scan (Out) WITHOUT coordinates → still logs, outGeo available:false.
   const r2 = await kiosk.post("/station/scan").set("Accept", "application/json").type("form")
-    .send({ photoData: faceDataUrl() });
+    .send({ photoData: faceDataUrl(), action: "out" });
   assert("scan without GPS still logs → out", r2.body.status === "out");
   assert("response reports geo unavailable", r2.body.geo && r2.body.geo.available === false);
   const rec2 = await AttendanceModel.findOne({ workerId: w._id }).lean();
