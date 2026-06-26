@@ -49,8 +49,8 @@
       <div class="oh-frow">
         <label class="oh-frow__label">Time</label>
         <div class="oh-frow__field oh-frow__pair" style="max-width:320px">
-          <input class="oh-input" id="fromTime" type="time" name="fromTime" aria-label="From" required />
-          <input class="oh-input" id="toTime" type="time" name="toTime" aria-label="To" required />
+          <input class="oh-input oh-time24" id="fromTime" type="text" inputmode="numeric" placeholder="HH:MM" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" maxlength="5" name="fromTime" aria-label="From" required />
+          <input class="oh-input oh-time24" id="toTime" type="text" inputmode="numeric" placeholder="HH:MM" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" maxlength="5" name="toTime" aria-label="To" required />
         </div>
       </div>
       <% } %>

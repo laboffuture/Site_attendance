@@ -43,8 +43,8 @@
       <% if (canCorrect && !r.voided) { %>
       <form method="post" action="/regularization/worker/<%= r.id %>/correct" style="margin-top:0.5rem">
         <div class="oh-m-row" style="gap:0.35rem;flex-wrap:wrap">
-          <input class="oh-input oh-input--xs" type="time" name="inHM" value="<%= r.inHM %>" title="In time" />
-          <input class="oh-input oh-input--xs" type="time" name="outHM" value="<%= r.outHM %>" title="Out time" />
+          <input class="oh-input oh-input--xs oh-time24" type="text" inputmode="numeric" placeholder="HH:MM" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" maxlength="5" name="inHM" value="<%= r.inHM %>" title="In time" />
+          <input class="oh-input oh-input--xs oh-time24" type="text" inputmode="numeric" placeholder="HH:MM" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" maxlength="5" name="outHM" value="<%= r.outHM %>" title="Out time" />
           <select class="oh-select oh-input--xs" name="shiftType" title="Shift">
             <option value="day" <%= r.shiftType === "day" ? "selected" : "" %>>Day</option>
             <option value="night" <%= r.shiftType === "night" ? "selected" : "" %>>Night</option>
@@ -110,8 +110,8 @@
           <% } %>
           <% if (canCorrect && !r.voided) { %>
           <form method="post" action="/regularization/worker/<%= r.id %>/correct" class="oh-ot-actions" style="flex-wrap:wrap;margin-bottom:0.4rem">
-            <input class="oh-input oh-input--xs" type="time" name="inHM" value="<%= r.inHM %>" title="In time" />
-            <input class="oh-input oh-input--xs" type="time" name="outHM" value="<%= r.outHM %>" title="Out time" />
+            <input class="oh-input oh-input--xs oh-time24" type="text" inputmode="numeric" placeholder="HH:MM" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" maxlength="5" name="inHM" value="<%= r.inHM %>" title="In time" />
+            <input class="oh-input oh-input--xs oh-time24" type="text" inputmode="numeric" placeholder="HH:MM" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" maxlength="5" name="outHM" value="<%= r.outHM %>" title="Out time" />
             <select class="oh-select oh-input--xs" name="shiftType" title="Shift">
               <option value="day" <%= r.shiftType === "day" ? "selected" : "" %>>Day</option>
               <option value="night" <%= r.shiftType === "night" ? "selected" : "" %>>Night</option>
@@ -149,8 +149,8 @@
       <option value="">Select worker…</option>
       <% addableWorkers.forEach(function (w) { %><option value="<%= w.id %>"><%= w.name %> · <%= w.empRegNo %></option><% }); %>
     </select>
-    <input class="oh-input oh-input--time" type="time" name="inHM" required title="In time" />
-    <input class="oh-input oh-input--time" type="time" name="outHM" title="Out time (optional)" />
+    <input class="oh-input oh-time24" type="text" inputmode="numeric" placeholder="HH:MM" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" maxlength="5" name="inHM" required title="In time" />
+    <input class="oh-input oh-time24" type="text" inputmode="numeric" placeholder="HH:MM" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" maxlength="5" name="outHM" title="Out time (optional)" />
     <select class="oh-select oh-input--time" name="shiftType" title="Shift">
       <option value="day">Day</option>
       <option value="night">Night</option>

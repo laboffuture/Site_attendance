@@ -261,11 +261,18 @@ code {
   text-align: right;
 }
 
-/* Inline fix-and-resolve actions on the flags queue. */
-.oh-flag-fix { display: flex; flex-direction: column; gap: 0.4rem; align-items: flex-start; }
-.oh-col-action .oh-flag-fix { align-items: flex-end; }
-.oh-flag-fix__form { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; margin: 0; }
-.oh-flag-fix__more { font-size: 0.8rem; }
+/* 24-hour time field — strict HH:MM, no AM/PM, identical on every browser/OS. */
+.oh-time24 { font-variant-numeric: tabular-nums; letter-spacing: 0.04em; }
+.oh-time24.is-invalid { border-color: var(--c-danger); }
+
+/* Inline fix-and-resolve actions on the flags queue — one tidy, even-width column.
+   Every action is an .oh-flag-fix__form flex row; a lone button fills the column,
+   while the fix-clockout row is [HH:MM field][button] as one neat unit. */
+.oh-flag-fix { display: flex; flex-direction: column; gap: 0.45rem; align-items: stretch; min-width: 11.5rem; }
+.oh-flag-fix__form { display: flex; gap: 0.4rem; align-items: center; margin: 0; }
+.oh-flag-fix__form .oh-time24 { flex: 0 0 5.25rem; width: 5.25rem; text-align: center; }
+.oh-flag-fix__form .oh-btn { flex: 1 1 auto; justify-content: center; white-space: nowrap; }
+.oh-flag-fix__more { font-size: 0.8rem; text-align: right; }
 
 /* ---- Inline / stacked forms ---- */
 .oh-stack > * + * {

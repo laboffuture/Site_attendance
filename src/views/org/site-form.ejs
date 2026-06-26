@@ -45,8 +45,8 @@
       <div class="oh-frow">
         <label class="oh-frow__label">Day shift <span class="oh-muted">(start – end)</span></label>
         <div class="oh-frow__field oh-frow__pair">
-          <input class="oh-input" name="standardStartTime" type="time" aria-label="Day shift start" value="<%= s.standardStartTime || '09:00' %>" required />
-          <input class="oh-input" name="standardEndTime" type="time" aria-label="Day shift end" value="<%= s.standardEndTime || '18:00' %>" required />
+          <input class="oh-input oh-time24" name="standardStartTime" type="text" inputmode="numeric" placeholder="HH:MM" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" maxlength="5" aria-label="Day shift start" value="<%= s.standardStartTime || '09:00' %>" required />
+          <input class="oh-input oh-time24" name="standardEndTime" type="text" inputmode="numeric" placeholder="HH:MM" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" maxlength="5" aria-label="Day shift end" value="<%= s.standardEndTime || '18:00' %>" required />
         </div>
       </div>
       <div class="oh-frow">
@@ -54,8 +54,8 @@
         <div class="oh-frow__field">
           <label class="oh-check"><input type="checkbox" name="nightShiftEnabled" id="nightShiftEnabled" <%= s.nightShiftEnabled ? 'checked' : '' %> /> This site runs a night shift</label>
           <div class="oh-frow__pair" style="margin-top:0.5rem">
-            <input class="oh-input" name="nightStartTime" type="time" aria-label="Night shift start" value="<%= night.startTime || '' %>" />
-            <input class="oh-input" name="nightEndTime" type="time" aria-label="Night shift end" value="<%= night.endTime || '' %>" />
+            <input class="oh-input oh-time24" name="nightStartTime" type="text" inputmode="numeric" placeholder="HH:MM" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" maxlength="5" aria-label="Night shift start" value="<%= night.startTime || '' %>" />
+            <input class="oh-input oh-time24" name="nightEndTime" type="text" inputmode="numeric" placeholder="HH:MM" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" maxlength="5" aria-label="Night shift end" value="<%= night.endTime || '' %>" />
           </div>
         </div>
       </div>

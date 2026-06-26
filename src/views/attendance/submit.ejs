@@ -42,7 +42,7 @@
         <tr>
           <td><%= r.workerName %><br/><span class="oh-muted"><%= r.empRegNo %></span><% if (r.open) { %> <span class="oh-badge oh-badge--warning">open</span><% } %></td>
           <td data-label="In"><%= r.inHM || "—" %></td>
-          <td data-label="Out"><% if (r.open) { %><input class="oh-input oh-input--time" type="time" name="outHM_<%= r.workerId %>" title="Set the clock-out they missed (optional)" /><% } else { %><%= r.outHM %><% } %></td>
+          <td data-label="Out"><% if (r.open) { %><input class="oh-input oh-time24" type="text" name="outHM_<%= r.workerId %>" inputmode="numeric" placeholder="HH:MM" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" maxlength="5" title="Set the clock-out they missed (optional)" /><% } else { %><%= r.outHM %><% } %></td>
           <td data-label="OT"><%= r.otHours > 0 ? r.otHours + "h" : "—" %></td>
           <td data-label="Remark"><input class="oh-input" name="remark_<%= r.workerId %>" value="<%= r.remark %>" placeholder="optional" /></td>
         </tr>

@@ -31,7 +31,7 @@
       <div class="oh-flag-fix" style="margin-top:0.5rem">
         <% if (f.type === "missed_clockout") { %>
         <form method="post" action="/flags/<%= f._id %>/fix-clockout" class="oh-flag-fix__form">
-          <input class="oh-input oh-input--time" type="time" name="outHM" required aria-label="Clock-out time" />
+          <input class="oh-input oh-time24" type="text" name="outHM" required inputmode="numeric" placeholder="HH:MM" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" maxlength="5" aria-label="Clock-out time" />
           <button class="oh-btn oh-btn--small oh-btn--success" type="submit">Fix &amp; resolve</button>
         </form>
         <% if (can("correct_attendance")) { %><a class="oh-flag-fix__more" href="<%= (f.homeSiteId && f.date) ? '/regularization/' + f.homeSiteId + '/' + f.date : '/regularization' %>">Open full editor →</a><% } %>
@@ -76,7 +76,7 @@
           <div class="oh-flag-fix">
             <% if (f.type === "missed_clockout") { %>
             <form method="post" action="/flags/<%= f._id %>/fix-clockout" class="oh-flag-fix__form">
-              <input class="oh-input oh-input--time" type="time" name="outHM" required aria-label="Clock-out time" />
+              <input class="oh-input oh-time24" type="text" name="outHM" required inputmode="numeric" placeholder="HH:MM" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" maxlength="5" aria-label="Clock-out time" />
               <button class="oh-btn oh-btn--small oh-btn--success" type="submit">Fix &amp; resolve</button>
             </form>
             <% if (can("correct_attendance")) { %><a class="oh-flag-fix__more" href="<%= (f.homeSiteId && f.date) ? '/regularization/' + f.homeSiteId + '/' + f.date : '/regularization' %>">Full editor →</a><% } %>
@@ -86,7 +86,7 @@
             </form>
             <% if (can("submit_attendance")) { %><a class="oh-flag-fix__more" href="<%= (f.homeSiteId && f.date) ? '/attendance/submit?siteId=' + f.homeSiteId + '&date=' + f.date : '/attendance/submit' %>">Submit screen →</a><% } %>
             <% } else { %>
-            <form method="post" action="/flags/<%= f._id %>/resolve" style="margin:0">
+            <form method="post" action="/flags/<%= f._id %>/resolve" class="oh-flag-fix__form">
               <button class="oh-btn oh-btn--small oh-btn--success" type="submit">Acknowledge</button>
             </form>
             <% } %>
