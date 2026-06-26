@@ -108,8 +108,8 @@ const attendanceSchema = new Schema(
 
     // Every punch in the day (first-In/last-Out still drive pay).
     sessions: { type: [sessionSchema], default: [] },
-    // How the Out was set: a real scan vs an HR fill-in.
-    outSource: { type: String, enum: ["scanned", "hr-filled"], default: null },
+    // How the Out was set: a real scan, an HR fill-in, or a supervisor close-out at submit.
+    outSource: { type: String, enum: ["scanned", "hr-filled", "supervisor-filled"], default: null },
     // HR correction audit + lifecycle.
     corrections: { type: [correctionSchema], default: [] },
     voided: { type: Boolean, default: false },

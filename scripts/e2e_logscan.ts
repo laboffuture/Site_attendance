@@ -18,7 +18,7 @@ import { connectDb } from "../src/db";
 import * as db from "../src/db";
 import { hashPassword } from "../src/auth/password";
 import { encodeFace } from "../src/lib/face";
-import { siteLocalDate } from "../src/lib/time";
+import { siteLocalDate, istDateTime } from "../src/lib/time";
 import {
   BranchModel, ProjectSiteModel, WorkerModel, UserModel,
   AttendanceModel, FlagEventModel,
@@ -124,12 +124,30 @@ async function main(): Promise<void> {
   const offScope = (await scan(sup, { photoData: faceUrl(), siteId: String(siteC._id) })).body;
   assert("cannot scan at an unassigned site", offScope.status === "error");
 
+  // --- Phase 5: supervisor verifies + fills a forgotten clock-out at submit ---
+  const today = siteLocalDate();
+  const wFill = await mkWorker(`QA-LS-FILL-${S}`, siteB);
+  const open = await AttendanceModel.create({
+    date: today, workerId: wFill._id, empRegNo: wFill.empRegNo, workerName: wFill.name,
+    designationId: desig, designationName: "Carpenter",
+    siteId: siteB._id, siteName: siteB.name, branchId: branch._id, branchName: "QA",
+    inTime: istDateTime(today, "08:00"), outTime: null, shiftType: "day", source: "scan",
+    attendanceStatus: "scanned",
+    sessions: [{ inTime: istDateTime(today, "08:00"), outTime: null, source: "scan" }],
+  });
+  const subm = await sup.post("/attendance/submit").type("form").send({ siteId: String(siteB._id), date: today, [`outHM_${wFill._id}`]: "17:00" });
+  assert("submit with OUT-fill redirects", subm.status === 302);
+  const filled = await AttendanceModel.findById(open._id).lean();
+  assert("supervisor filled the forgotten OUT (8h std, supervisor-filled, submitted)", !!filled!.outTime && filled!.outSource === "supervisor-filled" && filled!.attendanceStatus === "submitted" && filled!.totalHours === 9 && filled!.standardHours === 8);
+  assert("OUT-fill is audited", (filled!.corrections?.length ?? 0) >= 1 && filled!.corrections.some((c) => c.field === "outTime"));
+
   // Cleanup
   await Promise.all([
     UserModel.deleteOne({ email: SUP_EMAIL }),
     ProjectSiteModel.deleteMany({ _id: { $in: [siteA._id, siteB._id, siteC._id] } }),
     BranchModel.deleteOne({ _id: branch._id }),
     WorkerModel.deleteMany({ empRegNo: new RegExp(`QA-LS-.*-${S}`) }),
+    AttendanceModel.deleteMany({ empRegNo: new RegExp(`QA-LS-.*-${S}`) }),
   ]);
 
   await mongoose.connection.close();

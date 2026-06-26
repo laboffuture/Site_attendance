@@ -55,6 +55,23 @@ export function reckonHours(
   return { totalHours: span, standardHours: round2(Math.min(paid, std)), overtimeHours: round2(Math.max(0, paid - std)) };
 }
 
+/** Fill a forgotten OUT on an open record: set outTime, recompute hours via the
+ *  shared reckoner, close the trailing open sessions[] punch, and stamp outSource.
+ *  Used by the supervisor close-out at submit (and available to HR corrections),
+ *  so the submit screen, approval screen and payslip never disagree on OT. */
+export function fillOut(rec: HydratedDocument<Attendance>, outTime: Date, lunch: number, outSource: "supervisor-filled" | "hr-filled"): void {
+  const h = reckonHours(rec.inTime, outTime, lunch);
+  rec.outTime = outTime;
+  rec.totalHours = h.totalHours;
+  rec.standardHours = h.standardHours;
+  rec.breakHours = lunch;
+  rec.outSource = outSource;
+  rec.overtime.computedHours = h.overtimeHours;
+  rec.overtime.status = h.overtimeHours > 0 ? "pending" : "none";
+  const last = rec.sessions?.[rec.sessions.length - 1];
+  if (last && last.outTime == null) last.outTime = outTime;
+}
+
 /** "IN" result — a fresh/re-opened IN, or the idempotent "already in" no-op. */
 function inState(rec: HydratedDocument<Attendance>, outcome: "in" | "already_in" = "in"): ScanResult {
   return { outcome, date: rec.date, inTime: rec.inTime, outTime: null, totalHours: null, standardHours: null, overtimeHours: 0, overtimeStatus: "none", shiftType: (rec.shiftType as ShiftType) ?? "day" };

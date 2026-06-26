@@ -4,12 +4,12 @@ import { Types } from "mongoose";
 import { requireCapability } from "../auth/middleware";
 import { seesAllSites } from "../auth/permissions";
 import type { CurrentUser } from "../auth/types";
-import { recordScan } from "../lib/attendance";
+import { recordScan, fillOut } from "../lib/attendance";
 import { encodeFace, bestMatch } from "../lib/face";
 import { buildGeoCapture, checkGeofence } from "../lib/geo";
 import { dataUrlToBuffer } from "../lib/image";
 import { canUseSite } from "../lib/scope";
-import { siteLocalDate, istHM, round2 } from "../lib/time";
+import { siteLocalDate, istHM, istDateTime, round2 } from "../lib/time";
 import { AttendanceModel } from "../models/Attendance";
 import { BranchModel } from "../models/Branch";
 import { FlagEventModel } from "../models/FlagEvent";
@@ -18,6 +18,7 @@ import { WorkerModel } from "../models/Worker";
 
 const router = Router();
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const HM_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 function flash(req: Request, type: "success" | "danger", text: string): void {
   req.session.flash = { type, text };
@@ -246,15 +247,28 @@ router.post("/attendance/submit", requireCapability("submit_attendance"), async 
     flash(req, "danger", "Pick a site you're assigned to and a valid date.");
     return res.redirect("/attendance/submit");
   }
+  const site = await ProjectSiteModel.findById(siteId).select("lunchHours").lean();
+  const lunch = typeof site?.lunchHours === "number" ? site.lunchHours : 1;
   const records = await AttendanceModel.find({ siteId, date, attendanceStatus: "scanned" });
+  let filled = 0;
   for (const rec of records) {
+    // Supervisor verifies + fills a forgotten clock-out before submitting (scoped to
+    // open records only; recomputes hours/OT via the shared reckoner, audited).
+    const outHM = String(req.body[`outHM_${rec.workerId}`] ?? "").trim();
+    if (rec.outTime == null && HM_RE.test(outHM)) {
+      fillOut(rec, istDateTime(date, outHM), lunch, "supervisor-filled");
+      rec.corrections.push({ field: "outTime", oldValue: null, newValue: outHM, by: new Types.ObjectId(user.id), at: new Date(), reason: "Supervisor filled forgotten clock-out at submit" });
+      rec.source = "manual";
+      rec.markedBy = new Types.ObjectId(user.id);
+      filled++;
+    }
     rec.attendanceStatus = "submitted";
     rec.dailyRemark = String(req.body[`remark_${rec.workerId}`] ?? "").trim() || null;
     rec.submittedBy = new Types.ObjectId(user.id);
     rec.submittedAt = new Date();
     await rec.save();
   }
-  flash(req, "success", `Submitted ${records.length} record(s) for ${date}.`);
+  flash(req, "success", `Submitted ${records.length} record(s)${filled ? ` · ${filled} clock-out${filled > 1 ? "s" : ""} filled` : ""} for ${date}.`);
   res.redirect(`/attendance/submit?siteId=${siteId}&date=${date}`);
 });
 
