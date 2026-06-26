@@ -3,7 +3,7 @@ import { Types, type HydratedDocument } from "mongoose";
 
 import { requireCapability } from "../auth/middleware";
 import { reckonHours } from "../lib/attendance";
-import { resolveMissedClockout } from "../lib/flagResolve";
+import { resolveMissedClockout, resolveForgotSubmit } from "../lib/flagResolve";
 import { canUseSite, siteScopeFilter } from "../lib/scope";
 import { istHM, istDateTime } from "../lib/time";
 import { AttendanceModel, type Attendance } from "../models/Attendance";
@@ -151,6 +151,10 @@ router.post("/regularization/worker/:attendanceId/reject", requireCapability("vi
     rec.overtime.approvedAt = new Date();
   }
   await rec.save();
+  // A rejected record is dispositioned — clear its missed_clockout, and clear the
+  // day's forgot_submit if no scanned records remain.
+  await resolveMissedClockout(rec._id);
+  await resolveForgotSubmit(rec.siteId, rec.date);
   flash(req, "success", `Rejected ${rec.workerName}.`);
   res.redirect(`/regularization/${rec.siteId}/${rec.date}`);
 });
@@ -207,8 +211,10 @@ router.post("/regularization/worker/:attendanceId/correct", requireCapability("c
   await recompute(rec);
   reRecommend(rec, uid);
   await rec.save();
-  // If the correction filled the missing OUT, clear the record's missed_clockout flag.
+  // Close the loop: a filled OUT clears the record's missed_clockout flag, and if
+  // this correction emptied the day's scanned queue, its forgot_submit clears too.
   if (rec.outTime) await resolveMissedClockout(rec._id);
+  await resolveForgotSubmit(rec.siteId, rec.date);
   flash(req, "success", `Corrected ${rec.workerName}.`);
   res.redirect(`/regularization/${rec.siteId}/${rec.date}`);
 });

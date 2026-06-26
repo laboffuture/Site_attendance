@@ -9,6 +9,7 @@
  */
 import { Types } from "mongoose";
 
+import { AttendanceModel } from "../models/Attendance";
 import { FlagEventModel } from "../models/FlagEvent";
 
 /** Resolve the missed_clockout flag tied to a record once its OUT has been set. */
@@ -19,8 +20,14 @@ export async function resolveMissedClockout(attendanceId: Types.ObjectId | strin
   );
 }
 
-/** Resolve the forgot_submit flag for a site-day once that day has been submitted. */
+/** Resolve the forgot_submit flag for a site-day — but only once NO un-submitted
+ *  (scanned) records remain for it. The flag means "this day still has scanned
+ *  records"; a single correction on a partly-submitted day must not clear it early.
+ *  Self-guarding, so it is safe to call from any route that moves a record out of
+ *  "scanned" (full submit, inline submit-day, an HR correction, or a reject). */
 export async function resolveForgotSubmit(siteId: Types.ObjectId | string, date: string): Promise<void> {
+  const remaining = await AttendanceModel.countDocuments({ siteId, date, attendanceStatus: "scanned", voided: { $ne: true } });
+  if (remaining > 0) return; // day still partly un-submitted — keep the flag
   await FlagEventModel.updateMany(
     { type: "forgot_submit", attemptedSiteId: siteId, date, resolved: false },
     { $set: { resolved: true } },

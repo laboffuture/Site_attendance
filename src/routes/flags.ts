@@ -88,6 +88,7 @@ router.post("/flags/:id/fix-clockout", requireCapability("view_flags"), async (r
     await rec.save();
   }
   await resolveMissedClockout(rec._id);
+  await resolveForgotSubmit(rec.siteId, rec.date); // if that was the day's last scanned record
   flag.resolved = true;
   await flag.save();
   flash(req, "success", `Clock-out set for ${rec.workerName} — flag resolved.`);

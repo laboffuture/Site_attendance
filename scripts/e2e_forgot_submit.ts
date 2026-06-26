@@ -6,6 +6,7 @@ import mongoose, { Types } from "mongoose";
 import { connectDb } from "../src/db";
 import * as db from "../src/db";
 import { sweepUnsubmittedDays } from "../src/lib/forgotSubmit";
+import { resolveForgotSubmit } from "../src/lib/flagResolve";
 import { siteLocalDate } from "../src/lib/time";
 import { BranchModel, ProjectSiteModel, AttendanceModel, FlagEventModel } from "../src/models";
 
@@ -38,6 +39,14 @@ async function main(): Promise<void> {
 
   await sweepUnsubmittedDays(); // idempotent
   assert("re-running does not duplicate the flag", (await FlagEventModel.countDocuments({ type: "forgot_submit", attemptedSiteId: site._id, date: "2001-05-05" })) === 1);
+
+  // resolveForgotSubmit is self-guarding: it must NOT clear the flag while a scanned record remains.
+  await resolveForgotSubmit(site._id, "2001-05-05");
+  assert("guard: flag stays while a scanned record remains", (await FlagEventModel.countDocuments({ type: "forgot_submit", attemptedSiteId: site._id, date: "2001-05-05", resolved: false })) === 1);
+  // Once the day's records leave "scanned" (submitted / corrected / rejected), the flag clears.
+  await AttendanceModel.updateMany({ siteId: site._id, date: "2001-05-05" }, { $set: { attendanceStatus: "submitted" } });
+  await resolveForgotSubmit(site._id, "2001-05-05");
+  assert("forgot_submit auto-resolves once no scanned records remain", (await FlagEventModel.countDocuments({ type: "forgot_submit", attemptedSiteId: site._id, date: "2001-05-05", resolved: true })) === 1);
 
   await Promise.all([
     FlagEventModel.deleteMany({ attemptedSiteId: site._id }),
