@@ -6,7 +6,10 @@
   <body>
     <div class="oh-kiosk">
       <header class="oh-kiosk__header">
-        <div class="oh-kiosk__site">Log Attendance</div>
+        <div class="oh-kiosk__titles">
+          <div class="oh-kiosk__site">Log Attendance</div>
+          <div class="oh-kiosk__station">Site-gate muster station</div>
+        </div>
         <div class="oh-scan-controls">
           <label for="siteSelect" class="oh-scan-controls__label">Site you're at</label>
           <select id="siteSelect" class="oh-select oh-scan-controls__select">
@@ -27,19 +30,28 @@
         <% } else { %>
         <div class="oh-scan-split">
           <div class="oh-scan-stage">
-            <div class="oh-scan-actions oh-scan-io" style="margin-bottom:0.6rem">
-              <button id="att-in" type="button" class="oh-btn oh-btn--success oh-io-btn">Clock IN</button>
-              <button id="att-out" type="button" class="oh-btn oh-btn--secondary oh-io-btn">Clock OUT</button>
+            <!-- HERO: gate direction. Picking one arms the whole stage (see data-armed). -->
+            <div class="oh-scan-gate">
+              <span class="oh-scan-gate__label">Gate direction</span>
+              <div class="oh-scan-io" role="group" aria-label="Gate direction">
+                <button id="att-in" type="button" class="oh-btn oh-io-btn oh-io-btn--in">Clock IN</button>
+                <button id="att-out" type="button" class="oh-btn oh-io-btn oh-io-btn--out">Clock OUT</button>
+              </div>
             </div>
+
+            <!-- The gate: armed colour rides the frame border + the badge -->
             <div class="oh-scan-stage__video-frame">
               <video id="video" class="oh-kiosk__video" autoplay playsinline muted></video>
               <canvas id="canvas" hidden></canvas>
             </div>
-            <div id="result" class="oh-result oh-result--idle">Pick Clock IN or Clock OUT and your site, then step up.</div>
+
+            <div id="result" class="oh-result oh-result--idle">Pick a direction and your site, then face a worker at the camera.</div>
+
             <div class="oh-scan-actions">
               <button id="autoToggle" type="button" class="oh-btn oh-btn--small oh-autotoggle is-on" data-on="1">Auto-scan: On</button>
-              <button id="scanBtn" class="oh-btn oh-btn--secondary oh-scan-btn">Scan now</button>
+              <button id="scanBtn" type="button" class="oh-btn oh-scan-btn">Scan now</button>
             </div>
+
             <div class="oh-scan-stage__notes">
               <p id="camNote" class="oh-muted"></p>
               <div id="geoNote" class="oh-muted"></div>
@@ -47,7 +59,10 @@
           </div>
 
           <aside class="oh-scan-log">
-            <div class="oh-scan-log__head">Logged today <span class="oh-scan-log__count"><%= logged.length %></span></div>
+            <div class="oh-scan-log__head">
+              <span class="oh-scan-log__title">Muster roll</span>
+              <span class="oh-scan-log__count"><%= logged.length %></span>
+            </div>
             <% if (logged.length) { %>
             <ul class="oh-scan-log__list">
               <% logged.forEach(function (l) { %>
@@ -62,7 +77,10 @@
               <% }); %>
             </ul>
             <% } else { %>
-            <p class="oh-muted">No attendance logged yet today. Scans appear here as they happen.</p>
+            <div class="oh-scan-log__empty">
+              <p class="oh-scan-log__empty-title">No one logged yet</p>
+              <p class="oh-scan-log__empty-sub">Workers you log will show here, newest first.</p>
+            </div>
             <% } %>
           </aside>
         </div>

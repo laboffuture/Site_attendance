@@ -188,6 +188,7 @@
   // can log a batch (all IN, then switch to OUT). Scanning is inert until one is picked.
   function setAction(a) {
     selectedAction = a;
+    var stage = document.querySelector(".oh-scan-stage"); if (stage) stage.setAttribute("data-armed", a);
     if (inBtn) inBtn.classList.toggle("is-on", a === "in");
     if (outBtn) outBtn.classList.toggle("is-on", a === "out");
     if (geoOk) show("idle", "Clock " + (a === "in" ? "IN" : "OUT") + " — face the camera" + (autoOn() ? " (auto-scan on)." : " and tap Scan."));

@@ -1324,7 +1324,8 @@ tr > .oh-att-row {
   max-width: 600px;
 }
 
-/* 4:3 aspect-ratio frame around the video */
+/* 4:3 aspect-ratio frame around the video — "the gate".
+   Its border + corner badge take the armed direction colour (see MUSTER STATION). */
 .oh-scan-stage__video-frame {
   position: relative;
   width: 100%;
@@ -1333,6 +1334,7 @@ tr > .oh-att-row {
   background: #000;
   border: 1px solid rgba(255, 255, 255, 0.15);
   overflow: hidden;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .oh-scan-stage__video-frame .oh-kiosk__video {
   position: absolute;
@@ -1353,14 +1355,27 @@ tr > .oh-att-row {
   line-height: 1.45;
 }
 
-/* Big tappable scan button */
+/* Manual scan: kept deliberately quiet (auto-scan is the default path, and a
+   filled blue button would fight the OUT-armed blue). Outline on the dark stage. */
 .oh-scan-stage .oh-scan-btn {
   width: 100%;
   max-width: 320px;
   min-height: 48px;
-  font-size: 1.15rem;
-  padding: 0.85rem 2rem;
+  font-size: 1.05rem;
+  padding: 0.8rem 2rem;
   letter-spacing: 0.02em;
+  background: transparent;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.oh-scan-stage .oh-scan-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.45);
+}
+.oh-scan-stage .oh-scan-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 /* Subtle helper notes */
@@ -1505,6 +1520,142 @@ tr > .oh-att-row {
   .oh-scan-stage .oh-scan-btn {
     max-width: none;
     width: 100%;
+  }
+}
+
+/* ============================================================
+   MUSTER STATION — the supervisor's site-gate scan screen.
+   Thesis: a gate where workers are clocked IN / OUT one by one.
+   Signature = the ARMED DIRECTION: once IN or OUT is picked,
+   data-armed on .oh-scan-stage (set by setAction() in JS) floods
+   the gate with that direction's colour — IN = success green,
+   OUT = accent blue — across the frame border, a corner badge,
+   the idle status strip, and the active button. Everything else
+   stays quiet so the armed colour is the only loud thing.
+   (Lives after the base scan rules so its overrides win cleanly;
+   sharp corners + flat 1px borders, no new font, no gradients.)
+   ============================================================ */
+
+/* Header: page name + station tagline stack tightly */
+.oh-kiosk__titles { display: flex; flex-direction: column; gap: 0.1rem; }
+
+/* ---- HERO: gate-direction segmented control ---- */
+.oh-scan-gate { width: 100%; }
+.oh-scan-gate__label {
+  display: block;
+  margin-bottom: 0.45rem;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #aab0b6;
+}
+.oh-scan-io { display: flex; gap: 0.6rem; width: 100%; }
+/* Outlined in their own colour when idle (so each side is pre-labelled),
+   filled solid when armed. Big touch targets. */
+.oh-scan-io .oh-io-btn {
+  flex: 1 1 0;
+  min-height: 56px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: transparent;
+  border: 1px solid;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.oh-scan-io .oh-io-btn--in { color: #4cd089; border-color: #2faf6c; }
+.oh-scan-io .oh-io-btn--out { color: #6ea7e2; border-color: #3f73b8; }
+.oh-scan-io .oh-io-btn:hover { background: rgba(255, 255, 255, 0.06); }
+/* Armed (active): solid fill in the canonical direction colour. */
+.oh-scan-io .oh-io-btn.is-on { box-shadow: none; color: #fff; }
+.oh-scan-io .oh-io-btn--in.is-on { background: var(--c-success); border-color: var(--c-success); }
+.oh-scan-io .oh-io-btn--out.is-on { background: var(--c-accent); border-color: var(--c-accent); }
+.oh-scan-io .oh-io-btn--in.is-on:hover { background: #1fad61; }
+.oh-scan-io .oh-io-btn--out.is-on:hover { background: var(--c-accent-dark); }
+
+/* ---- The ARMED DIRECTION signature ---- */
+/* Frame border takes the direction colour (inset ring avoids any layout shift). */
+.oh-scan-stage[data-armed="in"] .oh-scan-stage__video-frame {
+  border-color: var(--c-success);
+  box-shadow: inset 0 0 0 2px var(--c-success);
+}
+.oh-scan-stage[data-armed="out"] .oh-scan-stage__video-frame {
+  border-color: var(--c-accent);
+  box-shadow: inset 0 0 0 2px var(--c-accent);
+}
+/* Corner badge on the gate — pure CSS, content driven by data-armed. */
+.oh-scan-stage__video-frame::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fff;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+.oh-scan-stage[data-armed="in"] .oh-scan-stage__video-frame::before {
+  content: "Clocking in";
+  background: var(--c-success);
+  opacity: 1;
+}
+.oh-scan-stage[data-armed="out"] .oh-scan-stage__video-frame::before {
+  content: "Clocking out";
+  background: var(--c-accent);
+  opacity: 1;
+}
+/* Status strip: calm left accent that echoes the armed direction while idle. */
+.oh-scan-stage[data-armed="in"] .oh-result--idle { box-shadow: inset 3px 0 0 var(--c-success); }
+.oh-scan-stage[data-armed="out"] .oh-result--idle { box-shadow: inset 3px 0 0 var(--c-accent); }
+
+/* ---- Auto-scan toggle: quiet outline pill, brightens when on ---- */
+.oh-autotoggle {
+  min-height: 48px;
+  padding: 0 1rem;
+  background: transparent;
+  color: #cfd2d6;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.oh-autotoggle:hover { background: rgba(255, 255, 255, 0.06); }
+.oh-autotoggle.is-on { color: #fff; border-color: rgba(255, 255, 255, 0.4); }
+
+/* ---- Muster roll niceties ---- */
+.oh-scan-log__title { font-weight: 600; }
+.oh-scan-log__empty { padding: 1.75rem 1.1rem; }
+.oh-scan-log__empty-title { margin: 0 0 0.3rem; font-weight: 600; color: #e6e8ea; }
+.oh-scan-log__empty-sub { margin: 0; font-size: 0.78rem; color: #aab0b6; }
+
+/* ---- Visible keyboard focus on every interactive element ---- */
+.oh-scan-io .oh-io-btn:focus-visible,
+.oh-scan-stage .oh-scan-btn:focus-visible,
+.oh-autotoggle:focus-visible,
+.oh-scan-controls__select:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+/* ---- Mobile-first: muster roll drops full-width under the gate ---- */
+@media (max-width: 640px) {
+  .oh-scan-log { max-width: none; flex: 1 1 100%; width: 100%; }
+  .oh-scan-io .oh-io-btn { min-height: 52px; }
+}
+
+/* ---- Respect reduced-motion: arm instantly, no transitions ---- */
+@media (prefers-reduced-motion: reduce) {
+  .oh-scan-stage__video-frame,
+  .oh-scan-stage__video-frame::before,
+  .oh-scan-io .oh-io-btn,
+  .oh-scan-stage .oh-scan-btn,
+  .oh-autotoggle {
+    transition: none;
   }
 }
 
