@@ -44,7 +44,8 @@
     "e2e:management": "tsx scripts/e2e_management.ts",
     "e2e:payroll": "tsx scripts/e2e_payroll.ts",
     "e2e:correction": "tsx scripts/e2e_correction.ts",
-    "e2e:manpower": "tsx scripts/e2e_manpower.ts"
+    "e2e:manpower": "tsx scripts/e2e_manpower.ts",
+    "e2e:forgot": "tsx scripts/e2e_forgot_submit.ts"
   },
   "dependencies": {
     "@tensorflow/tfjs": "^4.22.0",

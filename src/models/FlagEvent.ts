@@ -1,6 +1,6 @@
 import { Schema, model, InferSchemaType } from "mongoose";
 
-export const FLAG_TYPES = ["wrong_site_scan", "missed_clockout"] as const;
+export const FLAG_TYPES = ["wrong_site_scan", "missed_clockout", "forgot_submit"] as const;
 export type FlagType = (typeof FLAG_TYPES)[number];
 
 const flagEventSchema = new Schema(
@@ -38,6 +38,11 @@ flagEventSchema.index({ resolved: 1, timestamp: 1 });
 flagEventSchema.index(
   { type: 1, attendanceId: 1 },
   { unique: true, partialFilterExpression: { attendanceId: { $type: "objectId" } } },
+);
+// At most one forgot_submit flag per site-day (idempotent sweep; covers only that type).
+flagEventSchema.index(
+  { type: 1, attemptedSiteId: 1, date: 1 },
+  { unique: true, partialFilterExpression: { type: "forgot_submit" } },
 );
 
 export type FlagEvent = InferSchemaType<typeof flagEventSchema>;

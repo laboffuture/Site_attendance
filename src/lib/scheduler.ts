@@ -6,6 +6,7 @@
  * sweepMissedClockouts() is also runnable on demand via `npm run sweep`.
  */
 import { config } from "../config";
+import { sweepUnsubmittedDays } from "./forgotSubmit";
 import { sweepMissedClockouts } from "./missedClockout";
 import { istDateTime, siteLocalDate } from "./time";
 
@@ -34,13 +35,18 @@ export function startDailySweep(): void {
   const schedule = (): void => {
     const delay = nextFireDelayMs(hm);
     const timer = setTimeout(async () => {
+      // Each sweep in its own try/catch so one failing never blocks the other or the reschedule.
       try {
         await sweepMissedClockouts();
       } catch (err) {
         console.error("Missed-clockout sweep failed:", (err as Error)?.message ?? err);
-      } finally {
-        schedule(); // always reschedule, even after a failed run
       }
+      try {
+        await sweepUnsubmittedDays();
+      } catch (err) {
+        console.error("Forgot-to-submit sweep failed:", (err as Error)?.message ?? err);
+      }
+      schedule(); // always reschedule, even after a failed run
     }, delay);
     timer.unref();
   };
@@ -49,5 +55,6 @@ export function startDailySweep(): void {
   console.log(`Missed-clockout sweep scheduled for ${hm} IST daily (next in ~${mins} min).`);
   // Catch-up: run once on boot (idempotent) so a restart past SWEEP_TIME still flags.
   sweepMissedClockouts().catch((err) => console.error("Boot missed-clockout sweep failed:", (err as Error)?.message ?? err));
+  sweepUnsubmittedDays().catch((err) => console.error("Boot forgot-to-submit sweep failed:", (err as Error)?.message ?? err));
   schedule();
 }

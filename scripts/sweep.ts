@@ -7,6 +7,7 @@ import mongoose from "mongoose";
 
 import { connectDb } from "../src/db";
 import * as db from "../src/db";
+import { sweepUnsubmittedDays } from "../src/lib/forgotSubmit";
 import { sweepMissedClockouts } from "../src/lib/missedClockout";
 import "../src/models"; // register all Mongoose models
 
@@ -17,6 +18,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
   await sweepMissedClockouts();
+  await sweepUnsubmittedDays();
   await mongoose.connection.close();
   process.exit(0);
 }
