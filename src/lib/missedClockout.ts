@@ -64,6 +64,7 @@ export async function sweepMissedClockouts(asOfDate: string = siteLocalDate()): 
         type: "missed_clockout",
         workerId: rec.workerId,
         workerName: rec.workerName,
+        empRegNo: rec.empRegNo,
         attendanceId: rec._id,
         date: rec.date,
         // Home site = the record's site; mirrored to attemptedSite* so the

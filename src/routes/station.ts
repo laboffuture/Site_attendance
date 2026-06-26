@@ -122,6 +122,7 @@ router.post("/station/scan", requireStation, async (req: Request, res: Response)
       type: "wrong_site_scan",
       workerId: worker._id,
       workerName: worker.name,
+      empRegNo: worker.empRegNo,
       attemptedSiteId: station.siteId,
       attemptedSiteName: station.siteName,
       attemptedStationId: station.id,

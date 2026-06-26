@@ -24,7 +24,7 @@
         <span class="material-icons" style="font-size:20px;color:#b3261e;">flag</span>
         <span class="oh-m-badge oh-badge--danger"><%= typeLabel[f.type] || f.type %></span>
       </div>
-      <div class="oh-m-name"><%= f.workerName || f.attemptedSiteName || "—" %><% if (f.type === "forgot_submit" && f.date) { %> · <%= f.date %><% } %></div>
+      <div class="oh-m-name"><%= f.workerName || f.attemptedSiteName || "—" %><% if (f.empRegNo) { %> · <%= f.empRegNo %><% } %><% if (f.type === "forgot_submit" && f.date) { %> · <%= f.date %><% } %></div>
       <div class="oh-m-sub"><%= f.attemptedSiteName || "—" %><% if (f.homeSiteName && f.type !== "forgot_submit") { %> · assigned <%= f.homeSiteName %><% } %></div>
       <div class="oh-m-sub"><%= ts(f.timestamp) %></div>
       <% if (!showResolved) { %>
@@ -68,7 +68,7 @@
         <td>
           <span class="oh-badge oh-badge--danger"><%= typeLabel[f.type] || f.type %></span>
         </td>
-        <td><%= f.workerName || "—" %></td>
+        <td><%= f.workerName || "—" %><% if (f.empRegNo) { %><br><span class="oh-muted"><%= f.empRegNo %></span><% } %></td>
         <td><%= f.attemptedSiteName || "—" %></td>
         <td><%= f.homeSiteName || "—" %></td>
         <% if (!showResolved) { %>

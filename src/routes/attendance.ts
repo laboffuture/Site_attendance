@@ -187,6 +187,7 @@ router.post("/attendance/scan", requireCapability("mark_attendance"), async (req
       type: "wrong_site_scan",
       workerId: worker._id,
       workerName: worker.name,
+      empRegNo: worker.empRegNo,
       attemptedSiteId: site._id,
       attemptedSiteName: site.name,
       homeSiteId: worker.siteId,

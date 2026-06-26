@@ -8,6 +8,7 @@ const flagEventSchema = new Schema(
     type: { type: String, enum: [...FLAG_TYPES], required: true },
     workerId: { type: Schema.Types.ObjectId, ref: "Worker", default: null },
     workerName: { type: String, default: null },
+    empRegNo: { type: String, default: null }, // denormalized worker Emp ID (null for site-day flags)
     attemptedSiteId: {
       type: Schema.Types.ObjectId,
       ref: "ProjectSite",
