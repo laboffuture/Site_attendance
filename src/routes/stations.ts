@@ -1,7 +1,11 @@
 import { Router, Request, Response } from "express";
+import { Types } from "mongoose";
 import QRCode from "qrcode";
 
 import { requireCapability } from "../auth/middleware";
+import { seesAllSites } from "../auth/permissions";
+import type { CurrentUser } from "../auth/types";
+import { canUseSite } from "../lib/scope";
 import { generateStationKey, hashStationKey } from "../lib/stationKey";
 import { ProjectSiteModel } from "../models/ProjectSite";
 import { SiteStationModel } from "../models/SiteStation";
@@ -12,6 +16,22 @@ function flash(req: Request, type: "success" | "danger", text: string): void {
   req.session.flash = { type, text };
 }
 
+function forbid(res: Response): void {
+  res.status(403).render("error", { title: "Access denied", active: "", code: 403, message: "This station is outside your site scope." });
+}
+
+/** Stations limited to the user's sites (top admins: all). Keyed on projectSiteId. */
+function stationScope(user: CurrentUser): Record<string, unknown> {
+  if (seesAllSites(user.role)) return {};
+  return { projectSiteId: { $in: user.assignedSiteIds.map((id) => new Types.ObjectId(id)) } };
+}
+
+/** Project sites the user may register/see stations for (top admins: all). */
+function siteScope(user: CurrentUser): Record<string, unknown> {
+  if (seesAllSites(user.role)) return {};
+  return { _id: { $in: user.assignedSiteIds.map((id) => new Types.ObjectId(id)) } };
+}
+
 /** A shareable kiosk link (opens /station with the key) + a QR of it, built
  *  from the plaintext key (only available at create/regenerate time). */
 async function kioskShare(req: Request, key: string): Promise<{ shareUrl: string; qrDataUrl: string }> {
@@ -20,11 +40,13 @@ async function kioskShare(req: Request, key: string): Promise<{ shareUrl: string
   return { shareUrl, qrDataUrl };
 }
 
-// Station management is Management/HR-only (manage_org).
-router.get("/stations", requireCapability("manage_stations"), async (_req: Request, res: Response) => {
+// Station management (manage_stations). Management/HR see every site; PM + Supervisor
+// are scoped to their assignedSiteIds — they can only see/act on their own stations.
+router.get("/stations", requireCapability("manage_stations"), async (req: Request, res: Response) => {
+  const user = req.currentUser!;
   const [stations, sites] = await Promise.all([
-    SiteStationModel.find().sort({ createdAt: -1 }).lean(),
-    ProjectSiteModel.find().sort({ name: 1 }).lean(),
+    SiteStationModel.find(stationScope(user)).sort({ createdAt: -1 }).lean(),
+    ProjectSiteModel.find(siteScope(user)).sort({ name: 1 }).lean(),
   ]);
   const siteNameById = new Map(sites.map((s) => [String(s._id), `${s.name} (${s.code})`]));
   const active = stations.filter((s) => s.active).length;
@@ -39,9 +61,9 @@ router.get("/stations", requireCapability("manage_stations"), async (_req: Reque
   });
 });
 
-// Register form.
-router.get("/stations/new", requireCapability("manage_stations"), async (_req: Request, res: Response) => {
-  const sites = await ProjectSiteModel.find().sort({ name: 1 }).lean();
+// Register form — only offers sites the user is scoped to.
+router.get("/stations/new", requireCapability("manage_stations"), async (req: Request, res: Response) => {
+  const sites = await ProjectSiteModel.find(siteScope(req.currentUser!)).sort({ name: 1 }).lean();
   res.render("stations/new", {
     title: "Register station · " + res.locals.company,
     active: "/stations",
@@ -54,6 +76,12 @@ router.post("/stations", requireCapability("manage_stations"), async (req: Reque
   const projectSiteId = String(req.body.projectSiteId ?? "").trim();
   if (!stationName || !projectSiteId) {
     flash(req, "danger", "Station name and site are required.");
+    return res.redirect("/stations/new");
+  }
+  // Scope-gate the chosen site BEFORE creating — a PM/Supervisor may only register
+  // a kiosk at one of their own sites.
+  if (!Types.ObjectId.isValid(projectSiteId) || !canUseSite(req.currentUser!, projectSiteId)) {
+    flash(req, "danger", "Select a site you're assigned to.");
     return res.redirect("/stations/new");
   }
   const site = await ProjectSiteModel.findById(projectSiteId).lean();
@@ -91,6 +119,7 @@ router.post("/stations/:id/regenerate", requireCapability("manage_stations"), as
     flash(req, "danger", "Station not found.");
     return res.redirect("/stations");
   }
+  if (!canUseSite(req.currentUser!, String(station.projectSiteId))) return forbid(res);
   const key = generateStationKey();
   station.stationKeyHash = hashStationKey(key);
   await station.save();
@@ -114,6 +143,7 @@ router.post("/stations/:id/toggle", requireCapability("manage_stations"), async 
     flash(req, "danger", "Station not found.");
     return res.redirect("/stations");
   }
+  if (!canUseSite(req.currentUser!, String(station.projectSiteId))) return forbid(res);
   station.active = !station.active;
   await station.save();
   flash(req, "success", `Station "${station.stationName}" ${station.active ? "activated" : "deactivated"}.`);
@@ -121,8 +151,14 @@ router.post("/stations/:id/toggle", requireCapability("manage_stations"), async 
 });
 
 router.post("/stations/:id/delete", requireCapability("manage_stations"), async (req: Request, res: Response) => {
-  const station = await SiteStationModel.findByIdAndDelete(req.params.id);
-  flash(req, station ? "success" : "danger", station ? `Station "${station.stationName}" deleted.` : "Station not found.");
+  const station = await SiteStationModel.findById(req.params.id);
+  if (!station) {
+    flash(req, "danger", "Station not found.");
+    return res.redirect("/stations");
+  }
+  if (!canUseSite(req.currentUser!, String(station.projectSiteId))) return forbid(res);
+  await station.deleteOne();
+  flash(req, "success", `Station "${station.stationName}" deleted.`);
   res.redirect("/stations");
 });
 

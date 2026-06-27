@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 import { Types } from "mongoose";
 
 import { requireCapability } from "../auth/middleware";
-import { siteScopeFilter } from "../lib/scope";
+import { canUseSite, siteScopeFilter } from "../lib/scope";
 import { round2 } from "../lib/time";
 import { AttendanceModel } from "../models/Attendance";
 
@@ -66,7 +66,11 @@ router.get("/overtime", requireCapability("view_overtime"), async (req: Request,
 // Recommend / raise (HR): pending → recommended.
 router.post("/overtime/:id/recommend", requireCapability("recommend_overtime"), async (req: Request, res: Response) => {
   const rec = await AttendanceModel.findById(req.params.id);
-  if (!rec || rec.overtime.status !== "pending") {
+  if (!rec || !canUseSite(req.currentUser!, String(rec.siteId))) {
+    flash(req, "danger", "Overtime record not found.");
+    return res.redirect("/overtime");
+  }
+  if (rec.overtime.status !== "pending") {
     flash(req, "danger", "Only a pending overtime record can be recommended.");
     return res.redirect("/overtime");
   }
@@ -81,7 +85,11 @@ router.post("/overtime/:id/recommend", requireCapability("recommend_overtime"), 
 // Approve / adjust — Management closes (from pending or recommended).
 router.post("/overtime/:id/approve", requireCapability("approve_overtime"), async (req: Request, res: Response) => {
   const rec = await AttendanceModel.findById(req.params.id);
-  if (!rec || !["pending", "recommended"].includes(rec.overtime.status)) {
+  if (!rec || !canUseSite(req.currentUser!, String(rec.siteId))) {
+    flash(req, "danger", "Overtime record not found.");
+    return res.redirect("/overtime");
+  }
+  if (!["pending", "recommended"].includes(rec.overtime.status)) {
     flash(req, "danger", "Overtime record not found or already decided.");
     return res.redirect("/overtime");
   }
@@ -105,7 +113,11 @@ router.post("/overtime/:id/approve", requireCapability("approve_overtime"), asyn
 // Reject — Management closes (from pending or recommended).
 router.post("/overtime/:id/reject", requireCapability("approve_overtime"), async (req: Request, res: Response) => {
   const rec = await AttendanceModel.findById(req.params.id);
-  if (!rec || !["pending", "recommended"].includes(rec.overtime.status)) {
+  if (!rec || !canUseSite(req.currentUser!, String(rec.siteId))) {
+    flash(req, "danger", "Overtime record not found.");
+    return res.redirect("/overtime");
+  }
+  if (!["pending", "recommended"].includes(rec.overtime.status)) {
     flash(req, "danger", "Overtime record not found or already decided.");
     return res.redirect("/overtime");
   }
