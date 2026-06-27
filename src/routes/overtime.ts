@@ -93,8 +93,12 @@ router.post("/overtime/:id/approve", requireCapability("approve_overtime"), asyn
     flash(req, "danger", "Overtime record not found or already decided.");
     return res.redirect("/overtime");
   }
+  // Approve up to the computed OT, never more than was actually worked. A blank /
+  // invalid entry approves the full computed hours; an entry above it is clamped.
   const raw = Number(req.body.approvedHours);
-  const approvedHours = Number.isFinite(raw) && raw >= 0 ? round2(raw) : rec.overtime.computedHours;
+  const computed = rec.overtime.computedHours;
+  const approvedHours = Number.isFinite(raw) && raw >= 0 ? round2(Math.min(raw, computed)) : computed;
+  const clamped = Number.isFinite(raw) && raw > computed;
   rec.overtime = {
     computedHours: rec.overtime.computedHours,
     status: "approved",
@@ -106,7 +110,7 @@ router.post("/overtime/:id/approve", requireCapability("approve_overtime"), asyn
     notes: String(req.body.notes ?? "").trim() || null,
   };
   await rec.save();
-  flash(req, "success", `Approved ${approvedHours}h OT for ${rec.workerName}.`);
+  flash(req, "success", `Approved ${approvedHours}h OT for ${rec.workerName}.${clamped ? ` (capped at the ${computed}h computed.)` : ""}`);
   res.redirect("/overtime");
 });
 

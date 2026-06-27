@@ -53,6 +53,14 @@ async function main(): Promise<void> {
   assert("dataUrlToBuffer rejects non-image bytes mislabelled as image", dataUrlToBuffer(`data:image/jpeg;base64,${fake}`) === null);
   assert("dataUrlToBuffer rejects a non-data-url", dataUrlToBuffer("hello there") === null);
 
+  // ---- 0c. CSRF Origin guard (no token needed; cross-site Origin is rejected) ----
+  const csrfForeign = await request(app).post("/login").set("Origin", "https://evil.example").type("form").send({ email: "x@y.z", password: "nope" });
+  assert("cross-site Origin POST is blocked (403)", csrfForeign.status === 403);
+  const csrfSame = await request(app).post("/login").set("Host", "app.local").set("Origin", "http://app.local").type("form").send({ email: "x@y.z", password: "nope" });
+  assert("same-origin POST passes the CSRF guard (reaches login → 401, not 403)", csrfSame.status === 401);
+  const csrfNoOrigin = await request(app).post("/login").type("form").send({ email: "x@y.z", password: "nope" });
+  assert("origin-less POST (non-browser) passes the guard (401, not 403)", csrfNoOrigin.status === 401);
+
   // ---- Fixtures: one branch, two sites ----
   const branch = await BranchModel.create({ name: `QA HARD ${S}` });
   const siteA = await ProjectSiteModel.create({ branchId: branch._id, name: `QA Hard A ${S}`, code: `QAHA${S}`.toUpperCase(), lunchHours: 1 });
@@ -145,6 +153,12 @@ async function main(): Promise<void> {
   assert("in-scope PM recommend → redirect", otOk.status === 302);
   const otAfterOk = await AttendanceModel.findById(otRec._id).lean();
   assert("in-scope PM moved OT to recommended", otAfterOk?.overtime.status === "recommended" && !!otAfterOk?.overtime.recommendedBy);
+
+  // Management approves with MORE than computed (5h vs 2h) → clamped to 2h.
+  const otApprove = await ma.post(`/overtime/${otRec._id}/approve`).type("form").send({ approvedHours: "5" });
+  assert("OT approve redirects", otApprove.status === 302);
+  const otApproved = await AttendanceModel.findById(otRec._id).lean();
+  assert("approved OT is clamped to the computed hours (2, not 5)", otApproved?.overtime.status === "approved" && otApproved?.overtime.approvedHours === 2);
 
   // ========== 4. SCAN RE-OPEN resets a submitted day back to 'scanned' ==========
   const wRe = await WorkerModel.create({ empRegNo: `QA-HRE-${S}`, name: `QA Reopen ${S}`, designationId: new Types.ObjectId(), designationName: "Carpenter", siteId: siteA._id, siteName: siteA.name, faceEncoding: [], status: "active" });

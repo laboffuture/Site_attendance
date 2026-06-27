@@ -11,6 +11,7 @@ import mongoose from "mongoose";
 
 import { config } from "./config";
 import * as db from "./db";
+import { csrfGuard } from "./auth/csrf";
 import { loadCurrentUser } from "./auth/middleware";
 import { roleLabel } from "./auth/permissions";
 import { NAV } from "./nav";
@@ -149,6 +150,10 @@ export function createApp(): Express {
     next();
   });
   app.use(loadCurrentUser);
+
+  // CSRF: reject cross-site state-changing requests by Origin/Referer (defense in
+  // depth over the sameSite:lax cookie). Same-origin forms + kiosk AJAX are unaffected.
+  app.use(csrfGuard);
 
   // Throttle the unauthenticated / CPU-heavy entry points before the routers.
   app.use("/login", loginLimiter);
