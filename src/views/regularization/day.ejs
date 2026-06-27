@@ -1,5 +1,6 @@
 <%- include('../partials/app-top', { title: title, active: active }) %>
 <% var dot = { scanned: "var(--c-text-muted)", submitted: "var(--c-warning)", recommended: "var(--c-accent)", approved: "var(--c-success)", rejected: "var(--c-danger)" }; %>
+<% function actionable(r) { return (canCorrect && !r.voided) || (canReject && (r.status === "submitted" || r.status === "recommended")); } %>
 <%- include('../partials/breadcrumb', { back: '/regularization', trail: [ { label: 'Attendance corrections', href: '/regularization' }, { label: siteName + ' · ' + date } ] }) %>
 
 <div class="oh-page-header oh-page-header--row">
@@ -19,6 +20,76 @@
 
 <% if (status === "approved") { %><div class="oh-alert oh-alert--success">Day approved — overtime cleared to payroll.</div><% } %>
 
+<!-- Shared single-open editor drawer. One panel per actionable worker, hidden until
+     its #edit-<id> fragment is targeted (zero-JS single-open). Rendered ONCE here so
+     it serves both the desktop table and the mobile cards; never duplicated. -->
+<div class="oh-editor" id="corrections-top">
+  <% rows.forEach(function (r) { if (!actionable(r)) return; %>
+  <div class="oh-editpanel" id="edit-<%= r.id %>" style="--spine: <%= dot[r.status] || 'var(--c-border)' %>">
+    <div class="oh-editpanel__head">
+      <div class="oh-editpanel__id">
+        <span class="oh-person__name"><%= r.workerName %></span>
+        <span class="oh-person__id"><%= r.empRegNo %></span>
+        <span class="oh-stat"><span class="oh-stat__dot" style="background: <%= dot[r.status] || 'var(--c-text-muted)' %>"></span><%= r.status %></span>
+        <% if (!r.outHM && !r.voided) { %><span class="oh-badge oh-badge--warning">No OUT — unresolved</span><% } %>
+        <% if (r.voided) { %><span class="oh-badge oh-badge--muted">Voided</span><% } %>
+        <% if (r.verifiedAt) { %><span class="oh-badge oh-badge--success">Verified</span><% } %>
+      </div>
+      <a class="oh-icon-btn" href="#corrections-top" aria-label="Close editor for <%= r.workerName %>" title="Close"><span class="material-icons">close</span></a>
+    </div>
+
+    <% if (canCorrect && !r.voided) { %>
+    <section class="oh-form-section">
+      <h3 class="oh-kv-section__title">Correct attendance</h3>
+      <form class="oh-frow" method="post" action="/regularization/worker/<%= r.id %>/correct">
+        <label class="oh-frow__label" for="in-<%= r.id %>">Times &amp; shift<span class="oh-muted">In / Out, shift and a reason</span></label>
+        <div class="oh-frow__field oh-ot-actions" style="flex-wrap:wrap">
+          <input id="in-<%= r.id %>" class="oh-input oh-input--xs oh-time24" type="text" inputmode="numeric" placeholder="HH:MM" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" maxlength="5" name="inHM" value="<%= r.inHM %>" title="In time" />
+          <input class="oh-input oh-input--xs oh-time24" type="text" inputmode="numeric" placeholder="HH:MM" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" maxlength="5" name="outHM" value="<%= r.outHM %>" title="Out time" />
+          <select class="oh-select oh-input--xs" name="shiftType" title="Shift">
+            <option value="day" <%= r.shiftType === "day" ? "selected" : "" %>>Day</option>
+            <option value="night" <%= r.shiftType === "night" ? "selected" : "" %>>Night</option>
+            <option value="sunday" <%= r.shiftType === "sunday" ? "selected" : "" %>>Sunday</option>
+          </select>
+          <input class="oh-input" style="flex:1 1 180px;min-width:0" type="text" name="reason" placeholder="Reason" title="Reason for correction" />
+          <button class="oh-btn oh-btn--small oh-btn--accent" type="submit">Save</button>
+        </div>
+      </form>
+    </section>
+    <% } %>
+
+    <section class="oh-form-section">
+      <h3 class="oh-kv-section__title">Disposition</h3>
+      <% if (canCorrect && !r.voided) { %>
+      <form class="oh-frow" method="post" action="/regularization/worker/<%= r.id %>/verify">
+        <label class="oh-frow__label" for="note-<%= r.id %>">Verify scans<span class="oh-muted">Mark the scanned times correct</span></label>
+        <div class="oh-frow__field oh-frow__pair">
+          <input id="note-<%= r.id %>" class="oh-input" type="text" name="note" placeholder="Optional note" title="Optional verify note" />
+          <button class="oh-btn oh-btn--small" type="submit">Verify</button>
+        </div>
+      </form>
+      <form class="oh-frow" method="post" action="/regularization/worker/<%= r.id %>/void">
+        <label class="oh-frow__label" for="void-<%= r.id %>">Void day<span class="oh-muted">Excludes this worker-day from pay</span></label>
+        <div class="oh-frow__field oh-frow__pair">
+          <input id="void-<%= r.id %>" class="oh-input" type="text" name="reason" placeholder="Void reason" title="Reason for voiding" />
+          <button class="oh-btn oh-btn--small oh-btn--danger" type="submit">Void</button>
+        </div>
+      </form>
+      <% } %>
+      <% if (canReject && (r.status === "submitted" || r.status === "recommended")) { %>
+      <form class="oh-frow" method="post" action="/regularization/worker/<%= r.id %>/reject">
+        <label class="oh-frow__label" for="rej-<%= r.id %>">Reject — send back<span class="oh-muted">Returns this worker to the supervisor</span></label>
+        <div class="oh-frow__field oh-frow__pair">
+          <input id="rej-<%= r.id %>" class="oh-input" type="text" name="reason" placeholder="Reason for rejection" required title="Reason for rejection" />
+          <button class="oh-btn oh-btn--small oh-btn--danger" type="submit">Reject</button>
+        </div>
+      </form>
+      <% } %>
+    </section>
+  </div>
+  <% }); %>
+</div>
+
 <!-- mobile -->
 <div class="oh-only-mobile">
   <% if (!rows.length) { %><div class="oh-m-section"><p class="oh-muted">No attendance for this day.</p></div><% } else { %>
@@ -34,38 +105,10 @@
         <% if (!r.outHM && !r.voided) { %><span class="oh-m-badge oh-badge--warning">No OUT — unresolved</span><% } %>
         <% if (r.voided) { %><span class="oh-m-badge oh-badge--muted">Voided</span><% } %>
         <% if (r.verifiedAt) { %><span class="oh-m-badge oh-badge--success">Verified</span><% } %>
+        <% if (r.status === "rejected" && r.rejectReason) { %><span class="oh-m-sub" style="width:100%">✕ <%= r.rejectReason %></span><% } %>
       </div>
-      <% if (canReject && (r.status === "submitted" || r.status === "recommended")) { %>
-      <form method="post" action="/regularization/worker/<%= r.id %>/reject" onsubmit="var x=prompt('Reason for rejecting this worker?'); if(x===null){return false;} this.reason.value=x; return true;" style="margin-top:0.5rem">
-        <input type="hidden" name="reason" /><button class="oh-btn oh-btn--small oh-btn--danger" type="submit">Reject</button>
-      </form>
-      <% } %>
-      <% if (canCorrect && !r.voided) { %>
-      <form method="post" action="/regularization/worker/<%= r.id %>/correct" style="margin-top:0.5rem">
-        <div class="oh-m-row" style="gap:0.35rem;flex-wrap:wrap">
-          <input class="oh-input oh-input--xs oh-time24" type="text" inputmode="numeric" placeholder="HH:MM" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" maxlength="5" name="inHM" value="<%= r.inHM %>" title="In time" />
-          <input class="oh-input oh-input--xs oh-time24" type="text" inputmode="numeric" placeholder="HH:MM" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" maxlength="5" name="outHM" value="<%= r.outHM %>" title="Out time" />
-          <select class="oh-select oh-input--xs" name="shiftType" title="Shift">
-            <option value="day" <%= r.shiftType === "day" ? "selected" : "" %>>Day</option>
-            <option value="night" <%= r.shiftType === "night" ? "selected" : "" %>>Night</option>
-            <option value="sunday" <%= r.shiftType === "sunday" ? "selected" : "" %>>Sunday</option>
-          </select>
-        </div>
-        <div class="oh-m-row" style="gap:0.35rem;flex-wrap:wrap;margin-top:0.35rem">
-          <input class="oh-input" style="flex:1 1 auto;min-width:0" type="text" name="reason" placeholder="Reason" title="Reason for correction" />
-          <button class="oh-btn oh-btn--small oh-btn--secondary" type="submit">Save</button>
-        </div>
-      </form>
-      <div class="oh-m-row" style="gap:0.35rem;flex-wrap:wrap;margin-top:0.4rem">
-        <form method="post" action="/regularization/worker/<%= r.id %>/void" class="oh-m-row" style="gap:0.35rem;margin:0">
-          <input class="oh-input oh-input--xs" type="text" name="reason" placeholder="Void reason" title="Reason for voiding" />
-          <button class="oh-btn oh-btn--small oh-btn--danger" type="submit">Void</button>
-        </form>
-        <form method="post" action="/regularization/worker/<%= r.id %>/verify" class="oh-m-row" style="gap:0.35rem;margin:0">
-          <input class="oh-input oh-input--xs" type="text" name="note" placeholder="Note" title="Optional verify note" />
-          <button class="oh-btn oh-btn--small" type="submit">Verify</button>
-        </form>
-      </div>
+      <% if (actionable(r)) { %>
+      <div class="oh-m-actions"><a class="oh-btn oh-btn--small oh-btn--secondary" href="#edit-<%= r.id %>"><span class="material-icons">edit</span> Edit / resolve</a></div>
       <% } %>
     </div>
     <% }); %>
@@ -102,34 +145,8 @@
         </td>
         <% if (canReject || canCorrect) { %>
         <td class="oh-people__actcol">
-          <% if (canReject && (r.status === "submitted" || r.status === "recommended")) { %>
-          <form method="post" action="/regularization/worker/<%= r.id %>/reject" onsubmit="var x=prompt('Reason for rejecting this worker?'); if(x===null){return false;} this.reason.value=x; return true;" style="margin:0 0 0.5rem">
-            <input type="hidden" name="reason" />
-            <button class="oh-icon-btn oh-icon-btn--danger" type="submit" title="Reject"><span class="material-icons">close</span></button>
-          </form>
-          <% } %>
-          <% if (canCorrect && !r.voided) { %>
-          <form method="post" action="/regularization/worker/<%= r.id %>/correct" class="oh-ot-actions" style="flex-wrap:wrap;margin-bottom:0.4rem">
-            <input class="oh-input oh-input--xs oh-time24" type="text" inputmode="numeric" placeholder="HH:MM" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" maxlength="5" name="inHM" value="<%= r.inHM %>" title="In time" />
-            <input class="oh-input oh-input--xs oh-time24" type="text" inputmode="numeric" placeholder="HH:MM" pattern="([01][0-9]|2[0-3]):[0-5][0-9]" maxlength="5" name="outHM" value="<%= r.outHM %>" title="Out time" />
-            <select class="oh-select oh-input--xs" name="shiftType" title="Shift">
-              <option value="day" <%= r.shiftType === "day" ? "selected" : "" %>>Day</option>
-              <option value="night" <%= r.shiftType === "night" ? "selected" : "" %>>Night</option>
-              <option value="sunday" <%= r.shiftType === "sunday" ? "selected" : "" %>>Sunday</option>
-            </select>
-            <input class="oh-input oh-input--time" type="text" name="reason" placeholder="Reason" title="Reason for correction" />
-            <button class="oh-btn oh-btn--small oh-btn--secondary" type="submit">Save</button>
-          </form>
-          <div class="oh-ot-actions" style="flex-wrap:wrap">
-            <form method="post" action="/regularization/worker/<%= r.id %>/void" class="oh-ot-actions" style="margin:0">
-              <input class="oh-input oh-input--xs" type="text" name="reason" placeholder="Void reason" title="Reason for voiding" />
-              <button class="oh-btn oh-btn--small oh-btn--danger" type="submit">Void</button>
-            </form>
-            <form method="post" action="/regularization/worker/<%= r.id %>/verify" class="oh-ot-actions" style="margin:0">
-              <input class="oh-input oh-input--xs" type="text" name="note" placeholder="Note" title="Optional verify note" />
-              <button class="oh-btn oh-btn--small" type="submit">Verify</button>
-            </form>
-          </div>
+          <% if (actionable(r)) { %>
+          <a class="oh-icon-btn" href="#edit-<%= r.id %>" aria-label="Edit corrections for <%= r.workerName %>" title="Edit / resolve"><span class="material-icons">edit</span></a>
           <% } %>
         </td>
         <% } %>

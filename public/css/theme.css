@@ -2135,3 +2135,28 @@ tr > .oh-att-row {
 @media (max-width: 720px) {
   .oh-statstrip__item { flex: 1 0 30%; padding: 0.6rem 0.9rem; }
 }
+
+/* Attendance-correction editor: one shared single-open drawer. Each worker's
+   panel is hidden until its #edit-<id> fragment is targeted, so the read table
+   stays clean and at most one editor is ever visible (zero-JS, single-open). */
+.oh-editor { display: block; }
+.oh-editpanel { display: none; }
+.oh-editpanel:target {
+  display: block;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-left: 3px solid var(--spine, var(--c-accent)); /* tie the panel to the row's status */
+  padding: 1.15rem 1.25rem;
+  margin-bottom: 1.25rem;
+  scroll-margin-top: 72px; /* clear the sticky topbar when :target scrolls into view */
+}
+.oh-editpanel__head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem;
+  padding-bottom: 0.6rem; margin-bottom: 0.6rem; border-bottom: 1px solid var(--c-border-light);
+}
+.oh-editpanel__id { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; min-width: 0; }
+/* The Correct row keeps its compact inline widths (In/Out/Shift sit together, the
+   reason fills the rest) instead of the label/field grid's default full-width inputs. */
+.oh-editpanel .oh-frow__field.oh-ot-actions > .oh-input,
+.oh-editpanel .oh-frow__field.oh-ot-actions > .oh-select { width: auto; }
+.oh-editpanel .oh-frow__field.oh-ot-actions > .oh-input--xs { width: 5rem; }
