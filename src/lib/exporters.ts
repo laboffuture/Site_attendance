@@ -6,18 +6,18 @@ import { hoursBreakdown } from "./report";
 
 /** Report column definition, shared by xlsx + pdf. Defaults from spec §10;
  *  adjust here when the reference sheet arrives. */
-const COLUMNS: { header: string; key: string; width: number; pdf: number }[] = [
-  { header: "Branch", key: "branchName", width: 18, pdf: 70 },
-  { header: "Project", key: "siteName", width: 24, pdf: 100 },
-  { header: "Emp Reg No", key: "empRegNo", width: 14, pdf: 66 },
-  { header: "Name", key: "workerName", width: 18, pdf: 88 },
+const COLUMNS: { header: string; key: string; width: number; pdf: number; align?: "left" | "right" | "center" }[] = [
+  { header: "Branch", key: "branchName", width: 18, pdf: 66 },
+  { header: "Project", key: "siteName", width: 24, pdf: 96 },
+  { header: "Emp Reg No", key: "empRegNo", width: 16, pdf: 92 }, // wide enough for the full ID (e.g. TRG-LOF-131-049)
+  { header: "Name", key: "workerName", width: 18, pdf: 90 },
   { header: "Designation", key: "designationName", width: 15, pdf: 74 },
   { header: "Date", key: "date", width: 11, pdf: 54 },
-  { header: "In", key: "inT", width: 7, pdf: 34 },
-  { header: "Out", key: "outT", width: 7, pdf: 34 },
-  { header: "Standard (h)", key: "standard", width: 11, pdf: 48 },
-  { header: "OT (h)", key: "otHours", width: 8, pdf: 34 },
-  { header: "Total (h)", key: "payableTotal", width: 10, pdf: 44 },
+  { header: "In", key: "inT", width: 7, pdf: 34, align: "right" },
+  { header: "Out", key: "outT", width: 7, pdf: 34, align: "right" },
+  { header: "Standard (h)", key: "standard", width: 11, pdf: 48, align: "right" },
+  { header: "OT (h)", key: "otHours", width: 8, pdf: 34, align: "right" },
+  { header: "Total (h)", key: "payableTotal", width: 10, pdf: 44, align: "right" },
   { header: "OT Status", key: "otStatus", width: 12, pdf: 52 },
   { header: "Source", key: "source", width: 8, pdf: 40 },
 ];
@@ -128,63 +128,108 @@ export async function buildPayrollXlsx(rows: PayrollRow[], dates: string[], peri
   return Buffer.from(buf);
 }
 
-/** Streams a landscape A4 PDF table directly to the response. */
-/** A PDF column: header + the key to read off each (pre-flattened) row, and its
- *  width in points for the landscape-A4 layout (usable width ≈ 786pt). */
-export interface PdfColumn { header: string; key: string; pdf: number }
+/** A PDF column: header + the key to read off each (pre-flattened) row, its width
+ *  in points for the landscape-A4 layout (usable width ≈ 786pt), and an optional
+ *  text alignment (numbers read better right-aligned). */
+export interface PdfColumn { header: string; key: string; pdf: number; align?: "left" | "right" | "center" }
 
-/** Streams a landscape A4 PDF table for ANY column set + pre-flattened rows.
- *  Repeats the header on each page and ellipsises overflowing cells. */
-export function streamTablePdf(rows: Record<string, string | number>[], columns: PdfColumn[], meta: { title: string; subtitle: string }, res: Response): void {
-  const doc = new PDFDocument({ size: "A4", layout: "landscape", margin: 28 });
+const PDF_ACCENT = "#1c4d8c"; // brand accent (matches the app)
+const PDF_ZEBRA = "#f4f6f9"; // alternating row tint
+const PDF_RULE = "#e3e8ef"; // hairline row separator
+
+function nowIST(): string {
+  return new Date().toLocaleString("en-GB", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" });
+}
+
+/**
+ * Streams a branded landscape-A4 PDF table for ANY column set + pre-flattened
+ * rows. One shared primitive behind every report PDF, so they all share the look:
+ *  - branded header: accent title, subtitle, "Generated <ts> IST", an accent rule;
+ *  - an accent header band with white labels, repeated on every page;
+ *  - zebra-striped rows with hairline separators and per-column alignment;
+ *  - an optional bold TOTALS row (pass meta.totals keyed like a data row);
+ *  - a "company · Page X of Y" footer on every page.
+ * Overflowing cells still ellipsise — give identity columns enough width.
+ */
+export function streamTablePdf(
+  rows: Record<string, string | number>[],
+  columns: PdfColumn[],
+  meta: { title: string; subtitle: string; company?: string; totals?: Record<string, string | number> },
+  res: Response,
+): void {
+  const doc = new PDFDocument({ size: "A4", layout: "landscape", margin: 28, bufferPages: true });
   doc.pipe(res);
 
-  doc.fontSize(15).fillColor("#000").text(meta.title);
-  doc.fontSize(9).fillColor("#666").text(meta.subtitle);
-  doc.moveDown(0.5);
-  doc.fillColor("#000");
-
   const left = doc.page.margins.left;
-  const rowH = 16;
-  const bottom = doc.page.height - doc.page.margins.bottom;
+  const totalW = columns.reduce((s, c) => s + c.pdf, 0);
+  const company = meta.company || meta.title.split(" — ")[0] || "";
+  const rowH = 17;
+  const bottom = doc.page.height - doc.page.margins.bottom - 16; // leave room for the footer
+  const alignOf = (c: PdfColumn): "left" | "right" | "center" => (c.align === "right" ? "right" : c.align === "center" ? "center" : "left");
 
-  const drawRow = (vals: (string | number)[], y: number, header: boolean) => {
-    if (header) {
-      const totalW = columns.reduce((s, c) => s + c.pdf, 0);
-      doc.rect(left, y - 2, totalW, rowH).fill("#eeeeee");
-      doc.fillColor("#000");
-    }
-    doc.fontSize(8).font(header ? "Helvetica-Bold" : "Helvetica");
+  // ---- Branded header block ----
+  doc.font("Helvetica-Bold").fontSize(16).fillColor(PDF_ACCENT).text(meta.title, left, doc.page.margins.top);
+  doc.font("Helvetica").fontSize(9).fillColor("#555").text(meta.subtitle);
+  doc.fontSize(8).fillColor("#9aa3ad").text(`Generated ${nowIST()} IST`);
+  let y = doc.y + 4;
+  doc.moveTo(left, y).lineTo(left + totalW, y).lineWidth(1.2).strokeColor(PDF_ACCENT).stroke();
+  y += 6;
+
+  const drawHeader = (yy: number): number => {
+    doc.rect(left, yy, totalW, rowH).fill(PDF_ACCENT);
+    doc.font("Helvetica-Bold").fontSize(8).fillColor("#ffffff");
     let x = left;
-    columns.forEach((c, i) => {
-      doc.text(String(vals[i] ?? ""), x + 2, y + 2, { width: c.pdf - 4, height: rowH, ellipsis: true, lineBreak: false });
+    for (const c of columns) {
+      doc.text(c.header, x + 3, yy + 4.5, { width: c.pdf - 6, height: rowH, ellipsis: true, lineBreak: false, align: alignOf(c) });
       x += c.pdf;
-    });
+    }
+    return yy + rowH;
   };
 
-  let y = doc.y;
-  drawRow(columns.map((c) => c.header), y, true);
-  y += rowH;
-
-  for (const r of rows) {
-    if (y + rowH > bottom) {
-      doc.addPage();
-      y = doc.page.margins.top;
-      drawRow(columns.map((c) => c.header), y, true);
-      y += rowH;
+  const drawRow = (r: Record<string, string | number>, yy: number, zebra: boolean, bold = false, topRule = false): number => {
+    if (zebra && !bold) doc.rect(left, yy, totalW, rowH).fill(PDF_ZEBRA);
+    if (topRule) doc.moveTo(left, yy).lineTo(left + totalW, yy).lineWidth(1).strokeColor("#b9c2cd").stroke();
+    doc.font(bold ? "Helvetica-Bold" : "Helvetica").fontSize(8).fillColor("#111111");
+    let x = left;
+    for (const c of columns) {
+      const v = r[c.key];
+      doc.text(v == null ? "" : String(v), x + 3, yy + 4.5, { width: c.pdf - 6, height: rowH, ellipsis: true, lineBreak: false, align: alignOf(c) });
+      x += c.pdf;
     }
-    drawRow(columns.map((c) => r[c.key] ?? ""), y, false);
-    y += rowH;
+    doc.moveTo(left, yy + rowH).lineTo(left + totalW, yy + rowH).lineWidth(0.5).strokeColor(PDF_RULE).stroke();
+    return yy + rowH;
+  };
+
+  y = drawHeader(y);
+  let i = 0;
+  for (const r of rows) {
+    if (y + rowH > bottom) { doc.addPage(); y = drawHeader(doc.page.margins.top); }
+    y = drawRow(r, y, i % 2 === 1);
+    i++;
+  }
+  if (meta.totals) {
+    if (y + rowH > bottom) { doc.addPage(); y = drawHeader(doc.page.margins.top); }
+    drawRow(meta.totals, y, false, true, true);
+  }
+  if (rows.length === 0) {
+    doc.font("Helvetica").fontSize(11).fillColor("#666").text("No records match the selected filters.", left, y + 14);
   }
 
-  if (rows.length === 0) {
-    doc.moveDown(2).fontSize(11).fillColor("#666").text("No records match the selected filters.");
+  // ---- Footer: company + "Page X of Y" on every page ----
+  const range = doc.bufferedPageRange();
+  for (let p = range.start; p < range.start + range.count; p++) {
+    doc.switchToPage(p);
+    const fy = doc.page.height - 20;
+    doc.font("Helvetica").fontSize(7).fillColor("#9aa3ad");
+    doc.text(company, left, fy, { lineBreak: false });
+    doc.text(`Page ${p + 1} of ${range.count}`, left, fy, { width: totalW, align: "right", lineBreak: false });
   }
+  doc.flushPages();
   doc.end();
 }
 
 /** Attendance PDF — the original export, now built on the generic table primitive. */
 export function streamPdf(rows: Row[], meta: { title: string; subtitle: string }, res: Response): void {
-  const cols: PdfColumn[] = COLUMNS.map((c) => ({ header: c.header, key: c.key, pdf: c.pdf }));
+  const cols: PdfColumn[] = COLUMNS.map((c) => ({ header: c.header, key: c.key, pdf: c.pdf, align: c.align }));
   streamTablePdf(rows.map(flat), cols, meta, res);
 }

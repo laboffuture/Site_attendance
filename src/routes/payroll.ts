@@ -101,24 +101,26 @@ router.get("/payroll/export.xlsx", requireCapability("view_payroll"), async (req
 router.get("/payroll/export.pdf", requireCapability("view_payroll"), async (req: Request, res: Response) => {
   const { workers, filters } = await payrollData(req);
   const cols = [
-    { header: "#", key: "sno", pdf: 28 },
-    { header: "Emp Code", key: "empRegNo", pdf: 70 },
+    { header: "#", key: "sno", pdf: 26, align: "right" as const },
+    { header: "Emp Code", key: "empRegNo", pdf: 92 },
     { header: "Worker", key: "name", pdf: 100 },
-    { header: "Designation", key: "designation", pdf: 84 },
-    { header: "Basic", key: "basic", pdf: 50 },
-    { header: "Days", key: "days", pdf: 36 },
-    { header: "Normal Hrs", key: "normalHrs", pdf: 60 },
-    { header: "OT Hrs", key: "otHrs", pdf: 48 },
-    { header: "Normal Pay", key: "normalPay", pdf: 66 },
-    { header: "OT Pay", key: "otPay", pdf: 54 },
-    { header: "Food", key: "foodAllowance", pdf: 50 },
-    { header: "Arrears", key: "arrears", pdf: 55 },
-    { header: "Gross", key: "gross", pdf: 60 },
+    { header: "Designation", key: "designation", pdf: 80 },
+    { header: "Basic", key: "basic", pdf: 50, align: "right" as const },
+    { header: "Days", key: "days", pdf: 34, align: "right" as const },
+    { header: "Normal Hrs", key: "normalHrs", pdf: 58, align: "right" as const },
+    { header: "OT Hrs", key: "otHrs", pdf: 46, align: "right" as const },
+    { header: "Normal Pay", key: "normalPay", pdf: 64, align: "right" as const },
+    { header: "OT Pay", key: "otPay", pdf: 52, align: "right" as const },
+    { header: "Food", key: "foodAllowance", pdf: 48, align: "right" as const },
+    { header: "Arrears", key: "arrears", pdf: 54, align: "right" as const },
+    { header: "Gross", key: "gross", pdf: 62, align: "right" as const },
   ];
   const flat = workers.map((w, i) => ({ sno: i + 1, empRegNo: String(w.empRegNo ?? ""), name: String(w.name ?? ""), designation: String(w.designation ?? ""), basic: w.basic ?? "", days: w.days, normalHrs: w.normalHrs, otHrs: w.otHrs, normalPay: w.normalPay, otPay: w.otPay, foodAllowance: w.foodAllowance, arrears: w.arrears, gross: w.gross }));
+  const sum = (k: "normalHrs" | "otHrs" | "normalPay" | "otPay" | "foodAllowance" | "arrears" | "gross") => Math.round(workers.reduce((a, w) => a + (Number(w[k]) || 0), 0) * 100) / 100;
+  const totals = { name: "TOTAL", normalHrs: sum("normalHrs"), otHrs: sum("otHrs"), normalPay: sum("normalPay"), otPay: sum("otPay"), foodAllowance: sum("foodAllowance"), arrears: sum("arrears"), gross: sum("gross") };
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", `attachment; filename="payroll-${filters.dateFrom}_to_${filters.dateTo}.pdf"`);
-  streamTablePdf(flat, cols, { title: `${res.locals.company} — Payroll`, subtitle: `${filters.dateFrom} -> ${filters.dateTo} · gross (normal + OT + food + arrears)` }, res);
+  streamTablePdf(flat, cols, { title: `${res.locals.company} — Payroll`, subtitle: `${filters.dateFrom} -> ${filters.dateTo} · gross (normal + OT + food + arrears)`, company: res.locals.company, totals }, res);
 });
 
 export default router;

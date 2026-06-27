@@ -213,17 +213,17 @@ router.get("/reports/employees/export.pdf", requireCapability("view_reports"), a
   const { q } = employeeQuery(req);
   const rows = await WorkerModel.find(q).select("name empRegNo designationName siteName status dailyWage").sort({ name: 1 }).limit(TABLE_LIMIT).lean();
   const cols = [
-    { header: "Emp ID", key: "empRegNo", pdf: 90 },
+    { header: "Emp ID", key: "empRegNo", pdf: 92 },
     { header: "Name", key: "name", pdf: 150 },
     { header: "Designation", key: "designationName", pdf: 120 },
     { header: "Site", key: "siteName", pdf: 150 },
     { header: "Status", key: "status", pdf: 70 },
-    { header: "Daily Wage", key: "dailyWage", pdf: 80 },
+    { header: "Daily Wage", key: "dailyWage", pdf: 80, align: "right" as const },
   ];
   const flat = rows.map((w) => ({ empRegNo: String(w.empRegNo ?? ""), name: String(w.name ?? ""), designationName: String(w.designationName ?? ""), siteName: String(w.siteName ?? ""), status: String(w.status ?? ""), dailyWage: w.dailyWage ?? "" }));
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", `attachment; filename="employees-${Date.now()}.pdf"`);
-  streamTablePdf(flat, cols, { title: `${res.locals.company} — Employee Report`, subtitle: `${flat.length} employees` }, res);
+  streamTablePdf(flat, cols, { title: `${res.locals.company} — Employee Report`, subtitle: `${flat.length} employees`, company: res.locals.company }, res);
 });
 
 // ========================= Overtime report =========================
@@ -333,9 +333,9 @@ router.get("/reports/overtime/approved.csv", requireCapability("view_reports"), 
 router.get("/reports/overtime/approved.pdf", requireCapability("view_reports"), async (req: Request, res: Response) => {
   const rows = await approvedOtData(req);
   const cols = [
-    { header: "Worker", key: "workerName", pdf: 116 }, { header: "Emp ID", key: "empRegNo", pdf: 78 },
+    { header: "Worker", key: "workerName", pdf: 116 }, { header: "Emp ID", key: "empRegNo", pdf: 92 },
     { header: "Site", key: "siteName", pdf: 104 }, { header: "Date", key: "date", pdf: 64 },
-    { header: "OT h", key: "otHours", pdf: 40 }, { header: "Approved by", key: "approvedByName", pdf: 104 },
+    { header: "OT h", key: "otHours", pdf: 40, align: "right" as const }, { header: "Approved by", key: "approvedByName", pdf: 104 },
     { header: "Approved on (IST)", key: "approvedOn", pdf: 140 },
   ];
   res.setHeader("Content-Type", "application/pdf");
@@ -347,14 +347,16 @@ router.get("/reports/overtime/export.pdf", requireCapability("view_reports"), as
   const { groups } = await overtimeData(req);
   const cols = [
     { header: "Site", key: "site", pdf: 240 },
-    { header: "Pending OT (h)", key: "pending", pdf: 120 },
-    { header: "Approved OT (h)", key: "approved", pdf: 120 },
-    { header: "OT Cost (Rs)", key: "cost", pdf: 140 },
+    { header: "Pending OT (h)", key: "pending", pdf: 120, align: "right" as const },
+    { header: "Approved OT (h)", key: "approved", pdf: 120, align: "right" as const },
+    { header: "OT Cost (Rs)", key: "cost", pdf: 140, align: "right" as const },
   ];
   const flat = groups.map((g) => ({ site: String(g.site ?? ""), pending: g.pending, approved: g.approved, cost: g.cost }));
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  const totals = { site: "TOTAL", pending: r2(groups.reduce((a, g) => a + (Number(g.pending) || 0), 0)), approved: r2(groups.reduce((a, g) => a + (Number(g.approved) || 0), 0)), cost: Math.round(groups.reduce((a, g) => a + (Number(g.cost) || 0), 0)) };
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", `attachment; filename="overtime-${Date.now()}.pdf"`);
-  streamTablePdf(flat, cols, { title: `${res.locals.company} — Overtime Report`, subtitle: "OT hours & cost by site" }, res);
+  streamTablePdf(flat, cols, { title: `${res.locals.company} — Overtime Report`, subtitle: "OT hours & cost by site", company: res.locals.company, totals }, res);
 });
 
 // Payroll is its own first-class module — see src/routes/payroll.ts (/payroll).
