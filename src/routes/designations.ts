@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 
 import { requireCapability, requireRole } from "../auth/middleware";
 import { escapeRegex, isDuplicateKeyError } from "../lib/validate";
+import { AttendanceModel } from "../models/Attendance";
 import { DesignationModel } from "../models/Designation";
 import { WorkerModel } from "../models/Worker";
 
@@ -83,7 +84,15 @@ router.post("/designations/:id", requireRole("management", "hr"), async (req: Re
     flash(req, "danger", `Designation "${name}" already exists.`);
     return res.redirect(`/designations/${req.params.id}/edit`);
   }
+  const before = await DesignationModel.findById(req.params.id).select("name").lean();
   await DesignationModel.findByIdAndUpdate(req.params.id, { name });
+  // Propagate the new name to the denormalized designationName on workers + attendance.
+  if (before && before.name !== name) {
+    await Promise.all([
+      WorkerModel.updateMany({ designationId: req.params.id }, { $set: { designationName: name } }),
+      AttendanceModel.updateMany({ designationId: req.params.id }, { $set: { designationName: name } }),
+    ]);
+  }
   flash(req, "success", "Designation updated.");
   res.redirect("/designations");
 });

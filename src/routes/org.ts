@@ -4,6 +4,7 @@ import { Types } from "mongoose";
 import { requireCapability } from "../auth/middleware";
 import { seesAllSites } from "../auth/permissions";
 import { isValidTime, endAfterStart, isDuplicateKeyError, escapeRegex } from "../lib/validate";
+import { AttendanceModel } from "../models/Attendance";
 import { BranchModel } from "../models/Branch";
 import { ProjectSiteModel } from "../models/ProjectSite";
 import { WorkerModel } from "../models/Worker";
@@ -371,7 +372,16 @@ router.post("/org/sites/:id", requireCapability("manage_sites"), async (req: Req
       update["shifts.night.startTime"] = p.nightStart;
       update["shifts.night.endTime"] = p.nightEnd;
     }
+    const before = await ProjectSiteModel.findById(req.params.id).select("name").lean();
     await ProjectSiteModel.findByIdAndUpdate(req.params.id, update);
+    // Keep the denormalized siteName in sync wherever it was copied — primary-site
+    // workers and their attendance — when the site is actually renamed.
+    if (before && before.name !== p.name) {
+      await Promise.all([
+        WorkerModel.updateMany({ siteId: req.params.id }, { $set: { siteName: p.name } }),
+        AttendanceModel.updateMany({ siteId: req.params.id }, { $set: { siteName: p.name } }),
+      ]);
+    }
     flash(req, "success", "Site updated.");
     res.redirect(`/org/sites/${req.params.id}`);
   } catch (err) {

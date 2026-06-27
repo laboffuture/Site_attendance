@@ -26,7 +26,7 @@ const remarkSchema = new Schema(
 const foodAllowanceSchema = new Schema(
   {
     applicable: { type: Boolean, default: false },
-    amount: { type: Number, default: null }, // per day, when applicable
+    amount: { type: Number, default: null, min: 0 }, // per day, when applicable
   },
   { _id: false },
 );
@@ -67,7 +67,7 @@ const workerSchema = new Schema(
     email: { type: String, default: null },
 
     // Pay (optional at enrollment; required before payroll use)
-    dailyWage: { type: Number, default: null }, // INR per day
+    dailyWage: { type: Number, default: null, min: 0 }, // INR per day
     foodAllowance: { type: foodAllowanceSchema, default: () => ({}) },
 
     // Bank details (optional)

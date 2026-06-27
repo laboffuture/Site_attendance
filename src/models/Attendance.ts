@@ -5,9 +5,9 @@ export type OvertimeStatus = (typeof OVERTIME_STATUS)[number];
 
 const overtimeSchema = new Schema(
   {
-    computedHours: { type: Number, default: 0 },
+    computedHours: { type: Number, default: 0, min: 0 },
     status: { type: String, enum: [...OVERTIME_STATUS], default: "none" },
-    approvedHours: { type: Number, default: null },
+    approvedHours: { type: Number, default: null, min: 0 },
     // HR recommends (raises) → Management approves/closes.
     recommendedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
     recommendedAt: { type: Date, default: null },
@@ -80,10 +80,10 @@ const attendanceSchema = new Schema(
 
     inTime: { type: Date, required: true },
     outTime: { type: Date, default: null },
-    totalHours: { type: Number, default: null },
-    standardHours: { type: Number, default: null },
+    totalHours: { type: Number, default: null, min: 0 },
+    standardHours: { type: Number, default: null, min: 0 },
     shiftType: { type: String, enum: ["day", "night", "sunday"], default: null },
-    breakHours: { type: Number, default: null },
+    breakHours: { type: Number, default: null, min: 0 },
     overtime: { type: overtimeSchema, default: () => ({}) },
 
     // Daily approval / regularization lifecycle (governs the day's attendance).

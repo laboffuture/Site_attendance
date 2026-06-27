@@ -174,6 +174,20 @@ async function reopenSession(rec: HydratedDocument<Attendance>, now: Date, geo?:
   rec.breakHours = null;
   rec.outSource = null;
   rec.overtime = { computedHours: 0, status: "none", approvedHours: null, recommendedBy: null, recommendedAt: null, approvedBy: null, approvedAt: null, notes: null };
+  // A returning worker re-opens the day, so it is no longer "done": pull it back to
+  // 'scanned' and clear any submission/decision stamps. Without this, a re-scan after
+  // the day was submitted/approved would leave a stale non-'scanned' record carrying
+  // wiped hours and orphaned approval metadata.
+  if (rec.attendanceStatus !== "scanned") {
+    rec.attendanceStatus = "scanned";
+    rec.submittedBy = null;
+    rec.submittedAt = null;
+    rec.recommendedBy = null;
+    rec.recommendedAt = null;
+    rec.decidedBy = null;
+    rec.decidedAt = null;
+    rec.rejectReason = null;
+  }
   rec.sessions.push({ inTime: now, outTime: null, inGeo: (geo ?? null) as never, outGeo: null, source: "scan" });
   await rec.save();
   return inState(rec, "in");
