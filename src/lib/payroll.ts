@@ -39,7 +39,7 @@ export async function computePayroll(match: Record<string, unknown>, dateFrom: s
   const mult = config.otMultiplier;
 
   const att = await AttendanceModel.find(match)
-    .select("workerId empRegNo workerName designationName siteId siteName date inTime outTime totalHours overtime attendanceStatus voided")
+    .select("workerId empRegNo workerName designationName siteId siteName date inTime outTime totalHours breakHours overtime attendanceStatus voided")
     .sort({ workerName: 1, date: 1 }).limit(ROW_CAP).lean();
 
   const siteIds = [...new Set(att.map((r) => String(r.siteId)).filter(Boolean))];
@@ -66,7 +66,10 @@ export async function computePayroll(match: Record<string, unknown>, dateFrom: s
     if (!byWorker.has(key)) byWorker.set(key, { empRegNo: r.empRegNo, name: r.workerName, designation: r.designationName, siteName: r.siteName, byDate: {}, unresolved: 0 });
     const wd = byWorker.get(key)!;
     if (r.outTime == null) { wd.unresolved++; unresolvedTotal++; continue; } // forgotten OUT → pay nil, flagged
-    const lunch = lunchBySite.get(String(r.siteId)) ?? 1;
+    // Freeze pay to the lunch actually applied at close (the stored breakHours), so a
+    // later edit to the site's lunch config can't retroactively change historical pay.
+    // Legacy rows with no stored breakHours fall back to the live site lunch.
+    const lunch = typeof r.breakHours === "number" ? r.breakHours : (lunchBySite.get(String(r.siteId)) ?? 1);
     const total = dayHours(r.inTime, r.outTime, lunch, r.totalHours);
     // OT pays only once Management-approved (config.otRequiresApproval). Normal pays on any
     // non-rejected, non-open, non-voided day. Keeps payslip OT == approval-screen OT.
