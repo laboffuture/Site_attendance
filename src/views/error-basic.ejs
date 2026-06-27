@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title><%= title %> · <%= typeof company !== "undefined" && company ? company : "TRG-Attendance" %></title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/static/css/theme.css" />
+    <style>
+      /* Self-contained: this page is served by the global 404 / error handlers,
+         which may run for an unauthenticated request, so it must NOT include the
+         authenticated app shell (sidebar/topbar reference currentUser). */
+      .oh-errpage { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 2rem; font-family: "Poppins", system-ui, -apple-system, sans-serif; background: #f4f5f7; }
+      .oh-errcard { max-width: 30rem; width: 100%; text-align: center; background: #fff; border: 1px solid #e2e2e2; padding: 2.75rem 2.25rem; }
+      .oh-errcard__code { font-size: 3rem; font-weight: 600; color: #1c4d8c; line-height: 1; }
+      .oh-errcard__msg { margin: 0.75rem 0 1.75rem; color: #444; }
+      .oh-errcard__link { display: inline-block; padding: 0.6rem 1.3rem; background: #1c4d8c; color: #fff; text-decoration: none; font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <div class="oh-errpage">
+      <div class="oh-errcard">
+        <div class="oh-errcard__code"><%= code %></div>
+        <p class="oh-errcard__msg"><%= message %></p>
+        <a class="oh-errcard__link" href="/">Go home</a>
+      </div>
+    </div>
+  </body>
+</html>

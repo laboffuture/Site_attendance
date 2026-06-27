@@ -1,8 +1,12 @@
 import path from "path";
 
 import express, { Express } from "express";
+import "express-async-errors"; // routes async rejections to the error handler (Express 4)
 import session from "express-session";
 import MongoStore from "connect-mongo";
+import helmet from "helmet";
+import morgan from "morgan";
+import rateLimit from "express-rate-limit";
 import mongoose from "mongoose";
 
 import { config } from "./config";
@@ -29,6 +33,27 @@ import usersRouter from "./routes/users";
 import stationsRouter from "./routes/stations";
 import workersRouter from "./routes/workers";
 
+// Brute-force throttles on the unauthenticated entry points. Only FAILED attempts
+// count (skipSuccessfulRequests) so a busy office sharing one IP isn't locked out
+// by legitimate logins. Keyed on client IP (correct behind the prod trust-proxy).
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 50,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  message: "Too many sign-in attempts. Please wait a few minutes and try again.",
+});
+
+// The kiosk scan is CPU-heavy (server-side face match). Generous per-IP cap — a
+// busy kiosk scans well under this; it only blunts automated amplification abuse.
+const scanLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 /**
  * Builds the Express app. Called after connectDb() so the session store can
  * use the live Mongo connection when available, and fall back to an in-memory
@@ -40,6 +65,34 @@ export function createApp(): Express {
   // Behind a TLS-terminating proxy in production so secure cookies work.
   if (config.isProd) app.set("trust proxy", 1);
 
+  // Security headers. CSP is tuned to the app's real origins: self-hosted JS/CSS,
+  // Google Fonts + Material Icons, jsDelivr (Bootstrap), data:/blob: for QR codes
+  // and webcam captures. Face matching is server-side, so the client needs no
+  // wasm/eval. COEP off (would block the cross-origin fonts + getUserMedia).
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        useDefaults: false,
+        directives: {
+          defaultSrc: ["'self'"],
+          baseUri: ["'self'"],
+          fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+          formAction: ["'self'"],
+          frameAncestors: ["'self'"],
+          imgSrc: ["'self'", "data:", "blob:"],
+          objectSrc: ["'none'"],
+          scriptSrc: ["'self'", "'unsafe-inline'"],
+          styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdn.jsdelivr.net"],
+          connectSrc: ["'self'"],
+          workerSrc: ["'self'", "blob:"],
+          ...(config.isProd ? { upgradeInsecureRequests: [] } : {}),
+        },
+      },
+      crossOriginEmbedderPolicy: false,
+      hsts: config.isProd ? { maxAge: 15_552_000, includeSubDomains: true } : false,
+    }),
+  );
+
   app.set("view engine", "ejs");
   app.set("views", path.join(__dirname, "views")); // copied into dist/ at build
 
@@ -47,6 +100,8 @@ export function createApp(): Express {
   // Persistent uploads dir is served first so it can live outside the app tree.
   app.use("/static/uploads", express.static(config.uploadDir));
   app.use("/static", express.static(path.join(__dirname, "..", "public")));
+  // HTTP access logging — mounted after static so per-asset noise is skipped.
+  app.use(morgan(config.isProd ? "combined" : "dev"));
   // Larger limit so base64 webcam photos (enrollment) fit in the form body.
   app.use(express.urlencoded({ extended: true, limit: "8mb" }));
 
@@ -95,6 +150,11 @@ export function createApp(): Express {
   });
   app.use(loadCurrentUser);
 
+  // Throttle the unauthenticated / CPU-heavy entry points before the routers.
+  app.use("/login", loginLimiter);
+  app.use("/station/login", loginLimiter);
+  app.use("/station/scan", scanLimiter);
+
   app.use("/", indexRouter);
   app.use("/", authRouter);
   app.use("/", dashboardRouter);
@@ -113,6 +173,26 @@ export function createApp(): Express {
   app.use("/", attendanceRouter);
   app.use("/", regularizationRouter);
   app.use("/", meRouter);
+
+  // 404 — unmatched route renders the standalone branded error page. It uses
+  // "error-basic" (no app shell) because this handler also runs for unauthenticated
+  // requests, where the authed sidebar/topbar would dereference a null currentUser.
+  app.use((_req, res) => {
+    res.status(404).render("error-basic", { title: "Not found", code: 404, message: "That page doesn't exist." });
+  });
+
+  // Central error handler — async route rejections reach here via express-async-errors,
+  // so a transient DB error no longer escapes as an unhandled rejection. Logs the
+  // error server-side and renders the standalone 500 page; never leaks internals.
+  app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.error(`Unhandled error on ${req.method} ${req.originalUrl}:`, err?.stack ?? err);
+    if (res.headersSent) return next(err);
+    try {
+      res.status(500).render("error-basic", { title: "Something went wrong", code: 500, message: "Something went wrong on our end. Please try again." });
+    } catch {
+      res.status(500).type("text").send("Internal Server Error");
+    }
+  });
 
   return app;
 }

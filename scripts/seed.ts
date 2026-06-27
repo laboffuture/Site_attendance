@@ -92,6 +92,13 @@ async function main(): Promise<void> {
   if (existing) {
     console.log(`Admin already exists: ${email} (left unchanged).`);
   } else {
+    // Never mint the publicly-known default admin password in production — that
+    // account is full management access and the default is committed in the repo.
+    if (process.env.NODE_ENV === "production" && !process.env.SEED_ADMIN_PASSWORD) {
+      console.error("Refusing to seed: set SEED_ADMIN_PASSWORD in production (the default password is public in the repo).");
+      await mongoose.connection.close();
+      process.exit(1);
+    }
     const password = process.env.SEED_ADMIN_PASSWORD || "ChangeMe123!";
     await UserModel.create({
       name: process.env.SEED_ADMIN_NAME || "TRGBI Admin",

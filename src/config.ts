@@ -41,3 +41,17 @@ export const config = {
   // volume in production so uploads survive redeploys; served at /static/uploads.
   uploadDir: process.env.UPLOAD_DIR || path.join(process.cwd(), "public", "uploads"),
 };
+
+/**
+ * Refuse to start a production server with the committed placeholder session
+ * secret — signing cookies with a public default undermines session integrity.
+ * Called from the server entrypoint before binding the port (not at import
+ * time), so dev tooling, tests and one-off scripts are unaffected.
+ */
+export function assertProdConfig(): void {
+  if (!config.isProd) return;
+  if (!process.env.SESSION_SECRET || config.sessionSecret === "change-me-to-a-long-random-string") {
+    console.error("Refusing to start: SESSION_SECRET must be set to a long random string in production.");
+    process.exit(1);
+  }
+}

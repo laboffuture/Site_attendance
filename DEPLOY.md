@@ -7,6 +7,7 @@ changes** — you must rebuild and restart. Do this every time you pull:
 git pull                 # get the latest code
 npm ci                   # install deps (only needed if package.json changed)
 npm run build            # COMPILE src/ -> dist/  (REQUIRED — without this you run old code)
+npm run sync-indexes     # reconcile DB indexes with the schemas (safe to run every deploy)
 # then restart the app:
 pm2 restart trg-attendance      # if using pm2
 # or: systemctl restart trg-attendance
@@ -37,7 +38,11 @@ Then **hard-refresh** the browser (Cmd/Ctrl+Shift+R).
    #   OT_REQUIRES_APPROVAL=true   # pay OT only once Management-approved (set false to pay computed OT)
    #   FOOD_MIN_HOURS=5            # minimum paid hours on a day to earn the food allowance
    ```
-2. `npm ci && npm run build`
+   > **Hard requirements now enforced:** the server **refuses to start** in
+   > production unless `SESSION_SECRET` is set (no more silent insecure default),
+   > and `npm run seed` **refuses to run** in production unless `SEED_ADMIN_PASSWORD`
+   > is set (so it never creates the public default admin password).
+2. `npm ci && npm run build && npm run sync-indexes`
 3. `npm run seed` (creates the 5 logins + base data) — skip if restoring real data.
 4. Start the app, behind **HTTPS** (camera + GPS need a secure context — the kiosk
    face-scan and geofence won't work over plain http except on `localhost`).
@@ -59,3 +64,23 @@ permissions so they follow the role.
 - **Supervisor** — Dashboard, Attendance, Requests, Employees, Reports, **Stations**.
 - PM + Supervisor: open Stations → register a station → share the **kiosk link / QR**;
   workers just face the camera at that link. They do **not** get Users & Roles, Payroll, Flagged.
+
+## Backups (payroll is the system of record — do this before go-live)
+
+The database holds attendance, OT approvals and payroll. Back it up off-box.
+
+- **Atlas:** enable Cloud Backup (continuous / daily snapshots) on the cluster, with
+  a retention window you're comfortable restoring from. That's the simplest option.
+- **Self-hosted Mongo:** schedule a nightly `mongodump` to off-server storage, e.g.
+  ```bash
+  mongodump --uri "$MONGODB_URI" --db "$DB_NAME" --gzip --archive=/backups/trg-$(date +\%F).gz
+  ```
+  Keep several days of archives and test a `mongorestore` into a scratch DB periodically.
+- **Uploads:** also back up `UPLOAD_DIR` (the worker enrolment photos) — they live on
+  the persistent volume, not in the DB.
+
+## Health check
+
+`GET /healthz` returns `200 {"status":"ok"}` when the DB is connected and **`503`
+`{"status":"degraded"}`** when it is not — point your load balancer / PM2 / uptime
+probe at it so a DB-less instance is taken out of rotation.

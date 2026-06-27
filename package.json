@@ -45,7 +45,8 @@
     "e2e:payroll": "tsx scripts/e2e_payroll.ts",
     "e2e:correction": "tsx scripts/e2e_correction.ts",
     "e2e:manpower": "tsx scripts/e2e_manpower.ts",
-    "e2e:forgot": "tsx scripts/e2e_forgot_submit.ts"
+    "e2e:forgot": "tsx scripts/e2e_forgot_submit.ts",
+    "e2e:hardening": "tsx scripts/e2e_hardening.ts"
   },
   "dependencies": {
     "@tensorflow/tfjs": "^4.22.0",
@@ -57,9 +58,13 @@
     "ejs": "^3.1.10",
     "exceljs": "^4.4.0",
     "express": "^4.21.2",
+    "express-async-errors": "^3.1.1",
+    "express-rate-limit": "^8.5.2",
     "express-session": "^1.18.1",
+    "helmet": "^8.2.0",
     "jpeg-js": "^0.4.4",
     "mongoose": "^8.9.5",
+    "morgan": "^1.11.0",
     "pdfkit": "^0.19.1",
     "qrcode": "^1.5.4"
   },
@@ -67,6 +72,7 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/express": "^4.17.21",
     "@types/express-session": "^1.18.0",
+    "@types/morgan": "^1.9.10",
     "@types/node": "^22.10.5",
     "@types/pdfkit": "^0.17.6",
     "@types/qrcode": "^1.5.6",

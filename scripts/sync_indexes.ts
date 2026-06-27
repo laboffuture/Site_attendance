@@ -11,6 +11,8 @@ import * as db from "../src/db";
 import {
   BranchModel, DesignationModel, ProjectSiteModel, SiteStationModel,
   UserModel, WorkerModel, AttendanceModel, FlagEventModel, CounterModel,
+  RequestModel, PayrollAdjustmentModel, ManpowerRequestModel,
+  OutsourceEmployeeModel, LoginGeoCheckModel,
 } from "../src/models";
 
 async function main(): Promise<void> {
@@ -22,6 +24,8 @@ async function main(): Promise<void> {
   const models = [
     BranchModel, DesignationModel, ProjectSiteModel, SiteStationModel,
     UserModel, WorkerModel, AttendanceModel, FlagEventModel, CounterModel,
+    RequestModel, PayrollAdjustmentModel, ManpowerRequestModel,
+    OutsourceEmployeeModel, LoginGeoCheckModel,
   ];
   for (const M of models) {
     const dropped = await M.syncIndexes();
