@@ -14,9 +14,11 @@ import { createApp } from "../src/app";
 import { connectDb } from "../src/db";
 import * as db from "../src/db";
 import { hashPassword } from "../src/auth/password";
+import { recordScan } from "../src/lib/attendance";
+import { dataUrlToBuffer } from "../src/lib/image";
 import { generateStationKey, hashStationKey } from "../src/lib/stationKey";
 import { istDateTime, istOutDateTime, siteLocalDate } from "../src/lib/time";
-import { BranchModel, ProjectSiteModel, WorkerModel, AttendanceModel, UserModel, SiteStationModel } from "../src/models";
+import { BranchModel, ProjectSiteModel, WorkerModel, AttendanceModel, UserModel, SiteStationModel, DesignationModel } from "../src/models";
 
 const S = Date.now().toString(36);
 const PW = "Pass123!";
@@ -43,6 +45,13 @@ async function main(): Promise<void> {
   const inRef = istDateTime(dRef, "20:00");
   assert("istOutDateTime rolls a cross-midnight OUT to next day (out > in)", istOutDateTime(dRef, "05:00", inRef).getTime() > inRef.getTime());
   assert("istOutDateTime leaves a same-day OUT unchanged", istOutDateTime(dRef, "23:00", inRef).getTime() === istDateTime(dRef, "23:00").getTime());
+
+  // ---- 0b. Pure helper: image upload validation (magic bytes + size) ----
+  const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]).toString("base64");
+  const fake = Buffer.from("this is plainly not an image").toString("base64");
+  assert("dataUrlToBuffer accepts a real JPEG", dataUrlToBuffer(`data:image/jpeg;base64,${jpeg}`) !== null);
+  assert("dataUrlToBuffer rejects non-image bytes mislabelled as image", dataUrlToBuffer(`data:image/jpeg;base64,${fake}`) === null);
+  assert("dataUrlToBuffer rejects a non-data-url", dataUrlToBuffer("hello there") === null);
 
   // ---- Fixtures: one branch, two sites ----
   const branch = await BranchModel.create({ name: `QA HARD ${S}` });
@@ -137,12 +146,44 @@ async function main(): Promise<void> {
   const otAfterOk = await AttendanceModel.findById(otRec._id).lean();
   assert("in-scope PM moved OT to recommended", otAfterOk?.overtime.status === "recommended" && !!otAfterOk?.overtime.recommendedBy);
 
+  // ========== 4. SCAN RE-OPEN resets a submitted day back to 'scanned' ==========
+  const wRe = await WorkerModel.create({ empRegNo: `QA-HRE-${S}`, name: `QA Reopen ${S}`, designationId: new Types.ObjectId(), designationName: "Carpenter", siteId: siteA._id, siteName: siteA.name, faceEncoding: [], status: "active" });
+  const recRe = await AttendanceModel.create({ date: today, workerId: wRe._id, empRegNo: wRe.empRegNo, workerName: wRe.name, designationId: wRe.designationId, designationName: "Carpenter", siteId: siteA._id, siteName: siteA.name, branchId: branch._id, branchName: branch.name, inTime: istDateTime(today, "08:00"), outTime: istDateTime(today, "17:00"), totalHours: 8, standardHours: 8, attendanceStatus: "submitted", submittedBy: new Types.ObjectId(), submittedAt: new Date(), source: "scan" });
+  await recordScan({ _id: wRe._id, empRegNo: wRe.empRegNo, name: wRe.name, designationId: wRe.designationId, designationName: "Carpenter" }, { _id: siteA._id, name: siteA.name, branchId: branch._id }, branch.name, "in");
+  const reopened = await AttendanceModel.findById(recRe._id).lean();
+  assert("re-scan IN after submit re-opens the day (OUT + hours cleared)", reopened!.outTime === null && reopened!.totalHours === null);
+  assert("re-scan resets a submitted record back to 'scanned' (stamps cleared)", reopened!.attendanceStatus === "scanned" && reopened!.submittedBy === null);
+
+  // ========== 5. DENORM PROPAGATION on site + designation rename ==========
+  const desA = await DesignationModel.create({ name: `QA Mason ${S}` });
+  const wRen = await WorkerModel.create({ empRegNo: `QA-HREN-${S}`, name: `QA Rename ${S}`, designationId: desA._id, designationName: desA.name, siteId: siteB._id, siteName: siteB.name, faceEncoding: [], status: "active" });
+  const recRen = await AttendanceModel.create({ date: "2025-03-01", workerId: wRen._id, empRegNo: wRen.empRegNo, workerName: wRen.name, designationId: desA._id, designationName: desA.name, siteId: siteB._id, siteName: siteB.name, branchId: branch._id, branchName: branch.name, inTime: istDateTime("2025-03-01", "08:00"), outTime: istDateTime("2025-03-01", "17:00"), totalHours: 8, source: "scan" });
+  // Designation rename → propagate to worker + attendance.
+  const newDes = `QA Mason Senior ${S}`;
+  const drn = await ma.post(`/designations/${desA._id}`).type("form").send({ name: newDes });
+  assert("designation rename redirects", drn.status === 302);
+  assert("designation rename propagated to the worker", (await WorkerModel.findById(wRen._id).lean())!.designationName === newDes);
+  assert("designation rename propagated to attendance", (await AttendanceModel.findById(recRen._id).lean())!.designationName === newDes);
+  // Site rename → propagate to primary-site workers + their attendance.
+  const newSiteName = `QA Hard B Renamed ${S}`;
+  const srn = await ma.post(`/org/sites/${siteB._id}`).type("form").send({ branchId: String(branch._id), name: newSiteName, code: siteB.code, standardStartTime: "09:00", standardEndTime: "18:00", latitude: "13.0", longitude: "80.0", geofenceRadiusMeters: "100" });
+  assert("site rename redirects", srn.status === 302);
+  assert("site rename propagated to the worker", (await WorkerModel.findById(wRen._id).lean())!.siteName === newSiteName);
+  assert("site rename propagated to attendance", (await AttendanceModel.findById(recRen._id).lean())!.siteName === newSiteName);
+
+  // ========== 6. MID-SESSION DEACTIVATION drops the live session ==========
+  const dz = await login(app, supA);
+  assert("active user can load the dashboard", (await dz.get("/dashboard")).status === 200);
+  await UserModel.updateOne({ email: supA }, { $set: { active: false } });
+  assert("deactivated user's next request is rejected (redirect to login)", (await dz.get("/dashboard")).status === 302);
+
   // ---- Cleanup ----
   await Promise.all([
     AttendanceModel.deleteMany({ siteId: { $in: [siteA._id, siteB._id] } }),
     WorkerModel.deleteMany({ empRegNo: new RegExp(`-${S}$`) }),
     SiteStationModel.deleteMany({ projectSiteId: { $in: [siteA._id, siteB._id] } }),
     UserModel.deleteMany({ email: { $in: [mgmt, supA, supB, pmA, pmB] } }),
+    DesignationModel.deleteOne({ _id: desA._id }),
     ProjectSiteModel.deleteMany({ _id: { $in: [siteA._id, siteB._id] } }),
     BranchModel.deleteOne({ _id: branch._id }),
   ]);

@@ -9,7 +9,7 @@ import { connectDb } from "../src/db";
 import * as db from "../src/db";
 import { hashPassword } from "../src/auth/password";
 import { istDateTime, siteLocalDate } from "../src/lib/time";
-import { BranchModel, ProjectSiteModel, WorkerModel, AttendanceModel, UserModel } from "../src/models";
+import { BranchModel, ProjectSiteModel, WorkerModel, AttendanceModel, UserModel, FlagEventModel } from "../src/models";
 
 const S = Date.now().toString(36);
 const HR_EMAIL = `qa-corr-hr-${S}@trgbi.com`;
@@ -45,6 +45,10 @@ async function main(): Promise<void> {
   // A bogus 5-minute record (different worker, same day) — HR voids it.
   const bogusRec = await AttendanceModel.create({ ...base, workerId: new Types.ObjectId(), empRegNo: `QA-CR2-${S}`, inTime: istDateTime(today, "09:00"), outTime: istDateTime(today, "09:05"), totalHours: 0.08 });
 
+  // Pre-seed flags so we can prove the correction + void paths close the loop.
+  const mcFlag = await FlagEventModel.create({ type: "missed_clockout", workerId: worker._id, workerName: worker.name, empRegNo: worker.empRegNo, attendanceId: openRec._id, date: today, homeSiteId: site._id, homeSiteName: site.name, attemptedSiteId: site._id, attemptedSiteName: site.name });
+  const fsFlag = await FlagEventModel.create({ type: "forgot_submit", attemptedSiteId: site._id, attemptedSiteName: site.name, date: today });
+
   const hr = await login(app, HR_EMAIL);
 
   // HR fills the missing OUT (08:00 → 17:00, lunch 1h → 8h std, 0 OT).
@@ -57,12 +61,18 @@ async function main(): Promise<void> {
   assert("audit entry written for outTime", fixed!.corrections.length === 1 && fixed!.corrections[0].field === "outTime");
   assert("day moved to recommended (Management approves next)", fixed!.attendanceStatus === "recommended");
   assert("record marked manual + markedBy set", fixed!.source === "manual" && !!fixed!.markedBy);
+  // Close-the-loop: filling the OUT auto-resolved the linked missed_clockout flag.
+  assert("HR correction auto-resolved the missed_clockout flag", (await FlagEventModel.findById(mcFlag._id).lean())!.resolved === true);
+  // forgot_submit must stay OPEN — the bogus record is still 'scanned' on this day.
+  assert("forgot_submit stays open while a scanned record remains", (await FlagEventModel.findById(fsFlag._id).lean())!.resolved === false);
 
   // HR voids the bogus record.
   const voidRes = await hr.post(`/regularization/worker/${bogusRec._id}/void`).type("form").send({ reason: "accidental double scan" });
   assert("HR void redirects (success)", voidRes.status === 302);
   const voided = await AttendanceModel.findById(bogusRec._id);
   assert("record voided + reason", voided!.voided === true && voided!.voidReason === "accidental double scan");
+  // Voiding the day's last scanned record closes the loop on forgot_submit.
+  assert("voiding the last scanned record auto-resolved forgot_submit", (await FlagEventModel.findById(fsFlag._id).lean())!.resolved === true);
 
   // HR creates a manual day for a worker who never scanned (08:00–17:00, lunch 1h → 8h, 0 OT).
   const w2 = await WorkerModel.create({ empRegNo: `QA-CR3-${S}`, name: `QA NoScan ${S}`, designationId: new Types.ObjectId(), designationName: "Carpenter", siteId: site._id, siteName: site.name, faceEncoding: [], status: "active" });
@@ -85,6 +95,7 @@ async function main(): Promise<void> {
   await Promise.all([
     AttendanceModel.deleteMany({ siteId: site._id }),
     WorkerModel.deleteMany({ siteId: site._id }),
+    FlagEventModel.deleteMany({ attemptedSiteId: site._id }),
     UserModel.deleteMany({ email: { $in: [HR_EMAIL, MGMT_EMAIL] } }),
     ProjectSiteModel.deleteOne({ _id: site._id }),
     BranchModel.deleteOne({ _id: branch._id }),
