@@ -10,7 +10,7 @@ import { encodeFace, bestMatch } from "../lib/face";
 import { buildGeoCapture, checkGeofence } from "../lib/geo";
 import { dataUrlToBuffer } from "../lib/image";
 import { canUseSite } from "../lib/scope";
-import { siteLocalDate, istHM, istDateTime, round2 } from "../lib/time";
+import { siteLocalDate, istHM, istOutDateTime, round2 } from "../lib/time";
 import { AttendanceModel } from "../models/Attendance";
 import { BranchModel } from "../models/Branch";
 import { FlagEventModel } from "../models/FlagEvent";
@@ -258,7 +258,7 @@ router.post("/attendance/submit", requireCapability("submit_attendance"), async 
     // open records only; recomputes hours/OT via the shared reckoner, audited).
     const outHM = String(req.body[`outHM_${rec.workerId}`] ?? "").trim();
     if (rec.outTime == null && HM_RE.test(outHM)) {
-      fillOut(rec, istDateTime(date, outHM), lunch, "supervisor-filled");
+      fillOut(rec, istOutDateTime(date, outHM, rec.inTime), lunch, "supervisor-filled");
       rec.corrections.push({ field: "outTime", oldValue: null, newValue: outHM, by: new Types.ObjectId(user.id), at: new Date(), reason: "Supervisor filled forgotten clock-out at submit" });
       rec.source = "manual";
       rec.markedBy = new Types.ObjectId(user.id);

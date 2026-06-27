@@ -5,7 +5,7 @@ import { requireCapability } from "../auth/middleware";
 import { fillOut } from "../lib/attendance";
 import { resolveMissedClockout, resolveForgotSubmit } from "../lib/flagResolve";
 import { canUseSite, flagScopeFilter } from "../lib/scope";
-import { istDateTime } from "../lib/time";
+import { istOutDateTime } from "../lib/time";
 import { AttendanceModel } from "../models/Attendance";
 import { FlagEventModel } from "../models/FlagEvent";
 import { ProjectSiteModel } from "../models/ProjectSite";
@@ -76,7 +76,7 @@ router.post("/flags/:id/fix-clockout", requireCapability("view_flags"), async (r
     const lunch = typeof site?.lunchHours === "number" ? site.lunchHours : 1;
     const role = req.currentUser!.role;
     const outSource = role === "supervisor" || role === "pm" ? "supervisor-filled" : "hr-filled";
-    fillOut(rec, istDateTime(rec.date, outHM), lunch, outSource);
+    fillOut(rec, istOutDateTime(rec.date, outHM, rec.inTime), lunch, outSource);
     rec.corrections.push({ field: "outTime", oldValue: null, newValue: outHM, by: new Types.ObjectId(req.currentUser!.id), at: new Date(), reason: "Filled forgotten clock-out from the flags queue" });
     rec.source = "manual";
     rec.markedBy = new Types.ObjectId(req.currentUser!.id);

@@ -17,6 +17,19 @@ export function istDateTime(date: string, hm: string): Date {
   return new Date(`${date}T${hm}:00+05:30`);
 }
 
+/** Build a record's OUT timestamp from a bare "HH:MM" entered against the IN-day.
+ *  Manual OUT-fills (supervisor close-out, flags fix, HR correct/create) carry no
+ *  date — only the time. When that time lands at or before the IN it means the
+ *  shift crossed midnight (e.g. a night shift 20:00 → 05:00), so the OUT belongs
+ *  to the NEXT calendar day. Rolling it forward (exactly +24h; IST has no DST)
+ *  guarantees outTime > inTime, so reckonHours never clamps a night span to zero.
+ *  A same-day OUT after the IN is returned unchanged. */
+export function istOutDateTime(date: string, hm: string, inTime: Date): Date {
+  const sameDay = istDateTime(date, hm);
+  if (sameDay.getTime() > inTime.getTime()) return sameDay;
+  return new Date(sameDay.getTime() + 86_400_000); // cross-midnight → next day
+}
+
 /** A Date rendered as IST "HH:MM" (or "" for null). */
 export function istHM(d: Date | null | undefined): string {
   return d

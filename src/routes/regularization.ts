@@ -5,7 +5,7 @@ import { requireCapability } from "../auth/middleware";
 import { reckonHours } from "../lib/attendance";
 import { resolveMissedClockout, resolveForgotSubmit } from "../lib/flagResolve";
 import { canUseSite, siteScopeFilter } from "../lib/scope";
-import { istHM, istDateTime } from "../lib/time";
+import { istHM, istDateTime, istOutDateTime } from "../lib/time";
 import { AttendanceModel, type Attendance } from "../models/Attendance";
 import { BranchModel } from "../models/Branch";
 import { ProjectSiteModel } from "../models/ProjectSite";
@@ -205,7 +205,7 @@ router.post("/regularization/worker/:attendanceId/correct", requireCapability("c
   const shiftType = String(req.body.shiftType ?? "").trim();
   let touched = false;
   if (inHM && HM_RE.test(inHM)) { pushCorrection(rec, "inTime", istHM(rec.inTime), inHM, uid, reason); rec.inTime = istDateTime(rec.date, inHM); touched = true; }
-  if (outHM && HM_RE.test(outHM)) { pushCorrection(rec, "outTime", istHM(rec.outTime ?? null), outHM, uid, reason); rec.outTime = istDateTime(rec.date, outHM); rec.outSource = "hr-filled"; touched = true; }
+  if (outHM && HM_RE.test(outHM)) { pushCorrection(rec, "outTime", istHM(rec.outTime ?? null), outHM, uid, reason); rec.outTime = istOutDateTime(rec.date, outHM, rec.inTime); rec.outSource = "hr-filled"; touched = true; }
   if (shiftType && ["day", "night", "sunday"].includes(shiftType)) { pushCorrection(rec, "shiftType", rec.shiftType, shiftType, uid, reason); rec.shiftType = shiftType as Attendance["shiftType"]; touched = true; }
   if (!touched) { flash(req, "danger", "Nothing to correct — enter a time or shift."); return res.redirect(`/regularization/${rec.siteId}/${rec.date}`); }
   await recompute(rec);
@@ -233,6 +233,10 @@ router.post("/regularization/worker/:attendanceId/void", requireCapability("corr
   rec.voidReason = String(req.body.reason ?? "").trim() || null;
   pushCorrection(rec, "void", "false", "true", uid, rec.voidReason);
   await rec.save();
+  // A voided record is dispositioned — clear its missed_clockout, and clear the
+  // day's forgot_submit if voiding emptied the scanned queue (mirrors reject).
+  await resolveMissedClockout(rec._id);
+  await resolveForgotSubmit(rec.siteId, rec.date);
   flash(req, "success", `Voided ${rec.workerName}.`);
   res.redirect(`/regularization/${rec.siteId}/${rec.date}`);
 });
@@ -277,7 +281,7 @@ router.post("/regularization/:siteId/:date/create", requireCapability("correct_a
   const branch = await BranchModel.findById(site.branchId).select("name").lean();
   const uid = req.currentUser!.id;
   const inTime = istDateTime(date, inHM);
-  const outTime = outHM && HM_RE.test(outHM) ? istDateTime(date, outHM) : null;
+  const outTime = outHM && HM_RE.test(outHM) ? istOutDateTime(date, outHM, inTime) : null;
   const lunch = typeof site.lunchHours === "number" ? site.lunchHours : 1;
   const hours = outTime ? reckonHours(inTime, outTime, lunch) : null;
   const ot = hours?.overtimeHours ?? 0;
