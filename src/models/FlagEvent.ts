@@ -1,7 +1,6 @@
 import { Schema, model, InferSchemaType } from "mongoose";
 
 export const FLAG_TYPES = ["wrong_site_scan", "missed_clockout", "forgot_submit"] as const;
-export type FlagType = (typeof FLAG_TYPES)[number];
 
 const flagEventSchema = new Schema(
   {

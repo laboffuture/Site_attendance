@@ -1,12 +1,10 @@
 import { Schema, model, InferSchemaType } from "mongoose";
 
 export const REQUEST_TYPES = ["scheduled_ot", "offload"] as const;
-export type RequestType = (typeof REQUEST_TYPES)[number];
 
 // Flow: pending → recommended (by PM) → approved | rejected (by admin).
 // There is no "withdrawn" — once created a request stays on record.
 export const REQUEST_STATUS = ["pending", "recommended", "approved", "rejected"] as const;
-export type RequestStatus = (typeof REQUEST_STATUS)[number];
 
 const requestSchema = new Schema(
   {
@@ -52,5 +50,4 @@ const requestSchema = new Schema(
 requestSchema.index({ status: 1, createdAt: -1 });
 requestSchema.index({ siteId: 1, status: 1 });
 
-export type RequestDoc = InferSchemaType<typeof requestSchema>;
 export const RequestModel = model("Request", requestSchema, "requests");

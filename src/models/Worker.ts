@@ -1,7 +1,6 @@
 import { Schema, model, InferSchemaType } from "mongoose";
 
 export const WORKER_STATUS = ["pending", "active", "inactive", "deleted"] as const;
-export type WorkerStatus = (typeof WORKER_STATUS)[number];
 
 export const REMARK_TYPES = ["note", "soft_delete", "offload", "conflict", "registration", "rejection"] as const;
 export type RemarkType = (typeof REMARK_TYPES)[number];

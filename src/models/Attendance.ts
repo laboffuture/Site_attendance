@@ -1,7 +1,6 @@
 import { Schema, model, InferSchemaType } from "mongoose";
 
 export const OVERTIME_STATUS = ["none", "pending", "recommended", "approved", "rejected"] as const;
-export type OvertimeStatus = (typeof OVERTIME_STATUS)[number];
 
 const overtimeSchema = new Schema(
   {
