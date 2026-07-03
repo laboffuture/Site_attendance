@@ -68,8 +68,10 @@ export function createApp(): Express {
 
   // Security headers. CSP is tuned to the app's real origins: self-hosted JS/CSS,
   // Google Fonts + Material Icons, jsDelivr (Bootstrap), data:/blob: for QR codes
-  // and webcam captures. Face matching is server-side, so the client needs no
+  // and webcam captures, and the site-picker map (Leaflet from unpkg/cdnjs, OSM
+  // tiles, Nominatim search). Face matching is server-side, so the client needs no
   // wasm/eval. COEP off (would block the cross-origin fonts + getUserMedia).
+  const MAP_CDNS = ["https://unpkg.com", "https://cdnjs.cloudflare.com"];
   app.use(
     helmet({
       contentSecurityPolicy: {
@@ -80,11 +82,11 @@ export function createApp(): Express {
           fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
           formAction: ["'self'"],
           frameAncestors: ["'self'"],
-          imgSrc: ["'self'", "data:", "blob:"],
+          imgSrc: ["'self'", "data:", "blob:", "https://*.tile.openstreetmap.org", "https://unpkg.com"],
           objectSrc: ["'none'"],
-          scriptSrc: ["'self'", "'unsafe-inline'"],
-          styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdn.jsdelivr.net"],
-          connectSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'", ...MAP_CDNS],
+          styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdn.jsdelivr.net", ...MAP_CDNS],
+          connectSrc: ["'self'", "https://nominatim.openstreetmap.org"],
           workerSrc: ["'self'", "blob:"],
           ...(config.isProd ? { upgradeInsecureRequests: [] } : {}),
         },
