@@ -75,7 +75,7 @@
         <td class="oh-people__actcol"><span class="oh-row-actions">
           <a class="oh-icon-btn" href="/org/sites/<%= s._id %>" title="View"><span class="material-icons">visibility</span></a>
           <a class="oh-icon-btn" href="/org/sites/<%= s._id %>/edit" title="Edit"><span class="material-icons">edit</span></a>
-          <form method="post" action="/org/sites/<%= s._id %>/delete" onsubmit="return confirm('Delete this site?')"><button class="oh-icon-btn oh-icon-btn--danger" type="submit" title="Delete"><span class="material-icons">delete</span></button></form>
+          <form method="post" action="/org/sites/<%= s._id %>/delete" onsubmit="return confirm('Delete this site? It has <%= s.workers %> employee(s) assigned — they will stay in the employee list and must be reassigned to another site later. This cannot be undone.')"><button class="oh-icon-btn oh-icon-btn--danger" type="submit" title="Delete"><span class="material-icons">delete</span></button></form>
         </span></td>
         <% } %>
       </tr>

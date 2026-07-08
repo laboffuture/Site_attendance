@@ -7,6 +7,8 @@ import { isValidTime, endAfterStart, isDuplicateKeyError, escapeRegex } from "..
 import { AttendanceModel } from "../models/Attendance";
 import { BranchModel } from "../models/Branch";
 import { ProjectSiteModel } from "../models/ProjectSite";
+import { SiteStationModel } from "../models/SiteStation";
+import { UserModel } from "../models/User";
 import { WorkerModel } from "../models/Worker";
 
 const router = Router();
@@ -390,15 +392,42 @@ router.post("/org/sites/:id", requireCapability("manage_sites"), async (req: Req
   }
 });
 
-// Delete a site — blocked while employees are still assigned to it.
+// Delete a site — allowed regardless of how many employees are assigned (the UI
+// asks for confirmation). Employees keep their records — and this site's name
+// for display — until HR reassigns them; attendance/OT/payroll history is kept.
 router.post("/org/sites/:id/delete", requireCapability("manage_sites"), async (req: Request, res: Response) => {
-  const workerCount = await WorkerModel.countDocuments({ siteIds: req.params.id });
-  if (workerCount > 0) {
-    flash(req, "danger", `Reassign this site's ${workerCount} employee(s) first.`);
+  const site = Types.ObjectId.isValid(req.params.id)
+    ? await ProjectSiteModel.findById(req.params.id).lean()
+    : null;
+  if (!site) {
+    flash(req, "danger", "Site not found.");
     return res.redirect("/org");
   }
-  await ProjectSiteModel.findByIdAndDelete(req.params.id);
-  flash(req, "success", "Site deleted.");
+  const u = req.currentUser!;
+  await Promise.all([
+    // Audit trail on every employee still assigned here, so HR sees why the
+    // worker needs a new site.
+    WorkerModel.updateMany(
+      { siteIds: site._id, status: { $ne: "deleted" } },
+      {
+        $push: {
+          remarks: {
+            text: `Site "${site.name}" was deleted — reassign this employee to another site.`,
+            type: "note",
+            authorId: new Types.ObjectId(u.id),
+            authorName: u.name,
+            at: new Date(),
+          },
+        },
+      },
+    ),
+    // The site's scan stations are useless without the site.
+    SiteStationModel.deleteMany({ projectSiteId: site._id }),
+    // Drop the site from PM/Supervisor scopes so their menus don't show it.
+    UserModel.updateMany({ assignedSiteIds: site._id }, { $pull: { assignedSiteIds: site._id } }),
+    ProjectSiteModel.deleteOne({ _id: site._id }),
+  ]);
+  flash(req, "success", `Site "${site.name}" deleted.`);
   res.redirect("/org");
 });
 

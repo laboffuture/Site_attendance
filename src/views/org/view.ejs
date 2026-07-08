@@ -8,7 +8,7 @@
   <% if (canManage) { %>
   <div class="oh-actions">
     <a class="oh-btn oh-btn--small oh-btn--secondary" href="/org/sites/<%= site._id %>/edit"><span class="material-icons">edit</span> Edit</a>
-    <form method="post" action="/org/sites/<%= site._id %>/delete" onsubmit="return confirm('Delete this site?')" style="margin:0"><button class="oh-btn oh-btn--small oh-btn--danger" type="submit">Delete</button></form>
+    <form method="post" action="/org/sites/<%= site._id %>/delete" onsubmit="return confirm('Delete this site? It has <%= workers %> employee(s) assigned — they will stay in the employee list and must be reassigned to another site later. This cannot be undone.')" style="margin:0"><button class="oh-btn oh-btn--small oh-btn--danger" type="submit">Delete</button></form>
   </div>
   <% } %>
 </div>
