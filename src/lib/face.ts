@@ -15,6 +15,8 @@ import { setWasmPaths } from "@tensorflow/tfjs-backend-wasm";
 import type * as FaceApi from "@vladmandic/face-api";
 import * as jpeg from "jpeg-js";
 
+import { config } from "../config";
+
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const faceapi: typeof FaceApi = require("@vladmandic/face-api/dist/face-api.node-wasm.js");
 
@@ -22,10 +24,6 @@ const MODEL_DIR = path.join(__dirname, "..", "..", "models", "face");
 const WASM_DIR = path
   .join(process.cwd(), "node_modules/@tensorflow/tfjs-backend-wasm/dist/")
   .replace(/\\/g, "/");
-
-/** Max Euclidean distance between descriptors to count as the same person.
- *  Lower = stricter. 0.5 is conservative for the FaceNet-style 128-d space. */
-const MATCH_THRESHOLD = 0.5;
 
 let ready: Promise<void> | null = null;
 
@@ -87,17 +85,52 @@ function descriptorDistance(a: number[], b: number[]): number {
   return Math.sqrt(sum);
 }
 
-/** Closest candidate within `threshold`, or null if none match. */
+/**
+ * Closest candidate, or null when nobody matches confidently.
+ *
+ * Two-stage acceptance (thresholds in config, env-overridable):
+ *  - distance <= faceStrongMatch: clear match, accept.
+ *  - faceStrongMatch < distance <= faceMatchThreshold: accept only when the
+ *    runner-up is at least faceMatchMargin further away. A genuine worker is
+ *    much closer to their own enrollment than to anyone else's; a stranger
+ *    lands roughly equidistant from several people — that ambiguity is what
+ *    used to let unregistered faces clock somebody in.
+ * Rejections are logged (id + distances) so the thresholds can be tuned from
+ * the server logs.
+ */
 export function bestMatch(
   probe: number[],
   candidates: { id: string; descriptor: number[] }[],
-  threshold = MATCH_THRESHOLD,
+  threshold = config.faceMatchThreshold,
 ): { id: string; distance: number } | null {
   let best: { id: string; distance: number } | null = null;
+  let second: { id: string; distance: number } | null = null;
   for (const c of candidates) {
     if (!c.descriptor || c.descriptor.length !== probe.length) continue;
     const distance = descriptorDistance(probe, c.descriptor);
-    if (best === null || distance < best.distance) best = { id: c.id, distance };
+    if (best === null || distance < best.distance) {
+      second = best;
+      best = { id: c.id, distance };
+    } else if (second === null || distance < second.distance) {
+      second = { id: c.id, distance };
+    }
   }
-  return best && best.distance <= threshold ? best : null;
+  if (!best) return null;
+  if (best.distance > threshold) {
+    console.log(
+      `face: rejected — nearest ${best.id} at ${best.distance.toFixed(3)} > threshold ${threshold}`,
+    );
+    return null;
+  }
+  if (
+    best.distance > config.faceStrongMatch &&
+    second !== null &&
+    second.distance - best.distance < config.faceMatchMargin
+  ) {
+    console.log(
+      `face: rejected as ambiguous — ${best.id} at ${best.distance.toFixed(3)} vs runner-up ${second.id} at ${second.distance.toFixed(3)} (margin < ${config.faceMatchMargin})`,
+    );
+    return null;
+  }
+  return best;
 }

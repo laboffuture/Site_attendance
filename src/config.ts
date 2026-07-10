@@ -37,6 +37,16 @@ export const config = {
   otRequiresApproval: (process.env.OT_REQUIRES_APPROVAL ?? "true") !== "false",
   // Minimum paid hours on a day to earn the food allowance.
   foodMinHours: Number(process.env.FOOD_MIN_HOURS) || 5,
+  // Face matching (Euclidean distance in the 128-d descriptor space; lower =
+  // more similar). Measured on this deployment's enrollments: different people
+  // commonly sit 0.42–0.65 apart, so 0.5 let strangers false-match.
+  //  - faceMatchThreshold: hard ceiling — beyond this, always "unknown".
+  //  - faceStrongMatch: at or below this the match is accepted outright.
+  //  - faceMatchMargin: between the two, the best candidate must beat the
+  //    runner-up by this margin, else the scan is ambiguous → "unknown".
+  faceMatchThreshold: Number(process.env.FACE_MATCH_THRESHOLD) || 0.45,
+  faceStrongMatch: Number(process.env.FACE_STRONG_MATCH) || 0.4,
+  faceMatchMargin: Number(process.env.FACE_MATCH_MARGIN) || 0.05,
   // Where worker enrollment photos are stored. Point this at a persistent
   // volume in production so uploads survive redeploys; served at /static/uploads.
   uploadDir: process.env.UPLOAD_DIR || path.join(process.cwd(), "public", "uploads"),
