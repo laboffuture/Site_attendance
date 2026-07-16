@@ -35,9 +35,7 @@
   }
 
   if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-    navigator.mediaDevices
-      .getUserMedia({ video: { width: 640, height: 480 } })
-      .then(function (stream) { video.srcObject = stream; })
+    CamSwitch.start(video, { width: 640, height: 480 })
       .catch(function () {
         camNote.textContent = "Camera unavailable. Check permissions and reload.";
         scanBtn.disabled = true;

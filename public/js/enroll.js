@@ -24,11 +24,7 @@
 
   // Start the webcam (optional — upload is always available).
   if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-    navigator.mediaDevices
-      .getUserMedia({ video: { width: 480, height: 360 } })
-      .then(function (stream) {
-        video.srcObject = stream;
-      })
+    CamSwitch.start(video, { width: 480, height: 360 })
       .catch(function () {
         camNote.textContent = "Camera unavailable — use Upload instead.";
         captureBtn.disabled = true;
