@@ -25,11 +25,13 @@ function flash(req: Request, type: "success" | "danger", text: string): void {
   req.session.flash = { type, text };
 }
 
-/** Sites the user may log attendance at (top admins: all; others: theirs). */
+/** Sites the user may log attendance at (top admins: all; others: theirs).
+ *  Archived / deleted sites take no new attendance. */
 async function allowedSites(user: CurrentUser) {
-  const filter = seesAllSites(user.role)
+  const filter: Record<string, unknown> = seesAllSites(user.role)
     ? {}
     : { _id: { $in: user.assignedSiteIds.map((id) => new Types.ObjectId(id)) } };
+  filter.status = "active";
   return ProjectSiteModel.find(filter).sort({ name: 1 }).lean();
 }
 

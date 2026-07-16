@@ -24,6 +24,7 @@
     <span class="material-icons">search</span>
     <input type="text" name="q" value="<%= q %>" placeholder="Search by site name or code" aria-label="Search sites" />
   </label>
+  <% if (tab !== 'active') { %><input type="hidden" name="status" value="<%= tab %>" /><% } %>
   <% if (branches.length > 1) { %>
   <select class="oh-select oh-select--compact" name="branchId" onchange="this.form.submit()" aria-label="Filter by branch">
     <option value="">All branches</option>
@@ -32,6 +33,18 @@
   <% } %>
   <button class="oh-btn oh-btn--small" type="submit">Search</button>
 </form>
+
+<div class="oh-emp-filters">
+  <div class="oh-segment" role="tablist">
+    <a class="oh-segment__btn <%= tab === 'active' ? 'is-active' : '' %>" href="/org">Active <span class="oh-segment__n"><%= counts.active %></span></a>
+    <a class="oh-segment__btn <%= tab === 'archived' ? 'is-active' : '' %>" href="/org?status=archived">Archived <span class="oh-segment__n"><%= counts.archived %></span></a>
+  </div>
+  <% if (can('manage_sites')) { %>
+  <a class="oh-chip-toggle" href="/deletion-log?type=site" title="Register of deleted sites and employees">
+    <span class="material-icons">fact_check</span> Deletion log
+  </a>
+  <% } %>
+</div>
 
 <!-- mobile -->
 <div class="oh-only-mobile">
@@ -57,25 +70,39 @@
   <table class="oh-people">
     <thead><tr>
       <th class="oh-people__spinecol"></th>
+      <% if (tab === 'archived') { %>
+      <th>Code</th><th>Site</th><th>Branch</th><th>Signed off by</th><th>On</th>
+      <% } else { %>
       <th>Code</th><th>Site</th><th>Branch</th><th>Day shift</th><th>Geofence</th><th>In-charge</th><th>Workers</th>
+      <% } %>
       <% if (can('manage_sites')) { %><th class="oh-people__actcol"></th><% } %>
     </tr></thead>
     <tbody>
       <% sites.forEach(function (s) { var geo = s.latitude != null && s.longitude != null; %>
-      <tr style="--spine: <%= geo ? 'var(--c-accent)' : 'var(--c-border)' %>">
+      <tr style="--spine: <%= tab === 'archived' ? 'var(--c-warning)' : geo ? 'var(--c-accent)' : 'var(--c-border)' %>">
         <td class="oh-people__spine"></td>
         <td><a href="/org/sites/<%= s._id %>" class="oh-person__id" style="font-weight:600"><%= s.code %></a></td>
         <td><a class="oh-person" href="/org/sites/<%= s._id %>"><span class="oh-person__txt"><span class="oh-person__name"><%= s.name %></span></span></a></td>
         <td><%= branchNameById.get(String(s.branchId)) || '—' %></td>
+        <% if (tab === 'archived') { %>
+        <td><%= s.archivedByName || '—' %></td>
+        <td><%= s.archivedAt ? new Date(s.archivedAt).toLocaleDateString('en-GB', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric' }) : '—' %></td>
+        <% } else { %>
         <td><%= s.standardStartTime %>–<%= s.standardEndTime %></td>
         <td><% if (geo) { %><span class="oh-stat"><span class="oh-stat__dot" style="background:var(--c-success)"></span><%= s.geofenceRadiusMeters ? s.geofenceRadiusMeters + ' m' : 'Set' %></span><% } else { %><span class="oh-muted">Not set</span><% } %></td>
         <td><%= s.inChargeName || '—' %></td>
         <td><span class="oh-person__id"><%= s.workers %></span></td>
+        <% } %>
         <% if (can('manage_sites')) { %>
         <td class="oh-people__actcol"><span class="oh-row-actions">
           <a class="oh-icon-btn" href="/org/sites/<%= s._id %>" title="View"><span class="material-icons">visibility</span></a>
+          <% if (tab === 'archived') { %>
+          <form method="post" action="/org/sites/<%= s._id %>/restore" onsubmit="return confirm('Restore this site to Active? Its employees stay in Archives until restored individually.')"><button class="oh-icon-btn" type="submit" title="Restore"><span class="material-icons">restore_from_trash</span></button></form>
+          <% } else { %>
           <a class="oh-icon-btn" href="/org/sites/<%= s._id %>/edit" title="Edit"><span class="material-icons">edit</span></a>
-          <form method="post" action="/org/sites/<%= s._id %>/delete" onsubmit="return confirm('Delete this site? It has <%= s.workers %> employee(s) assigned — they will stay in the employee list and must be reassigned to another site later. This cannot be undone.')"><button class="oh-icon-btn oh-icon-btn--danger" type="submit" title="Delete"><span class="material-icons">delete</span></button></form>
+          <form method="post" action="/org/sites/<%= s._id %>/signoff" onsubmit="return confirm('Sign off <%= s.name %>? The site and its <%= s.workers %> employee(s) move to Archives (employees also working at other sites stay active). Stations are deactivated. Everything is restorable.')"><button class="oh-icon-btn" type="submit" title="Sign off — archive completed site"><span class="material-icons">task_alt</span></button></form>
+          <% } %>
+          <a class="oh-icon-btn oh-icon-btn--danger" href="/org/sites/<%= s._id %>/delete" title="Archive / Delete"><span class="material-icons">delete</span></a>
         </span></td>
         <% } %>
       </tr>
@@ -84,6 +111,8 @@
   </table>
   <% } else if (filtering) { %>
   <div class="oh-empty"><span class="material-icons">search_off</span><p>No sites match your filters.</p><a class="oh-btn oh-btn--small" href="/org">Clear filters</a></div>
+  <% } else if (tab === 'archived') { %>
+  <div class="oh-empty"><span class="material-icons">inventory_2</span><p>No archived sites. Signed-off sites appear here.</p></div>
   <% } else { %>
   <div class="oh-empty"><span class="material-icons">location_city</span><p>No sites yet.</p><% if (can('manage_sites')) { %><a class="oh-btn oh-btn--accent" href="/org/sites/new"><span class="material-icons">add</span> Add your first site</a><% } %></div>
   <% } %>

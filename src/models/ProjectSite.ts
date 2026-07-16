@@ -45,6 +45,15 @@ const projectSiteSchema = new Schema(
     },
     name: { type: String, required: true, trim: true },
     code: { type: String, required: true, unique: true, trim: true, uppercase: true },
+    // Lifecycle: "archived" = signed off (hidden from active lists, restorable
+    // from the Sites Archived tab). "deleted" = hidden everywhere; retained for
+    // history and listed only in the Deletion log.
+    status: { type: String, enum: ["active", "archived", "deleted"], default: "active" },
+    archivedAt: { type: Date, default: null },
+    archivedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    archivedByName: { type: String, default: null },
+    deletedAt: { type: Date, default: null },
+    deletedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
     standardStartTime: { type: String, default: "09:00" },
     standardEndTime: { type: String, default: "18:00" },
     // Max overtime hours allowed per day (cap; null = no explicit cap).

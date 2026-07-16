@@ -20,11 +20,13 @@ router.get("/dashboard", requireAuth, async (req: Request, res: Response) => {
   const u = req.currentUser!;
   const today = siteLocalDate();
 
-  // Sites the user can pick in the dashboard filter.
+  // Sites the user can pick in the dashboard filter (active only — archived
+  // and deleted sites don't take new attendance).
   const mySites = seesAllSites(u.role)
-    ? await ProjectSiteModel.find().sort({ name: 1 }).lean()
+    ? await ProjectSiteModel.find({ status: "active" }).sort({ name: 1 }).lean()
     : await ProjectSiteModel.find({
         _id: { $in: u.assignedSiteIds.map((id) => new Types.ObjectId(id)) },
+        status: "active",
       })
         .sort({ name: 1 })
         .lean();

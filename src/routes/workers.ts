@@ -10,35 +10,19 @@ import type { CurrentUser } from "../auth/types";
 import { config } from "../config";
 import { encodeFace } from "../lib/face";
 import { dataUrlToBuffer } from "../lib/image";
+import { pushRemark } from "../lib/remarks";
 import { canUseSite, canUseWorker, workerScopeFilter } from "../lib/scope";
 import { escapeRegex, isDuplicateKeyError } from "../lib/validate";
+import { DeletionLogModel } from "../models/DeletionLog";
 import { DesignationModel } from "../models/Designation";
 import { ProjectSiteModel } from "../models/ProjectSite";
-import { WorkerModel, RemarkType } from "../models/Worker";
+import { WorkerModel } from "../models/Worker";
 
 const router = Router();
 const UPLOAD_DIR = config.uploadDir;
 
 function flash(req: Request, type: "success" | "danger", text: string): void {
   req.session.flash = { type, text };
-}
-
-/** Append an audit remark to a hydrated worker doc (caller saves).
- *  Only `text` is required on the subdoc; `cleared`/`clearedBy`/`clearedAt`
- *  fall back to their schema defaults, so they're omitted here. */
-function pushRemark(
-  worker: InstanceType<typeof WorkerModel>,
-  user: CurrentUser,
-  text: string,
-  type: RemarkType,
-): void {
-  worker.remarks.push({
-    text,
-    type,
-    authorId: new Types.ObjectId(user.id),
-    authorName: user.name,
-    at: new Date(),
-  } as never);
 }
 
 /** Parses the multi-valued `siteIds` form field (array-or-single, like
@@ -59,11 +43,13 @@ function parseSiteIds(body: Record<string, unknown>): string[] {
   return out;
 }
 
-/** Sites a user may enroll workers into (Management/HR: all; others: theirs). */
+/** Sites a user may enroll workers into (Management/HR: all; others: theirs).
+ *  Archived / deleted sites are never enrollment targets. */
 async function allowedSites(user: CurrentUser) {
-  const filter = seesAllSites(user.role)
+  const filter: Record<string, unknown> = seesAllSites(user.role)
     ? {}
     : { _id: { $in: user.assignedSiteIds.map((id) => new Types.ObjectId(id)) } };
+  filter.status = "active";
   return ProjectSiteModel.find(filter).sort({ name: 1 }).lean();
 }
 
@@ -125,10 +111,12 @@ async function resolveDesignation(
   return null;
 }
 
+// "deleted" appears in no tab — hidden-deleted workers are only visible in the
+// Deletion log.
 const STATUS_TABS: Record<string, string[]> = {
   active: ["active", "inactive"],
   pending: ["pending"],
-  archived: ["deleted"],
+  archived: ["archived"],
 };
 
 // ---- List (status-tabbed) ----
@@ -155,7 +143,7 @@ router.get("/workers", requireCapability("enroll_worker"), async (req: Request, 
     WorkerModel.countDocuments({ ...scope, status: { $in: ["active", "inactive"] } }),
     WorkerModel.countDocuments({ ...scope, status: "active" }),
     WorkerModel.countDocuments({ ...scope, status: "pending" }),
-    WorkerModel.countDocuments({ ...scope, status: "deleted" }),
+    WorkerModel.countDocuments({ ...scope, status: "archived" }),
     WorkerModel.countDocuments({ ...scope, status: { $in: ["active", "inactive"] }, "faceEncoding.0": { $exists: true } }),
   ]);
   // Compute the enrolled flag and drop the bulky descriptor from the payload.
@@ -343,7 +331,7 @@ router.post("/workers/:id", requireCapability("enroll_worker"), async (req: Requ
     flash(req, "danger", "Worker not found.");
     return res.redirect("/workers");
   }
-  if (worker.status === "deleted") {
+  if (worker.status === "archived" || worker.status === "deleted") {
     flash(req, "danger", "Restore this employee before editing.");
     return res.redirect("/workers?status=archived");
   }
@@ -405,7 +393,30 @@ router.post("/workers/:id", requireCapability("enroll_worker"), async (req: Requ
   res.redirect("/workers");
 });
 
-// ---- Soft-delete (admin) — mandatory reason, retained + hidden ----
+// ---- Delete, step 1: the confirm page (choose Archive or Delete + reason) ----
+router.get("/workers/:id/delete", requireCapability("delete_worker"), async (req: Request, res: Response) => {
+  if (!Types.ObjectId.isValid(req.params.id)) {
+    flash(req, "danger", "Employee not found.");
+    return res.redirect("/workers");
+  }
+  const worker = await WorkerModel.findById(req.params.id).lean();
+  if (!worker || !canUseWorker(req.currentUser!, worker)) {
+    flash(req, "danger", "Employee not found.");
+    return res.redirect("/workers");
+  }
+  if (worker.status === "deleted") {
+    flash(req, "danger", "Employee is already deleted.");
+    return res.redirect("/workers");
+  }
+  res.render("workers/delete", {
+    title: `Delete ${worker.name} · ` + res.locals.company,
+    active: "/workers",
+    worker,
+  });
+});
+
+// ---- Delete, step 2 — Archive (restorable) or Delete (hidden + logged).
+// Neither erases the record: attendance / OT / payroll history stays intact.
 router.post("/workers/:id/delete", requireCapability("delete_worker"), async (req: Request, res: Response) => {
   const worker = await WorkerModel.findById(req.params.id);
   if (!worker || !canUseWorker(req.currentUser!, worker)) {
@@ -413,32 +424,49 @@ router.post("/workers/:id/delete", requireCapability("delete_worker"), async (re
     return res.redirect("/workers");
   }
   const reason = String(req.body.reason ?? "").trim();
+  const mode = req.body.mode === "delete" ? "delete" : "archive";
   if (!reason) {
-    flash(req, "danger", "A reason is required to delete an employee.");
-    return res.redirect(`/workers/${req.params.id}/edit`);
+    flash(req, "danger", "A reason is required.");
+    return res.redirect(`/workers/${req.params.id}/delete`);
   }
   if (worker.status === "deleted") {
     flash(req, "danger", "Employee is already deleted.");
     return res.redirect("/workers");
   }
-  worker.status = "deleted";
+  const u = req.currentUser!;
+  worker.status = mode === "delete" ? "deleted" : "archived";
   worker.deletedAt = new Date();
-  worker.deletedBy = new Types.ObjectId(req.currentUser!.id);
-  pushRemark(worker, req.currentUser!, reason, "soft_delete");
+  worker.deletedBy = new Types.ObjectId(u.id);
+  pushRemark(worker, u, reason, "soft_delete");
   await worker.save();
-  flash(req, "success", `Employee ${worker.name} deleted.`);
+  if (mode === "delete") {
+    await DeletionLogModel.create({
+      entityType: "worker",
+      entityId: worker._id,
+      name: worker.name,
+      detail: worker.empRegNo,
+      siteName: worker.siteName,
+      photoUrl: worker.photoUrl,
+      deletedById: new Types.ObjectId(u.id),
+      deletedByName: u.name,
+      reason,
+    });
+    flash(req, "success", `Employee ${worker.name} deleted. A record was kept in the Deletion log.`);
+  } else {
+    flash(req, "success", `Employee ${worker.name} sent to Archives.`);
+  }
   res.redirect("/workers");
 });
 
-// ---- Restore (admin) — deleted → active ----
+// ---- Restore (admin) — archived → active ----
 router.post("/workers/:id/restore", requireCapability("delete_worker"), async (req: Request, res: Response) => {
   const worker = await WorkerModel.findById(req.params.id);
   if (!worker || !canUseWorker(req.currentUser!, worker)) {
     flash(req, "danger", "Employee not found.");
     return res.redirect("/workers");
   }
-  if (worker.status !== "deleted") {
-    flash(req, "danger", "Only a deleted employee can be restored.");
+  if (worker.status !== "archived") {
+    flash(req, "danger", "Only an archived employee can be restored.");
     return res.redirect("/workers");
   }
   worker.status = "active";

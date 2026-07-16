@@ -20,6 +20,7 @@ import attendanceRouter from "./routes/attendance";
 import regularizationRouter from "./routes/regularization";
 import meRouter from "./routes/me";
 import dashboardRouter from "./routes/dashboard";
+import deletionlogRouter from "./routes/deletionlog";
 import designationsRouter from "./routes/designations";
 import flagsRouter from "./routes/flags";
 import indexRouter from "./routes/index";
@@ -168,6 +169,7 @@ export function createApp(): Express {
   app.use("/", orgRouter);
   app.use("/", designationsRouter);
   app.use("/", workersRouter);
+  app.use("/", deletionlogRouter);
   app.use("/", stationsRouter);
   app.use("/", stationRouter);
   app.use("/", overtimeRouter);

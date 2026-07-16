@@ -47,7 +47,7 @@ router.get("/manpower", requireCapability("view_manpower"), async (req: Request,
 router.get("/manpower/new", requireCapability("request_manpower"), async (req: Request, res: Response) => {
   const u = req.currentUser!;
   const [sites, designations] = await Promise.all([
-    ProjectSiteModel.find(siteScopeFilter(u)).sort({ name: 1 }).select("name").lean(),
+    ProjectSiteModel.find({ ...siteScopeFilter(u), status: "active" }).sort({ name: 1 }).select("name").lean(),
     DesignationModel.find().sort({ name: 1 }).lean(),
   ]);
   res.render("manpower/new", { title: "New manpower request · " + res.locals.company, active: "/manpower", sites, designations });
@@ -56,7 +56,7 @@ router.get("/manpower/new", requireCapability("request_manpower"), async (req: R
 // ======================= Calendar board (literal — before /:id) =======================
 router.get("/manpower/board", requireCapability("view_manpower"), async (req: Request, res: Response) => {
   const u = req.currentUser!;
-  const sites = await ProjectSiteModel.find(siteScopeFilter(u)).sort({ name: 1 }).select("name").lean();
+  const sites = await ProjectSiteModel.find({ ...siteScopeFilter(u), status: "active" }).sort({ name: 1 }).select("name").lean();
   const siteId = String(req.query.siteId ?? (sites[0] ? String(sites[0]._id) : ""));
   const baseRender = { title: "Manpower board · " + res.locals.company, active: "/manpower", sites };
   if (!siteId || !Types.ObjectId.isValid(siteId) || !canUseSite(u, siteId)) {

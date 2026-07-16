@@ -7,8 +7,13 @@
   <%- include('../partials/breadcrumb', { back: '/org', trail: [ { label: 'Sites', href: '/org' }, { label: 'View Site' } ] }) %>
   <% if (canManage) { %>
   <div class="oh-actions">
+    <% if (site.status === 'archived') { %>
+    <form method="post" action="/org/sites/<%= site._id %>/restore" onsubmit="return confirm('Restore this site to Active? Its employees stay in Archives until restored individually.')" style="margin:0"><button class="oh-btn oh-btn--small oh-btn--secondary" type="submit"><span class="material-icons">restore_from_trash</span> Restore</button></form>
+    <% } else { %>
     <a class="oh-btn oh-btn--small oh-btn--secondary" href="/org/sites/<%= site._id %>/edit"><span class="material-icons">edit</span> Edit</a>
-    <form method="post" action="/org/sites/<%= site._id %>/delete" onsubmit="return confirm('Delete this site? It has <%= workers %> employee(s) assigned — they will stay in the employee list and must be reassigned to another site later. This cannot be undone.')" style="margin:0"><button class="oh-btn oh-btn--small oh-btn--danger" type="submit">Delete</button></form>
+    <form method="post" action="/org/sites/<%= site._id %>/signoff" onsubmit="return confirm('Sign off this site? The site and its <%= workers %> employee(s) move to Archives (employees working at other sites too stay active). Stations are deactivated. Everything is restorable.')" style="margin:0"><button class="oh-btn oh-btn--small oh-btn--secondary" type="submit"><span class="material-icons">task_alt</span> Sign off</button></form>
+    <% } %>
+    <a class="oh-btn oh-btn--small oh-btn--danger" href="/org/sites/<%= site._id %>/delete">Delete</a>
   </div>
   <% } %>
 </div>
@@ -21,6 +26,7 @@
       <div class="oh-detail-head__meta">
         <span class="oh-badge oh-badge--muted"><%= site.code %></span>
         <span class="oh-badge oh-badge--secondary"><%= branchName %></span>
+        <% if (site.status === 'archived') { %><span class="oh-badge oh-badge--warning" title="Signed off <%= site.archivedByName ? 'by ' + site.archivedByName : '' %>">Archived</span><% } %>
         <span class="oh-stat"><span class="oh-stat__dot" style="background: <%= geo ? 'var(--c-success)' : 'var(--c-border)' %>"></span><%= geo ? 'Geofenced' : 'No geofence' %></span>
       </div>
     </div>

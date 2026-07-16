@@ -1,0 +1,53 @@
+<%- include('../partials/app-top', { title: title, active: active }) %>
+
+<div class="oh-page-header oh-page-header--row">
+  <div>
+    <h1 class="oh-page-title">Deletion log — <%= type === 'site' ? 'Sites' : 'Employees' %></h1>
+    <p class="oh-page-subtitle">Permanent register of deleted <%= type === 'site' ? 'sites' : 'employees' %> — who deleted what, when, and why.</p>
+  </div>
+  <div class="oh-actions">
+    <a class="oh-btn oh-btn--small oh-btn--secondary" href="<%= type === 'site' ? '/org' : '/workers' %>"><span class="material-icons">arrow_back</span> Back to <%= type === 'site' ? 'Sites' : 'Employees' %></a>
+  </div>
+</div>
+
+<div class="oh-card oh-card--flush">
+  <% if (entries.length) { %>
+  <table class="oh-people">
+    <thead><tr>
+      <th class="oh-people__spinecol"></th>
+      <th>Name</th><th><%= type === 'site' ? 'Code' : 'Emp ID' %></th><th><%= type === 'site' ? 'Employees affected' : 'Site' %></th><th>Deleted by</th><th>When</th><th>Reason</th><th>Status</th>
+      <% if (isManagement) { %><th class="oh-people__actcol"></th><% } %>
+    </tr></thead>
+    <tbody>
+      <% entries.forEach(function (e) { %>
+      <tr style="--spine: <%= e.restoredAt ? 'var(--c-success)' : 'var(--c-danger)' %>">
+        <td class="oh-people__spine"></td>
+        <td><span class="oh-person">
+          <% if (e.photoUrl) { %><span class="oh-ava"><img src="<%= e.photoUrl %>" alt="" /></span><% } %>
+          <span class="oh-person__txt"><span class="oh-person__name"><%= e.name %></span></span>
+        </span></td>
+        <td><span class="oh-person__id"><%= e.detail || '—' %></span></td>
+        <td><% if (type === 'site') { %><%= (e.cascadeArchived || e.cascadeDeleted) ? ((e.cascadeArchived || 0) + ' archived' + (e.cascadeDeleted ? ', ' + e.cascadeDeleted + ' deleted' : '')) : 'None' %><% } else { %><%= e.siteName || '—' %><% } %></td>
+        <td><%= e.deletedByName %></td>
+        <td><%= new Date(e.createdAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) %></td>
+        <td style="max-width:260px"><%= e.reason %></td>
+        <td><% if (e.restoredAt) { %><span class="oh-badge oh-badge--success">Restored by <%= e.restoredByName %></span><% } else { %><span class="oh-badge oh-badge--danger">Deleted</span><% } %></td>
+        <% if (isManagement) { %>
+        <td class="oh-people__actcol">
+          <% if (!e.restoredAt) { %>
+          <form method="post" action="/deletion-log/<%= e._id %>/undo" onsubmit="return confirm('Undo this deletion? \'<%= e.name %>\' will reappear in Archives.')">
+            <button class="oh-icon-btn" type="submit" title="Undo — restore to Archives"><span class="material-icons">restore</span></button>
+          </form>
+          <% } %>
+        </td>
+        <% } %>
+      </tr>
+      <% }); %>
+    </tbody>
+  </table>
+  <% } else { %>
+  <div class="oh-empty"><span class="material-icons">fact_check</span><p>No <%= type === 'site' ? 'sites' : 'employees' %> have been deleted.</p></div>
+  <% } %>
+</div>
+
+<%- include('../partials/app-bottom') %>

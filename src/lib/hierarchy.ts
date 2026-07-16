@@ -32,9 +32,10 @@ export interface BranchRollup {
  */
 export async function buildHierarchyRollup(user: CurrentUser): Promise<BranchRollup[]> {
   const all = seesAllSites(user.role);
-  const siteFilter = all
+  const siteFilter: Record<string, unknown> = all
     ? {}
     : { _id: { $in: user.assignedSiteIds.map((id) => new Types.ObjectId(id)) } };
+  siteFilter.status = "active";
 
   const sites = await ProjectSiteModel.find(siteFilter).sort({ name: 1 }).lean();
   if (!sites.length) return [];

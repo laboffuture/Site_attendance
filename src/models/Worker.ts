@@ -1,6 +1,9 @@
 import { Schema, model, InferSchemaType } from "mongoose";
 
-export const WORKER_STATUS = ["pending", "active", "inactive", "deleted"] as const;
+// Lifecycle: "archived" = hidden from active lists but visible in the Archives
+// tab (restorable). "deleted" = hidden everywhere; the record is retained for
+// history and appears only in the Deletion log.
+export const WORKER_STATUS = ["pending", "active", "inactive", "archived", "deleted"] as const;
 
 export const REMARK_TYPES = ["note", "soft_delete", "offload", "conflict", "registration", "rejection"] as const;
 export type RemarkType = (typeof REMARK_TYPES)[number];

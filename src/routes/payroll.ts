@@ -49,7 +49,7 @@ async function payrollData(req: Request) {
 
 router.get("/payroll", requireCapability("view_payroll"), async (req: Request, res: Response) => {
   const { workers, summary, filters, std, dates } = await payrollData(req);
-  const sites = await ProjectSiteModel.find().sort({ name: 1 }).lean();
+  const sites = await ProjectSiteModel.find({ status: { $ne: "deleted" } }).sort({ name: 1 }).lean();
   res.render("payroll/index", {
     title: "Payroll · " + res.locals.company,
     active: "/payroll",

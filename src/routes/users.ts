@@ -128,7 +128,7 @@ function validateSites(role: Role, siteIds: string[]): string | null {
 }
 
 async function siteList() {
-  return ProjectSiteModel.find().sort({ name: 1 }).lean();
+  return ProjectSiteModel.find({ status: "active" }).sort({ name: 1 }).lean();
 }
 
 // ---- Ledger list ----

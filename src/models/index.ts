@@ -12,3 +12,4 @@ export * from "./Request";
 export * from "./PayrollAdjustment";
 export * from "./ManpowerRequest";
 export * from "./OutsourceEmployee";
+export * from "./DeletionLog";

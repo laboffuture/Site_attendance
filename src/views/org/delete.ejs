@@ -1,0 +1,94 @@
+<%- include('../partials/app-top', { title: title, active: active }) %>
+
+<div class="oh-detail-topbar">
+  <%- include('../partials/breadcrumb', { back: '/org', trail: [ { label: 'Sites', href: '/org' }, { label: 'Delete site' } ] }) %>
+</div>
+
+<div class="oh-card oh-form-card">
+  <div class="oh-detail-head">
+    <span class="oh-detail-head__photo oh-detail-head__photo--ph"><span class="material-icons">location_city</span></span>
+    <div>
+      <h2 class="oh-detail-head__name"><%= site.name %></h2>
+      <div class="oh-detail-head__meta">
+        <span class="oh-badge oh-badge--muted"><%= site.code %></span>
+        <% if (site.status === 'archived') { %><span class="oh-badge oh-badge--warning">Archived</span><% } %>
+      </div>
+    </div>
+  </div>
+
+  <% if (soleCount + multiCount > 0) { %>
+  <div class="oh-alert oh-alert--warning">
+    This site has <strong><%= soleCount + multiCount %></strong> employee(s):
+    <strong><%= soleCount %></strong> belong only to this site and will follow the choice below<% if (multiCount > 0) { %>;
+    <strong><%= multiCount %></strong> also work at other sites and will simply stay active there<% } %>.
+  </div>
+  <% } else { %>
+  <div class="oh-alert oh-alert--info">No active employees are assigned to this site.</div>
+  <% } %>
+
+  <form method="post" action="/org/sites/<%= site._id %>/delete">
+    <div class="oh-form-section">
+      <h3 class="oh-kv-section__title">What should happen to the site?</h3>
+      <label class="oh-choice">
+        <input type="radio" name="mode" value="archive" checked data-mode="archive" />
+        <span class="oh-choice__body">
+          <strong>Archive</strong> (recommended)
+          <span class="oh-muted">Moves the site to the Archived tab (restorable). Its employees go to the employee Archives. Same as a sign-off.</span>
+        </span>
+      </label>
+      <label class="oh-choice">
+        <input type="radio" name="mode" value="delete" data-mode="delete" />
+        <span class="oh-choice__body">
+          <strong>Delete</strong>
+          <span class="oh-muted">Removed from the whole application, including Archives. A permanent entry is written to the Deletion log; only Management can undo. Past attendance &amp; payroll reports stay intact.</span>
+        </span>
+      </label>
+    </div>
+
+    <div class="oh-form-section" id="workerModeSection" hidden>
+      <h3 class="oh-kv-section__title">And its <%= soleCount %> employee(s)?</h3>
+      <label class="oh-choice">
+        <input type="radio" name="workerMode" value="archive" checked />
+        <span class="oh-choice__body">
+          <strong>Send them to Archives</strong> (recommended)
+          <span class="oh-muted">Restorable individually when they join another site.</span>
+        </span>
+      </label>
+      <label class="oh-choice">
+        <input type="radio" name="workerMode" value="delete" />
+        <span class="oh-choice__body">
+          <strong>Delete them</strong>
+          <span class="oh-muted">Each employee gets their own entry in the Deletion log.</span>
+        </span>
+      </label>
+    </div>
+
+    <div class="oh-input-group">
+      <label class="oh-label" for="reason">Reason (required)</label>
+      <input class="oh-input" id="reason" name="reason" required placeholder="e.g. project completed / created by mistake" />
+    </div>
+
+    <div class="oh-form-actions">
+      <a class="oh-btn oh-btn--small" href="/org">Cancel</a>
+      <button class="oh-btn oh-btn--danger" type="submit">Confirm</button>
+    </div>
+  </form>
+</div>
+
+<script>
+  // The employee question only applies when the site itself is being deleted
+  // (archiving a site always archives its sole-site employees).
+  (function () {
+    var radios = document.querySelectorAll('input[name="mode"]');
+    var section = document.getElementById('workerModeSection');
+    var hasWorkers = <%= soleCount > 0 ? 'true' : 'false' %>;
+    function update() {
+      var mode = document.querySelector('input[name="mode"]:checked').value;
+      section.hidden = !(mode === 'delete' && hasWorkers);
+    }
+    radios.forEach(function (r) { r.addEventListener('change', update); });
+    update();
+  })();
+</script>
+
+<%- include('../partials/app-bottom') %>

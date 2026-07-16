@@ -3,9 +3,12 @@ import { Types } from "mongoose";
 
 import { requireCapability } from "../auth/middleware";
 import { seesAllSites } from "../auth/permissions";
+import type { CurrentUser } from "../auth/types";
+import { pushRemark } from "../lib/remarks";
 import { isValidTime, endAfterStart, isDuplicateKeyError, escapeRegex } from "../lib/validate";
 import { AttendanceModel } from "../models/Attendance";
 import { BranchModel } from "../models/Branch";
+import { DeletionLogModel } from "../models/DeletionLog";
 import { ProjectSiteModel } from "../models/ProjectSite";
 import { SiteStationModel } from "../models/SiteStation";
 import { UserModel } from "../models/User";
@@ -17,6 +20,70 @@ function flash(req: Request, type: "success" | "danger", text: string): void {
   req.session.flash = { type, text };
 }
 
+type SiteDoc = { _id: Types.ObjectId; name: string };
+
+/**
+ * Cascade a site archive/delete to the employees assigned to it.
+ * A worker who also belongs to ANOTHER active site just loses this site from
+ * their list and stays active ("detached"). Sole-site workers are archived —
+ * or, when workerMode is "delete", hidden-deleted with a Deletion log entry
+ * each. Nothing is erased; attendance/OT/payroll history is untouched.
+ */
+async function cascadeSiteWorkers(
+  site: SiteDoc,
+  u: CurrentUser,
+  siteAction: "archived" | "deleted",
+  workerMode: "archive" | "delete",
+): Promise<{ archived: number; deleted: number; detached: number }> {
+  const [workers, otherSites] = await Promise.all([
+    WorkerModel.find({ siteIds: site._id, status: { $in: ["pending", "active", "inactive"] } }),
+    ProjectSiteModel.find({ status: "active", _id: { $ne: site._id } }).select("_id").lean(),
+  ]);
+  const otherActive = new Set(otherSites.map((s) => String(s._id)));
+  const out = { archived: 0, deleted: 0, detached: 0 };
+  for (const w of workers) {
+    const others = w.siteIds.map(String).filter((id) => id !== String(site._id) && otherActive.has(id));
+    if (others.length) {
+      w.siteIds = w.siteIds.filter((id) => String(id) !== String(site._id)) as never;
+      pushRemark(w, u, `Removed from site "${site.name}" (site ${siteAction}); still assigned to ${others.length} other site(s).`, "note");
+      out.detached++;
+    } else if (workerMode === "delete") {
+      w.status = "deleted";
+      w.deletedAt = new Date();
+      w.deletedBy = new Types.ObjectId(u.id);
+      pushRemark(w, u, `Site "${site.name}" was ${siteAction} — employee deleted with it.`, "soft_delete");
+      await DeletionLogModel.create({
+        entityType: "worker",
+        entityId: w._id,
+        name: w.name,
+        detail: w.empRegNo,
+        siteName: w.siteName,
+        photoUrl: w.photoUrl,
+        deletedById: new Types.ObjectId(u.id),
+        deletedByName: u.name,
+        reason: `Deleted together with site "${site.name}".`,
+      });
+      out.deleted++;
+    } else {
+      w.status = "archived";
+      w.deletedAt = new Date();
+      w.deletedBy = new Types.ObjectId(u.id);
+      pushRemark(w, u, `Site "${site.name}" was ${siteAction} — employee sent to Archives.`, "soft_delete");
+      out.archived++;
+    }
+    await w.save();
+  }
+  return out;
+}
+
+function cascadeSummary(c: { archived: number; deleted: number; detached: number }): string {
+  const parts: string[] = [];
+  if (c.archived) parts.push(`${c.archived} employee(s) archived`);
+  if (c.deleted) parts.push(`${c.deleted} employee(s) deleted`);
+  if (c.detached) parts.push(`${c.detached} kept active on their other site(s)`);
+  return parts.length ? ` ${parts.join(", ")}.` : "";
+}
+
 /** Distinct, sorted in-charge names for the autocomplete datalist. */
 async function inChargeNames(): Promise<string[]> {
   return ((await ProjectSiteModel.distinct("inChargeName")) as (string | null)[])
@@ -26,15 +93,19 @@ async function inChargeNames(): Promise<string[]> {
 
 // ---- Sites ledger (the hero page) ----
 // Admin roles see every site; PM/Supervisor see only their assigned sites.
+// Two tabs: Active | Archived (signed-off). Deleted sites appear in neither —
+// they live in the Deletion log.
 router.get("/org", requireCapability("view_org"), async (req: Request, res: Response) => {
   const u = req.currentUser!;
   const q = String(req.query.q ?? "").trim();
+  const tab = String(req.query.status) === "archived" ? "archived" : "active";
   const scopeFilter = seesAllSites(u.role)
     ? {}
     : { _id: { $in: u.assignedSiteIds.map((id) => new Types.ObjectId(id)) } };
 
-  const [allScopeSites, allBranches, wc] = await Promise.all([
-    ProjectSiteModel.find(scopeFilter).sort({ name: 1 }).lean(),
+  const [activeSites, archivedSites, allBranches, wc] = await Promise.all([
+    ProjectSiteModel.find({ ...scopeFilter, status: "active" }).sort({ name: 1 }).lean(),
+    ProjectSiteModel.find({ ...scopeFilter, status: "archived" }).sort({ name: 1 }).lean(),
     BranchModel.find().sort({ name: 1 }).lean(),
     WorkerModel.aggregate([
       { $match: { status: { $in: ["active", "inactive"] } } },
@@ -42,11 +113,12 @@ router.get("/org", requireCapability("view_org"), async (req: Request, res: Resp
       { $group: { _id: "$siteIds", n: { $sum: 1 } } },
     ]),
   ]);
+  const allScopeSites = tab === "archived" ? archivedSites : activeSites;
   const workerCount = new Map<string, number>(wc.map((w) => [String(w._id), w.n as number]));
   const branchNameById = new Map(allBranches.map((b) => [String(b._id), b.name]));
   const visibleBranches = seesAllSites(u.role)
     ? allBranches
-    : allBranches.filter((b) => allScopeSites.some((s) => String(s.branchId) === String(b._id)));
+    : allBranches.filter((b) => activeSites.some((s) => String(s.branchId) === String(b._id)));
 
   // Filters (in-memory — sites are few).
   const reqBranchId = String(req.query.branchId ?? "");
@@ -60,16 +132,18 @@ router.get("/org", requireCapability("view_org"), async (req: Request, res: Resp
   const rows = listed.map((s) => ({ ...s, workers: workerCount.get(String(s._id)) ?? 0 }));
 
   const summary = {
-    sites: allScopeSites.length,
+    sites: activeSites.length,
     branches: visibleBranches.length,
-    geofenced: allScopeSites.filter((s) => s.latitude != null && s.longitude != null).length,
-    nightShift: allScopeSites.filter((s) => s.nightShiftEnabled).length,
+    geofenced: activeSites.filter((s) => s.latitude != null && s.longitude != null).length,
+    nightShift: activeSites.filter((s) => s.nightShiftEnabled).length,
   };
 
   res.render("org/index", {
     title: "Sites · " + res.locals.company,
     active: "/org",
     sites: rows,
+    tab,
+    counts: { active: activeSites.length, archived: archivedSites.length },
     branches: visibleBranches,
     branchNameById,
     summary,
@@ -81,7 +155,10 @@ router.get("/org", requireCapability("view_org"), async (req: Request, res: Resp
 // ---- Branches (own management page) ----
 router.get("/org/branches", requireCapability("manage_org"), async (req: Request, res: Response) => {
   const branches = await BranchModel.find().sort({ name: 1 }).lean();
-  const sc = await ProjectSiteModel.aggregate([{ $group: { _id: "$branchId", n: { $sum: 1 } } }]);
+  const sc = await ProjectSiteModel.aggregate([
+    { $match: { status: { $ne: "deleted" } } },
+    { $group: { _id: "$branchId", n: { $sum: 1 } } },
+  ]);
   const siteCount = new Map<string, number>(sc.map((s) => [String(s._id), s.n as number]));
   const rows = branches.map((b) => ({ ...b, sites: siteCount.get(String(b._id)) ?? 0 }));
   res.render("org/branches", { title: "Branches · " + res.locals.company, active: "/org", branches: rows });
@@ -129,7 +206,7 @@ router.post("/org/branches/:id", requireCapability("manage_org"), async (req: Re
 
 // Delete a branch — blocked while it still has sites (no orphaned sites).
 router.post("/org/branches/:id/delete", requireCapability("manage_org"), async (req: Request, res: Response) => {
-  const siteCount = await ProjectSiteModel.countDocuments({ branchId: req.params.id });
+  const siteCount = await ProjectSiteModel.countDocuments({ branchId: req.params.id, status: { $ne: "deleted" } });
   if (siteCount > 0) {
     flash(req, "danger", `Delete or move this branch's ${siteCount} site(s) first.`);
     return res.redirect("/org/branches");
@@ -392,42 +469,120 @@ router.post("/org/sites/:id", requireCapability("manage_sites"), async (req: Req
   }
 });
 
-// Delete a site — allowed regardless of how many employees are assigned (the UI
-// asks for confirmation). Employees keep their records — and this site's name
-// for display — until HR reassigns them; attendance/OT/payroll history is kept.
+// ---- Sign off a completed site — archives the site AND its employees. ----
+// The site disappears from active lists (restorable from the Archived tab);
+// sole-site employees go to the employee Archives; multi-site employees just
+// lose this site. Stations are deactivated. All history is kept.
+router.post("/org/sites/:id/signoff", requireCapability("manage_sites"), async (req: Request, res: Response) => {
+  const site = Types.ObjectId.isValid(req.params.id) ? await ProjectSiteModel.findById(req.params.id) : null;
+  if (!site || site.status !== "active") {
+    flash(req, "danger", "Only an active site can be signed off.");
+    return res.redirect("/org");
+  }
+  const u = req.currentUser!;
+  const counts = await cascadeSiteWorkers(site, u, "archived", "archive");
+  site.status = "archived";
+  site.archivedAt = new Date();
+  site.archivedBy = new Types.ObjectId(u.id);
+  site.archivedByName = u.name;
+  await site.save();
+  await SiteStationModel.updateMany({ projectSiteId: site._id }, { $set: { active: false } });
+  flash(req, "success", `Site "${site.name}" signed off and archived.` + cascadeSummary(counts));
+  res.redirect("/org?status=archived");
+});
+
+// ---- Restore an archived site (employees stay archived — restore them individually). ----
+router.post("/org/sites/:id/restore", requireCapability("manage_sites"), async (req: Request, res: Response) => {
+  const site = Types.ObjectId.isValid(req.params.id) ? await ProjectSiteModel.findById(req.params.id) : null;
+  if (!site || site.status !== "archived") {
+    flash(req, "danger", "Only an archived site can be restored.");
+    return res.redirect("/org");
+  }
+  site.status = "active";
+  site.archivedAt = null;
+  site.archivedBy = null;
+  site.archivedByName = null;
+  await site.save();
+  await SiteStationModel.updateMany({ projectSiteId: site._id }, { $set: { active: true } });
+  flash(req, "success", `Site "${site.name}" restored. Its employees remain in Archives — restore them individually as needed.`);
+  res.redirect("/org");
+});
+
+// ---- Delete, step 1: the confirm page (Archive vs Delete + employee fate). ----
+router.get("/org/sites/:id/delete", requireCapability("manage_sites"), async (req: Request, res: Response) => {
+  const site = Types.ObjectId.isValid(req.params.id) ? await ProjectSiteModel.findById(req.params.id).lean() : null;
+  if (!site || site.status === "deleted") {
+    flash(req, "danger", "Site not found.");
+    return res.redirect("/org");
+  }
+  const [workers, otherSites] = await Promise.all([
+    WorkerModel.find({ siteIds: site._id, status: { $in: ["pending", "active", "inactive"] } }).select("siteIds").lean(),
+    ProjectSiteModel.find({ status: "active", _id: { $ne: site._id } }).select("_id").lean(),
+  ]);
+  const otherActive = new Set(otherSites.map((s) => String(s._id)));
+  const multi = workers.filter((w) => w.siteIds.map(String).some((id) => id !== String(site._id) && otherActive.has(id))).length;
+  res.render("org/delete", {
+    title: `Delete ${site.name} · ` + res.locals.company,
+    active: "/org",
+    site,
+    soleCount: workers.length - multi,
+    multiCount: multi,
+  });
+});
+
+// ---- Delete, step 2 — Archive (sign off) or Delete (hidden + logged). ----
+// Delete cascades to employees per the chosen workerMode. The site record is
+// never erased: reports and payroll for past periods stay intact, and the
+// deletion is recorded in the Deletion log (Management can undo from there).
 router.post("/org/sites/:id/delete", requireCapability("manage_sites"), async (req: Request, res: Response) => {
-  const site = Types.ObjectId.isValid(req.params.id)
-    ? await ProjectSiteModel.findById(req.params.id).lean()
-    : null;
-  if (!site) {
+  const site = Types.ObjectId.isValid(req.params.id) ? await ProjectSiteModel.findById(req.params.id) : null;
+  if (!site || site.status === "deleted") {
     flash(req, "danger", "Site not found.");
     return res.redirect("/org");
   }
   const u = req.currentUser!;
+  const mode = req.body.mode === "delete" ? "delete" : "archive";
+  const workerMode = req.body.workerMode === "delete" ? "delete" : "archive";
+  const reason = String(req.body.reason ?? "").trim();
+  if (!reason) {
+    flash(req, "danger", "A reason is required.");
+    return res.redirect(`/org/sites/${site._id}/delete`);
+  }
+
+  if (mode === "archive") {
+    const counts = await cascadeSiteWorkers(site, u, "archived", "archive");
+    site.status = "archived";
+    site.archivedAt = new Date();
+    site.archivedBy = new Types.ObjectId(u.id);
+    site.archivedByName = u.name;
+    await site.save();
+    await SiteStationModel.updateMany({ projectSiteId: site._id }, { $set: { active: false } });
+    flash(req, "success", `Site "${site.name}" archived.` + cascadeSummary(counts));
+    return res.redirect("/org?status=archived");
+  }
+
+  const counts = await cascadeSiteWorkers(site, u, "deleted", workerMode);
+  site.status = "deleted";
+  site.deletedAt = new Date();
+  site.deletedBy = new Types.ObjectId(u.id);
+  await site.save();
   await Promise.all([
-    // Audit trail on every employee still assigned here, so HR sees why the
-    // worker needs a new site.
-    WorkerModel.updateMany(
-      { siteIds: site._id, status: { $ne: "deleted" } },
-      {
-        $push: {
-          remarks: {
-            text: `Site "${site.name}" was deleted — reassign this employee to another site.`,
-            type: "note",
-            authorId: new Types.ObjectId(u.id),
-            authorName: u.name,
-            at: new Date(),
-          },
-        },
-      },
-    ),
-    // The site's scan stations are useless without the site.
-    SiteStationModel.deleteMany({ projectSiteId: site._id }),
+    SiteStationModel.updateMany({ projectSiteId: site._id }, { $set: { active: false } }),
     // Drop the site from PM/Supervisor scopes so their menus don't show it.
     UserModel.updateMany({ assignedSiteIds: site._id }, { $pull: { assignedSiteIds: site._id } }),
-    ProjectSiteModel.deleteOne({ _id: site._id }),
+    DeletionLogModel.create({
+      entityType: "site",
+      entityId: site._id,
+      name: site.name,
+      detail: site.code,
+      deletedById: new Types.ObjectId(u.id),
+      deletedByName: u.name,
+      reason,
+      cascadeArchived: counts.archived,
+      cascadeDeleted: counts.deleted,
+    }),
   ]);
-  flash(req, "success", `Site "${site.name}" deleted.`);
+  flash(req, "success", `Site "${site.name}" deleted. A record was kept in the Deletion log.` + cascadeSummary(counts));
   res.redirect("/org");
 });
 

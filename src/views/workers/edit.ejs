@@ -152,24 +152,18 @@
   </form>
 </div>
 
-<% if (canDelete && worker.status !== 'deleted') { %>
+<% if (canDelete && worker.status !== 'archived' && worker.status !== 'deleted') { %>
 <div class="oh-card oh-form-card" style="margin-top:1rem;border-color:var(--c-danger)">
-  <h2 class="oh-section-title">Delete employee</h2>
-  <p class="oh-muted">Soft-delete keeps the record and its history; the employee is hidden from the roster and can no longer clock in. A reason is required.</p>
-  <form class="oh-form-inline" method="post" action="/workers/<%= worker._id %>/delete" onsubmit="return confirm('Soft-delete this employee?')">
-    <div class="oh-input-group oh-grow">
-      <label class="oh-label" for="reason">Reason</label>
-      <input class="oh-input" id="reason" name="reason" required placeholder="e.g. left the project" />
-    </div>
-    <button class="oh-btn oh-btn--danger" type="submit">Delete</button>
-  </form>
+  <h2 class="oh-section-title">Archive or delete employee</h2>
+  <p class="oh-muted">Send to Archives (restorable) or Delete (hidden everywhere, recorded in the Deletion log). History is always kept.</p>
+  <a class="oh-btn oh-btn--danger" href="/workers/<%= worker._id %>/delete">Archive / Delete…</a>
 </div>
 <% } %>
 
-<% if (canDelete && worker.status === 'deleted') { %>
+<% if (canDelete && worker.status === 'archived') { %>
 <div class="oh-card oh-form-card" style="margin-top:1rem">
   <h2 class="oh-section-title">Restore employee</h2>
-  <p class="oh-muted">This employee is archived (deleted). Restoring returns them to active.</p>
+  <p class="oh-muted">This employee is archived. Restoring returns them to active.</p>
   <form method="post" action="/workers/<%= worker._id %>/restore">
     <button class="oh-btn oh-btn--secondary" type="submit">Restore to active</button>
   </form>

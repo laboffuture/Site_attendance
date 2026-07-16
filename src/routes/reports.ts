@@ -119,7 +119,7 @@ router.get("/reports/attendance", requireCapability("view_reports"), async (req:
   const { filters, tableRows, matched, summary, reportCharts } = await attendanceData(req);
   const [branches, sites, designations] = await Promise.all([
     BranchModel.find().sort({ name: 1 }).lean(),
-    ProjectSiteModel.find().sort({ name: 1 }).lean(),
+    ProjectSiteModel.find({ status: { $ne: "deleted" } }).sort({ name: 1 }).lean(),
     DesignationModel.find().sort({ name: 1 }).lean(),
   ]);
   res.render("reports/attendance", {
@@ -179,7 +179,7 @@ router.get("/reports/employees", requireCapability("view_reports"), async (req: 
         bySite: [{ $group: { _id: "$siteName", n: { $sum: 1 } } }, { $sort: { n: -1 } }, { $limit: 20 }],
       } },
     ]),
-    ProjectSiteModel.find().sort({ name: 1 }).lean(),
+    ProjectSiteModel.find({ status: { $ne: "deleted" } }).sort({ name: 1 }).lean(),
     DesignationModel.find().sort({ name: 1 }).lean(),
   ]);
   const f = facet[0] ?? { byDesignation: [], bySite: [] };
@@ -303,7 +303,7 @@ async function approvedOtData(req: Request) {
 
 router.get("/reports/overtime", requireCapability("view_reports"), async (req: Request, res: Response) => {
   const [{ groups, summary, filters }, approvedRows] = await Promise.all([overtimeData(req), approvedOtData(req)]);
-  const sites = await ProjectSiteModel.find().sort({ name: 1 }).lean();
+  const sites = await ProjectSiteModel.find({ status: { $ne: "deleted" } }).sort({ name: 1 }).lean();
   res.render("reports/overtime", {
     title: "Overtime report · " + res.locals.company,
     active: "/reports",

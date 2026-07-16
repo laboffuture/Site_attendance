@@ -46,7 +46,7 @@ router.get("/stations", requireCapability("manage_stations"), async (req: Reques
   const user = req.currentUser!;
   const [stations, sites] = await Promise.all([
     SiteStationModel.find(stationScope(user)).sort({ createdAt: -1 }).lean(),
-    ProjectSiteModel.find(siteScope(user)).sort({ name: 1 }).lean(),
+    ProjectSiteModel.find({ ...siteScope(user), status: { $ne: "deleted" } }).sort({ name: 1 }).lean(),
   ]);
   const siteNameById = new Map(sites.map((s) => [String(s._id), `${s.name} (${s.code})`]));
   const active = stations.filter((s) => s.active).length;
@@ -63,7 +63,7 @@ router.get("/stations", requireCapability("manage_stations"), async (req: Reques
 
 // Register form — only offers sites the user is scoped to.
 router.get("/stations/new", requireCapability("manage_stations"), async (req: Request, res: Response) => {
-  const sites = await ProjectSiteModel.find(siteScope(req.currentUser!)).sort({ name: 1 }).lean();
+  const sites = await ProjectSiteModel.find({ ...siteScope(req.currentUser!), status: "active" }).sort({ name: 1 }).lean();
   res.render("stations/new", {
     title: "Register station · " + res.locals.company,
     active: "/stations",
@@ -85,8 +85,8 @@ router.post("/stations", requireCapability("manage_stations"), async (req: Reque
     return res.redirect("/stations/new");
   }
   const site = await ProjectSiteModel.findById(projectSiteId).lean();
-  if (!site) {
-    flash(req, "danger", "Selected site does not exist.");
+  if (!site || site.status !== "active") {
+    flash(req, "danger", "Selected site does not exist or is archived.");
     return res.redirect("/stations/new");
   }
 

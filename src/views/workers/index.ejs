@@ -4,7 +4,8 @@
     active:   { dot: 'var(--c-success)',    label: 'Active',   spine: 'var(--c-accent)' },
     inactive: { dot: 'var(--c-text-muted)', label: 'Inactive', spine: 'var(--c-border)' },
     pending:  { dot: 'var(--c-warning)',    label: 'Pending',  spine: 'var(--c-warning)' },
-    deleted:  { dot: 'var(--c-danger)',     label: 'Archived', spine: 'var(--c-danger)' }
+    archived: { dot: 'var(--c-danger)',     label: 'Archived', spine: 'var(--c-danger)' },
+    deleted:  { dot: 'var(--c-danger)',     label: 'Deleted',  spine: 'var(--c-danger)' }
   };
   function initials(n) { return (n || '?').split(' ').filter(Boolean).map(function (x) { return x[0]; }).slice(0, 2).join('').toUpperCase(); }
   var tabQs = tab !== 'active' ? ('status=' + tab) : '';
@@ -55,6 +56,11 @@
   <a class="oh-chip-toggle <%= faceFilter === 'unregistered' ? 'is-active' : '' %>" href="/workers?face=unregistered<%= tabQs ? '&' + tabQs : '' %>">
     <span class="material-icons">face</span> Face pending<% if (summary.facePending) { %> · <%= summary.facePending %><% } %>
   </a>
+  <% if (can('delete_worker')) { %>
+  <a class="oh-chip-toggle" href="/deletion-log?type=worker" title="Register of deleted employees">
+    <span class="material-icons">fact_check</span> Deletion log
+  </a>
+  <% } %>
 </div>
 
 <!-- mobile: refined person rows -->
@@ -121,13 +127,10 @@
           <span class="oh-row-actions">
             <a class="oh-icon-btn" href="/workers/<%= w._id %>" title="View"><span class="material-icons">visibility</span></a>
             <a class="oh-icon-btn" href="/workers/<%= w._id %>/edit" title="Edit"><span class="material-icons">edit</span></a>
-            <% if (can('delete_worker') && w.status !== 'deleted') { %>
-            <form method="post" action="/workers/<%= w._id %>/delete" onsubmit="var r=prompt('Reason for deleting this employee?'); if(!r){return false;} this.reason.value=r; return true;">
-              <input type="hidden" name="reason" />
-              <button class="oh-icon-btn oh-icon-btn--danger" type="submit" title="Delete"><span class="material-icons">delete</span></button>
-            </form>
+            <% if (can('delete_worker') && w.status !== 'archived') { %>
+            <a class="oh-icon-btn oh-icon-btn--danger" href="/workers/<%= w._id %>/delete" title="Archive / Delete"><span class="material-icons">delete</span></a>
             <% } %>
-            <% if (can('delete_worker') && w.status === 'deleted') { %>
+            <% if (can('delete_worker') && w.status === 'archived') { %>
             <form method="post" action="/workers/<%= w._id %>/restore"><button class="oh-icon-btn" type="submit" title="Restore"><span class="material-icons">restore_from_trash</span></button></form>
             <% } %>
           </span>

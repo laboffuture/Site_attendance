@@ -1,0 +1,50 @@
+<%- include('../partials/app-top', { title: title, active: active }) %>
+
+<div class="oh-detail-topbar">
+  <%- include('../partials/breadcrumb', { back: '/workers', trail: [ { label: 'Employees', href: '/workers' }, { label: 'Delete employee' } ] }) %>
+</div>
+
+<div class="oh-card oh-form-card">
+  <div class="oh-detail-head">
+    <% if (worker.photoUrl) { %><img class="oh-detail-head__photo" src="<%= worker.photoUrl %>" alt="" /><% } else { %><span class="oh-detail-head__photo oh-detail-head__photo--ph"><span class="material-icons">person</span></span><% } %>
+    <div>
+      <h2 class="oh-detail-head__name"><%= worker.name %></h2>
+      <div class="oh-detail-head__meta">
+        <span class="oh-badge oh-badge--muted"><%= worker.empRegNo %></span>
+        <span class="oh-badge oh-badge--secondary"><%= worker.siteName %></span>
+      </div>
+    </div>
+  </div>
+
+  <form method="post" action="/workers/<%= worker._id %>/delete">
+    <div class="oh-form-section">
+      <h3 class="oh-kv-section__title">What should happen to this employee?</h3>
+      <label class="oh-choice">
+        <input type="radio" name="mode" value="archive" checked />
+        <span class="oh-choice__body">
+          <strong>Send to Archives</strong> (recommended)
+          <span class="oh-muted">Hidden from active lists, visible in the Archived tab, restorable any time. All history kept.</span>
+        </span>
+      </label>
+      <label class="oh-choice">
+        <input type="radio" name="mode" value="delete" />
+        <span class="oh-choice__body">
+          <strong>Delete</strong>
+          <span class="oh-muted">Removed from the whole application, including Archives. A permanent entry is written to the Deletion log (who, when, why); only Management can undo from there. Attendance &amp; payroll history stays intact.</span>
+        </span>
+      </label>
+    </div>
+
+    <div class="oh-input-group">
+      <label class="oh-label" for="reason">Reason (required)</label>
+      <input class="oh-input" id="reason" name="reason" required placeholder="e.g. left the project / duplicate enrollment" />
+    </div>
+
+    <div class="oh-form-actions">
+      <a class="oh-btn oh-btn--small" href="/workers">Cancel</a>
+      <button class="oh-btn oh-btn--danger" type="submit">Confirm</button>
+    </div>
+  </form>
+</div>
+
+<%- include('../partials/app-bottom') %>

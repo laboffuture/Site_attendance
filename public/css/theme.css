@@ -459,6 +459,33 @@ code {
 video.oh-cam-rear {
   transform: none;
 }
+/* Radio choice cards (delete-confirm pages): whole row is clickable. */
+.oh-choice {
+  display: flex;
+  gap: 0.7rem;
+  align-items: flex-start;
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  margin-bottom: 0.6rem;
+  cursor: pointer;
+}
+.oh-choice:has(input:checked) {
+  border-color: var(--c-accent);
+  background: rgba(28, 77, 140, 0.05);
+}
+.oh-choice input {
+  margin-top: 0.25rem;
+}
+.oh-choice__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.oh-choice__body .oh-muted {
+  font-size: 0.85rem;
+}
+
 /* Camera flip button (phones with 2+ cameras), bottom-right of the preview.
    The wrap shrink-wraps a free-standing <video> so the button rides the
    picture; on the scan page the button lands in the positioned frame instead. */

@@ -26,6 +26,7 @@ router.post("/me/location-check", requireAuth, async (req: Request, res: Respons
   const sites = ids.length
     ? await ProjectSiteModel.find({
         _id: { $in: ids },
+        status: "active",
         latitude: { $ne: null },
         longitude: { $ne: null },
         geofenceRadiusMeters: { $gt: 0 },
