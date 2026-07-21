@@ -8,18 +8,19 @@ import { hoursBreakdown } from "./report";
  *  adjust here when the reference sheet arrives. */
 const COLUMNS: { header: string; key: string; width: number; pdf: number; align?: "left" | "right" | "center" }[] = [
   { header: "Branch", key: "branchName", width: 18, pdf: 66 },
-  { header: "Project", key: "siteName", width: 24, pdf: 96 },
-  { header: "Emp Reg No", key: "empRegNo", width: 16, pdf: 92 }, // wide enough for the full ID (e.g. TRG-LOF-131-049)
-  { header: "Name", key: "workerName", width: 18, pdf: 90 },
-  { header: "Designation", key: "designationName", width: 15, pdf: 74 },
+  { header: "Project", key: "siteName", width: 22, pdf: 90 },
+  { header: "Emp Reg No", key: "empRegNo", width: 15, pdf: 88 }, // wide enough for the full ID (e.g. TRG-LOF-131-049)
+  { header: "Name", key: "workerName", width: 17, pdf: 86 },
+  { header: "Designation", key: "designationName", width: 14, pdf: 70 },
+  { header: "Attendance", key: "attendance", width: 10, pdf: 42 },
   { header: "Date", key: "date", width: 11, pdf: 54 },
   { header: "In", key: "inT", width: 7, pdf: 34, align: "right" },
   { header: "Out", key: "outT", width: 7, pdf: 34, align: "right" },
-  { header: "Standard (h)", key: "standard", width: 11, pdf: 48, align: "right" },
+  { header: "Standard (h)", key: "standard", width: 10, pdf: 44, align: "right" },
   { header: "OT (h)", key: "otHours", width: 8, pdf: 34, align: "right" },
-  { header: "Total (h)", key: "payableTotal", width: 10, pdf: 44, align: "right" },
-  { header: "OT Status", key: "otStatus", width: 12, pdf: 52 },
-  { header: "Source", key: "source", width: 8, pdf: 40 },
+  { header: "Total (h)", key: "payableTotal", width: 9, pdf: 42, align: "right" },
+  { header: "OT Status", key: "otStatus", width: 11, pdf: 48 },
+  { header: "Source", key: "source", width: 7, pdf: 36 },
 ];
 
 function ist(d: unknown): string {
@@ -42,6 +43,9 @@ function flat(r: Row): Record<string, string | number> {
     empRegNo: String(r.empRegNo ?? ""),
     workerName: String(r.workerName ?? ""),
     designationName: String(r.designationName ?? ""),
+    // Real attendance docs always have inTime (schema-required); a synthesized
+    // "absent" row is the only kind that ever has it null.
+    attendance: r.inTime == null ? "Absent" : "Present",
     date: String(r.date ?? ""),
     inT: ist(r.inTime),
     outT: ist(r.outTime),

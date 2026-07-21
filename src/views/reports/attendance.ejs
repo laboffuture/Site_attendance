@@ -20,8 +20,17 @@
 <div class="oh-alert oh-alert--warning">Showing the first <%= shown.toLocaleString('en-IN') %> of <strong><%= rowCount.toLocaleString('en-IN') %></strong> matching rows in the table below — the summary tiles and charts cover the <em>full</em> set. Narrow the filters (or export) for a complete row list.</div>
 <% } %>
 
+<% if (absence.skipped) { %>
+<div class="oh-alert oh-alert--info">Absent employees aren't included yet — pick a <strong>From</strong> and <strong>To</strong> date (up to <%= absence.maxSpanDays %> days) to also see who didn't clock in on each day.</div>
+<% } else if (absence.capped) { %>
+<div class="oh-alert oh-alert--warning">The absent-employee list is very large for this range and was capped — narrow the filters (site, designation, or a shorter date range) for a complete count.</div>
+<% } %>
+
 <div class="oh-statstrip">
-  <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= summary.records.toLocaleString('en-IN') %></span><span class="oh-statstrip__label">Records</span></div>
+  <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= summary.records.toLocaleString('en-IN') %></span><span class="oh-statstrip__label">Present records</span></div>
+  <% if (!absence.skipped) { %>
+  <div class="oh-statstrip__item"><span class="oh-statstrip__num <%= summary.absent ? 'is-warn' : '' %>"><%= summary.absent.toLocaleString('en-IN') %></span><span class="oh-statstrip__label">Absent</span></div>
+  <% } %>
   <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= summary.employees %></span><span class="oh-statstrip__label">Employees</span></div>
   <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= summary.otHours %></span><span class="oh-statstrip__label">OT hours</span></div>
   <div class="oh-statstrip__item"><span class="oh-statstrip__num"><%= summary.sites %></span><span class="oh-statstrip__label">Sites</span></div>
@@ -65,12 +74,14 @@
   <div>
     <div class="oh-report-site"><%= s.siteName %> · <%= s.rows.length %> record(s)</div>
     <div class="oh-only-mobile oh-m-list">
-      <% s.rows.forEach(function (r) { var h = hoursBreakdown(r); %>
+      <% s.rows.forEach(function (r) { var h = hoursBreakdown(r); var isAbsent = r.inTime == null; %>
       <div class="oh-m-card">
         <div class="oh-m-row" style="justify-content:space-between;align-items:flex-start;">
           <span class="oh-m-grow"><span class="oh-m-name"><%= r.workerName %><% if (r.source === "manual") { %> <span class="oh-m-badge oh-badge--warning">M</span><% } %></span><span class="oh-m-sub"><%= r.empRegNo %> · <%= r.designationName %></span></span>
           <span class="oh-m-sub"><%= r.date %></span>
         </div>
+        <div style="margin-top:0.4rem;"><span class="oh-m-badge oh-badge--<%= isAbsent ? 'danger' : 'success' %>"><%= isAbsent ? 'Absent' : 'Present' %></span></div>
+        <% if (!isAbsent) { %>
         <div class="oh-m-boxes" style="margin-top:0.6rem;">
           <div class="oh-m-box"><div class="oh-m-box__k">Standard</div><div class="oh-m-box__v"><%= h.worked != null ? h.standard + "h" : "—" %></div></div>
           <div class="oh-m-box"><div class="oh-m-box__k">OT</div><div class="oh-m-box__v <%= otClass(h.otStatus) %>"><%= h.otComputed > 0 ? h.otComputed + "h" : "—" %></div></div>
@@ -80,22 +91,28 @@
           <span class="oh-m-badge oh-badge--<%= badgeFor[h.otStatus] %>"><%= statusText[h.otStatus] || h.otStatus %></span>
           <% if (h.otStatus === "pending" && h.otComputed > 0) { %><span class="oh-m-sub oh-ot-pending">+<%= h.otComputed %>h pending</span><% } %>
         </div>
+        <% } %>
       </div>
       <% }); %>
     </div>
     <table class="oh-table oh-only-desktop">
-      <thead><tr><th>Date</th><th>Reg No</th><th>Name</th><th>Designation</th><th>Standard</th><th>OT</th><th>Total</th><th>Status</th><th>Location</th></tr></thead>
+      <thead><tr><th>Date</th><th>Reg No</th><th>Name</th><th>Designation</th><th>Attendance</th><th>Standard</th><th>OT</th><th>Total</th><th>OT Status</th><th>Location</th></tr></thead>
       <tbody>
-        <% s.rows.forEach(function (r) { var h = hoursBreakdown(r); %>
-        <tr>
+        <% s.rows.forEach(function (r) { var h = hoursBreakdown(r); var isAbsent = r.inTime == null; %>
+        <tr<% if (isAbsent) { %> class="oh-row-absent"<% } %>>
           <td><%= r.date %></td>
           <td><%= r.empRegNo %></td>
           <td><%= r.workerName %><% if (r.source === "manual") { %> <span class="oh-badge oh-badge--warning" title="Marked manually">M</span><% } %></td>
           <td><%= r.designationName %></td>
+          <td><span class="oh-badge oh-badge--<%= isAbsent ? 'danger' : 'success' %>"><%= isAbsent ? 'Absent' : 'Present' %></span></td>
+          <% if (isAbsent) { %>
+          <td colspan="4" class="oh-muted">—</td>
+          <% } else { %>
           <td><%= h.worked != null ? h.standard + "h" : "—" %></td>
           <td><% if (h.otComputed > 0) { %><span class="<%= otClass(h.otStatus) %>"><%= h.otComputed %>h</span><% } else { %>—<% } %></td>
           <td><strong><%= h.payableTotal != null ? h.payableTotal + "h" : "—" %></strong><% if (h.otStatus === "pending" && h.otComputed > 0) { %><br /><span class="oh-muted oh-ot-pending">+<%= h.otComputed %>h pending</span><% } %></td>
           <td><span class="oh-badge oh-badge--<%= badgeFor[h.otStatus] %>"><%= statusText[h.otStatus] || h.otStatus %></span></td>
+          <% } %>
           <td>
             <% var g = r.inGeo; if (g && g.available && g.lat != null) { %>
             <a href="https://maps.google.com/?q=<%= g.lat %>,<%= g.lng %>" target="_blank" rel="noopener" title="In-scan location"><span class="material-icons" style="font-size:0.95rem;vertical-align:middle">place</span><%= g.distanceMeters != null ? " " + g.distanceMeters + "m" : "" %></a>

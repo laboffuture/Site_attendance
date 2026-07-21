@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { Types } from "mongoose";
 
 import { requireCapability } from "../auth/middleware";
+import { ABSENCE_MAX_SPAN_DAYS, computeAbsentRows } from "../lib/absence";
 import { config } from "../config";
 import { buildXlsxBuffer, streamPdf, streamTablePdf, sendCsv } from "../lib/exporters";
 import { computePayroll } from "../lib/payroll";
@@ -85,11 +86,14 @@ function reportSubtitle(f: Record<string, unknown>): string {
   return bits.length ? bits.join(" · ") : "All records";
 }
 
-/** Table rows (capped) + matched count + summary/charts aggregated over the FULL match. */
+/** Table rows (capped) + matched count + summary/charts aggregated over the FULL match.
+ *  Absent employees (no attendance record for a day) are synthesized as "absent"
+ *  rows and merged in — but only for a bounded date range (see computeAbsentRows);
+ *  the charts/OT/employee totals stay driven by real scans, unaffected. */
 async function attendanceData(req: Request) {
   const filters = parseReportFilters(req.query as Record<string, unknown>);
   const query = buildAttendanceQuery(req.currentUser!, filters);
-  const [tableRows, matched, facet] = await Promise.all([
+  const [tableRows, matched, facet, absence] = await Promise.all([
     AttendanceModel.find(query).sort({ branchName: 1, siteName: 1, date: -1, workerName: 1 }).limit(TABLE_LIMIT).lean(),
     AttendanceModel.countDocuments(query),
     AttendanceModel.aggregate([
@@ -102,21 +106,33 @@ async function attendanceData(req: Request) {
         },
       },
     ]),
+    computeAbsentRows(req.currentUser!, filters),
   ]);
   const f = facet[0] ?? { byDay: [], bySite: [], totals: [] };
   const t = f.totals[0] ?? { ot: 0, employees: [], sites: [] };
+
+  // Merge present + absent rows for display/export, re-sorted the same way as
+  // the original query, then re-capped so the union still respects TABLE_LIMIT.
+  const combined = [...tableRows, ...absence.rows].sort((a, b) => {
+    if (a.branchName !== b.branchName) return String(a.branchName).localeCompare(String(b.branchName));
+    if (a.siteName !== b.siteName) return String(a.siteName).localeCompare(String(b.siteName));
+    if (a.date !== b.date) return a.date < b.date ? 1 : -1; // desc, matches the DB sort
+    return String(a.workerName).localeCompare(String(b.workerName));
+  }).slice(0, TABLE_LIMIT);
+
   return {
-    filters, query, tableRows, matched,
-    summary: { records: matched, employees: t.employees.length, otHours: round2(t.ot), sites: t.sites.length },
+    filters, query, tableRows: combined, matched: matched + absence.rows.length,
+    summary: { records: matched, absent: absence.rows.length, employees: t.employees.length, otHours: round2(t.ot), sites: t.sites.length },
     reportCharts: {
       byDay: { labels: f.byDay.map((d: { _id: string }) => d._id), data: f.byDay.map((d: { n: number }) => d.n) },
       bySite: { labels: f.bySite.map((s: { _id: string }) => s._id), count: f.bySite.map((s: { count: number }) => s.count), ot: f.bySite.map((s: { ot: number }) => round2(s.ot)) },
     },
+    absence: { skipped: absence.skipped, capped: absence.capped, maxSpanDays: ABSENCE_MAX_SPAN_DAYS },
   };
 }
 
 router.get("/reports/attendance", requireCapability("view_reports"), async (req: Request, res: Response) => {
-  const { filters, tableRows, matched, summary, reportCharts } = await attendanceData(req);
+  const { filters, tableRows, matched, summary, reportCharts, absence } = await attendanceData(req);
   const [branches, sites, designations] = await Promise.all([
     BranchModel.find().sort({ name: 1 }).lean(),
     ProjectSiteModel.find({ status: { $ne: "deleted" } }).sort({ name: 1 }).lean(),
@@ -132,7 +148,7 @@ router.get("/reports/attendance", requireCapability("view_reports"), async (req:
     capped: matched > TABLE_LIMIT,
     activeFilter: reportSubtitle(filters as Record<string, unknown>),
     branches, sites, designations, hoursBreakdown,
-    reportCharts, summary,
+    reportCharts, summary, absence,
     query: req.originalUrl.includes("?") ? req.originalUrl.slice(req.originalUrl.indexOf("?")) : "",
   });
 });
