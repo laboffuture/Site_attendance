@@ -64,13 +64,14 @@
 
   <table class="oh-table oh-only-desktop">
     <thead>
-      <tr><th>Reg No</th><th>Name</th><th>In</th><th>Out</th><th>Total</th><th>OT</th><th>Status</th></tr>
+      <tr><th>S.No</th><th>Reg No</th><th>Name</th><th>In</th><th>Out</th><th>Total</th><th>OT</th><th>Status</th></tr>
     </thead>
     <tbody>
-      <% rows.forEach(function (r) {
+      <% rows.forEach(function (r, i) {
         var st = r.outHM ? ["OUT", "secondary"] : (r.inHM ? ["IN", "success"] : ["ABSENT", "danger"]);
       %>
       <tr>
+        <td><%= i + 1 %></td>
         <td><span class="oh-badge oh-badge--muted"><%= r.empRegNo %></span></td>
         <td><%= r.name %><br /><span class="oh-muted"><%= r.designationName %></span></td>
         <td><%= r.inHM || "—" %></td>
