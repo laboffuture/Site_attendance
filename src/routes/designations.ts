@@ -97,9 +97,17 @@ router.post("/designations/:id", requireRole("management", "hr"), async (req: Re
   res.redirect("/designations");
 });
 
-// Delete — blocked while employees still carry this designation.
+// Delete — blocked only while employees still ON THE ROSTER carry this
+// designation (pending/active/inactive). Archived and deleted employees don't
+// count: they're hidden from editing already (a restore is required first),
+// so a since-deleted designation can't block anyone from being edited — and
+// their denormalized designationName on the worker/attendance docs is
+// untouched by removing the parent Designation record.
 router.post("/designations/:id/delete", requireRole("management", "hr"), async (req: Request, res: Response) => {
-  const count = await WorkerModel.countDocuments({ designationId: req.params.id });
+  const count = await WorkerModel.countDocuments({
+    designationId: req.params.id,
+    status: { $in: ["pending", "active", "inactive"] },
+  });
   if (count > 0) {
     flash(req, "danger", `${count} employee(s) use this designation — reassign them first.`);
     return res.redirect("/designations");
