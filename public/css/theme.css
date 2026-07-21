@@ -459,6 +459,63 @@ code {
 video.oh-cam-rear {
   transform: none;
 }
+/* Attendance report: a synthesized "Absent" row gets a faint red tint. */
+.oh-row-absent {
+  background: rgba(220, 53, 69, 0.05);
+}
+
+/* Bulk selection (Employees): row checkboxes + the floating action bar. */
+.oh-people__checkcol {
+  width: 34px;
+  text-align: center;
+}
+.oh-bulk-check {
+  width: 17px;
+  height: 17px;
+  cursor: pointer;
+  accent-color: var(--c-accent);
+}
+.oh-m-bulkrow {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+.oh-m-bulkrow .oh-m-card {
+  flex: 1;
+  min-width: 0;
+}
+.oh-bulkbar {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 1rem;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+  max-width: min(96vw, 880px);
+  padding: 0.65rem 1.1rem;
+  background: var(--c-bg, #fff);
+  border: 1px solid var(--c-border);
+  border-radius: 12px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+}
+.oh-bulkbar__count {
+  white-space: nowrap;
+}
+.oh-bulkbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.oh-bulkbar__move {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
 /* Radio choice cards (delete-confirm pages): whole row is clickable. */
 .oh-choice {
   display: flex;

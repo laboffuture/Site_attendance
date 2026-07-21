@@ -69,16 +69,19 @@
   <div class="oh-m-section">
     <div class="oh-m-list">
       <% workers.forEach(function (w) { var st = STATUS[w.status] || STATUS.inactive; %>
-      <a class="oh-m-card oh-m-row oh-m-link" href="/workers/<%= w._id %>" style="--spine: <%= st.spine %>">
-        <span class="oh-ava">
-          <% if (w.photoUrl) { %><img src="<%= w.photoUrl %>" alt="" /><% } else { %><%= initials(w.name) %><% } %>
-        </span>
-        <span class="oh-m-grow">
-          <span class="oh-m-name"><%= w.name %></span>
-          <span class="oh-m-sub"><%= w.empRegNo %> &middot; <%= w.designationName %> &middot; <%= w.siteName %></span>
-        </span>
-        <span class="oh-stat"><span class="oh-stat__dot" style="background: <%= st.dot %>"></span><% if (!w.hasFace) { %><span class="material-icons" style="font-size:1rem;color:var(--c-warning)">face</span><% } %></span>
-      </a>
+      <div class="oh-m-bulkrow">
+        <input type="checkbox" class="oh-bulk-check" value="<%= w._id %>" aria-label="Select <%= w.name %>" />
+        <a class="oh-m-card oh-m-row oh-m-link" href="/workers/<%= w._id %>" style="--spine: <%= st.spine %>">
+          <span class="oh-ava">
+            <% if (w.photoUrl) { %><img src="<%= w.photoUrl %>" alt="" /><% } else { %><%= initials(w.name) %><% } %>
+          </span>
+          <span class="oh-m-grow">
+            <span class="oh-m-name"><%= w.name %></span>
+            <span class="oh-m-sub"><%= w.empRegNo %> &middot; <%= w.designationName %> &middot; <%= w.siteName %></span>
+          </span>
+          <span class="oh-stat"><span class="oh-stat__dot" style="background: <%= st.dot %>"></span><% if (!w.hasFace) { %><span class="material-icons" style="font-size:1rem;color:var(--c-warning)">face</span><% } %></span>
+        </a>
+      </div>
       <% }); %>
     </div>
   </div>
@@ -95,6 +98,7 @@
     <thead>
       <tr>
         <th class="oh-people__spinecol"></th>
+        <th class="oh-people__checkcol"><input type="checkbox" id="bulkAll" title="Select all shown" aria-label="Select all shown" /></th>
         <th>Employee</th>
         <th>Designation</th>
         <th>Site</th>
@@ -107,6 +111,7 @@
       <% workers.forEach(function (w) { var st = STATUS[w.status] || STATUS.inactive; %>
       <tr style="--spine: <%= st.spine %>">
         <td class="oh-people__spine"></td>
+        <td class="oh-people__checkcol"><input type="checkbox" class="oh-bulk-check" value="<%= w._id %>" aria-label="Select <%= w.name %>" /></td>
         <td>
           <a class="oh-person" href="/workers/<%= w._id %>">
             <span class="oh-ava"><% if (w.photoUrl) { %><img src="<%= w.photoUrl %>" alt="" /><% } else { %><%= initials(w.name) %><% } %></span>
@@ -153,5 +158,96 @@
   </div>
   <% } %>
 </div>
+
+<!-- Bulk action bar — appears when one or more employees are ticked. -->
+<form id="bulkBar" class="oh-bulkbar" method="post" action="/workers/bulk" hidden>
+  <input type="hidden" name="ids" id="bulkIds" />
+  <input type="hidden" name="action" id="bulkAction" />
+  <input type="hidden" name="tab" value="<%= tab %>" />
+  <span class="oh-bulkbar__count"><strong id="bulkCount">0</strong> selected</span>
+  <span class="oh-bulkbar__actions">
+    <% if (tab === 'archived') { %>
+      <% if (can('delete_worker')) { %>
+      <button class="oh-btn oh-btn--small oh-btn--secondary" type="submit" data-action="restore">Restore</button>
+      <% } %>
+    <% } else { %>
+      <button class="oh-btn oh-btn--small" type="submit" data-action="status-active">Set Active</button>
+      <button class="oh-btn oh-btn--small" type="submit" data-action="status-inactive">Set Inactive</button>
+      <% if (sites.length) { %>
+      <span class="oh-bulkbar__move">
+        <select class="oh-select oh-select--compact" name="siteId" aria-label="Move to site">
+          <option value="">Move to site…</option>
+          <% sites.forEach(function (s) { %><option value="<%= s._id %>"><%= s.name %> (<%= s.code %>)</option><% }); %>
+        </select>
+        <button class="oh-btn oh-btn--small oh-btn--secondary" type="submit" data-action="move-site">Move</button>
+      </span>
+      <% } %>
+      <% if (can('delete_worker')) { %>
+      <button class="oh-btn oh-btn--small oh-btn--danger" type="button" id="bulkDelete">Archive / Delete…</button>
+      <% } %>
+    <% } %>
+    <button class="oh-btn oh-btn--small" type="button" id="bulkClear">Clear</button>
+  </span>
+</form>
+
+<script>
+  (function () {
+    var bar = document.getElementById('bulkBar');
+    if (!bar) return;
+    var checks = Array.prototype.slice.call(document.querySelectorAll('.oh-bulk-check'));
+    var all = document.getElementById('bulkAll');
+    var count = document.getElementById('bulkCount');
+    var idsField = document.getElementById('bulkIds');
+    var actionField = document.getElementById('bulkAction');
+
+    function selected() {
+      return checks.filter(function (c) { return c.checked; }).map(function (c) { return c.value; });
+    }
+    function refresh() {
+      var ids = selected();
+      bar.hidden = ids.length === 0;
+      count.textContent = ids.length;
+      idsField.value = ids.join(',');
+      if (all) all.checked = ids.length > 0 && ids.length === checks.length;
+    }
+    checks.forEach(function (c) { c.addEventListener('change', refresh); });
+    if (all) all.addEventListener('change', function () {
+      checks.forEach(function (c) { c.checked = all.checked; });
+      refresh();
+    });
+
+    // Which submit button was pressed decides the action (tracked on click —
+    // e.submitter is missing on older phone browsers); Move needs a site.
+    Array.prototype.forEach.call(bar.querySelectorAll('button[data-action]'), function (btn) {
+      btn.addEventListener('click', function () { actionField.value = btn.getAttribute('data-action'); });
+    });
+    bar.addEventListener('submit', function (e) {
+      var action = actionField.value;
+      if (!action) { e.preventDefault(); return; }
+      if (action === 'move-site' && !bar.querySelector('select[name="siteId"]').value) {
+        e.preventDefault();
+        alert('Pick a site to move the selected employees to.');
+        return;
+      }
+      var msgs = {
+        'status-active': 'Set ### employee(s) to Active?',
+        'status-inactive': 'Set ### employee(s) to Inactive?',
+        'move-site': 'Move ### employee(s) to the chosen site?',
+        'restore': 'Restore ### employee(s) from Archives?'
+      };
+      if (!confirm(msgs[action].replace('###', selected().length))) { e.preventDefault(); return; }
+    });
+
+    var del = document.getElementById('bulkDelete');
+    if (del) del.addEventListener('click', function () {
+      var ids = selected();
+      if (ids.length) window.location.href = '/workers/bulk/delete?ids=' + ids.join(',');
+    });
+    document.getElementById('bulkClear').addEventListener('click', function () {
+      checks.forEach(function (c) { c.checked = false; });
+      refresh();
+    });
+  })();
+</script>
 
 <%- include('../partials/app-bottom') %>

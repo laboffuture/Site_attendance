@@ -13,6 +13,7 @@ import { dataUrlToBuffer } from "../lib/image";
 import { pushRemark } from "../lib/remarks";
 import { canUseSite, canUseWorker, workerScopeFilter } from "../lib/scope";
 import { escapeRegex, isDuplicateKeyError } from "../lib/validate";
+import { AttendanceModel } from "../models/Attendance";
 import { DeletionLogModel } from "../models/DeletionLog";
 import { DesignationModel } from "../models/Designation";
 import { ProjectSiteModel } from "../models/ProjectSite";
@@ -173,6 +174,159 @@ router.get("/workers", requireCapability("enroll_worker"), async (req: Request, 
     },
     face: { registered: faceRegistered, total: activeTab },
   });
+});
+
+// ---- Bulk actions ----
+// One action applied to many selected employees at once. Every worker is
+// individually re-checked against the actor's scope/permissions — exactly the
+// rules that govern the single-employee routes — and out-of-scope or
+// wrong-state selections are skipped (and counted in the flash), never errors.
+
+/** Parses the comma-separated `ids` field into valid, de-duplicated ObjectIds. */
+function parseBulkIds(raw: unknown): Types.ObjectId[] {
+  const seen = new Set<string>();
+  const out: Types.ObjectId[] = [];
+  for (const v of String(raw ?? "").split(",")) {
+    const id = v.trim();
+    if (Types.ObjectId.isValid(id) && !seen.has(id)) {
+      seen.add(id);
+      out.push(new Types.ObjectId(id));
+    }
+  }
+  return out.slice(0, 300);
+}
+
+function bulkRedirect(res: Response, tab: string): void {
+  res.redirect(tab && tab !== "active" ? `/workers?status=${encodeURIComponent(tab)}` : "/workers");
+}
+
+// Status / move-site / restore (capabilities mirror the individual routes:
+// status+move need enroll_worker, restore needs delete_worker).
+router.post("/workers/bulk", requireCapability("enroll_worker"), async (req: Request, res: Response) => {
+  const u = req.currentUser!;
+  const action = String(req.body.action ?? "");
+  const tab = String(req.body.tab ?? "");
+  const ids = parseBulkIds(req.body.ids);
+  if (!ids.length) {
+    flash(req, "danger", "No employees selected.");
+    return bulkRedirect(res, tab);
+  }
+
+  let targetSite: { _id: Types.ObjectId; name: string } | null = null;
+  if (action === "move-site") {
+    const siteId = String(req.body.siteId ?? "");
+    if (!Types.ObjectId.isValid(siteId) || !canUseSite(u, siteId)) {
+      flash(req, "danger", "Pick a site you're assigned to.");
+      return bulkRedirect(res, tab);
+    }
+    const site = await ProjectSiteModel.findById(siteId).select("name status").lean();
+    if (!site || site.status !== "active") {
+      flash(req, "danger", "That site is not active.");
+      return bulkRedirect(res, tab);
+    }
+    targetSite = { _id: site._id, name: site.name };
+  } else if (action === "restore") {
+    if (!can(u.role, "delete_worker")) {
+      flash(req, "danger", "You cannot restore employees.");
+      return bulkRedirect(res, tab);
+    }
+  } else if (action !== "status-active" && action !== "status-inactive") {
+    flash(req, "danger", "Unknown bulk action.");
+    return bulkRedirect(res, tab);
+  }
+
+  const workers = await WorkerModel.find({ _id: { $in: ids } });
+  let done = 0;
+  let skipped = ids.length - workers.length;
+  for (const w of workers) {
+    if (!canUseWorker(u, w)) { skipped++; continue; }
+    if (action === "restore") {
+      if (w.status !== "archived") { skipped++; continue; }
+      w.status = "active";
+      w.deletedAt = null;
+      w.deletedBy = null;
+      pushRemark(w, u, "Employee restored.", "note");
+    } else if (w.status === "archived" || w.status === "deleted") {
+      skipped++; continue;
+    } else if (action === "status-active" || action === "status-inactive") {
+      w.status = action === "status-active" ? "active" : "inactive";
+    } else {
+      // move-site: same semantics as the individual edit — sites outside the
+      // actor's scope are never silently dropped from the worker.
+      const retained = w.siteIds.map(String).filter((id) => !canUseSite(u, id) && id !== String(targetSite!._id));
+      w.siteIds = [targetSite!._id, ...retained.map((id) => new Types.ObjectId(id))] as never;
+      w.siteId = targetSite!._id;
+      w.siteName = targetSite!.name;
+      pushRemark(w, u, `Moved to site "${targetSite!.name}" (bulk update).`, "note");
+    }
+    await w.save();
+    done++;
+  }
+  const label =
+    action === "restore" ? "restored" :
+    action === "move-site" ? `moved to ${targetSite!.name}` :
+    action === "status-active" ? "set Active" : "set Inactive";
+  flash(req, done ? "success" : "danger", `${done} employee(s) ${label}.${skipped ? ` ${skipped} skipped.` : ""}`);
+  bulkRedirect(res, action === "restore" ? "archived" : tab);
+});
+
+// Bulk archive/delete, step 1: one confirm page for the whole selection.
+router.get("/workers/bulk/delete", requireCapability("delete_worker"), async (req: Request, res: Response) => {
+  const u = req.currentUser!;
+  const ids = parseBulkIds(req.query.ids);
+  const workers = (await WorkerModel.find({ _id: { $in: ids }, status: { $nin: ["archived", "deleted"] } }).select("name empRegNo siteName").lean())
+    .filter((w) => canUseWorker(u, w));
+  if (!workers.length) {
+    flash(req, "danger", "No employees selected.");
+    return res.redirect("/workers");
+  }
+  res.render("workers/bulk-delete", {
+    title: `Delete ${workers.length} employees · ` + res.locals.company,
+    active: "/workers",
+    workers,
+    ids: workers.map((w) => String(w._id)).join(","),
+  });
+});
+
+// Bulk archive/delete, step 2 — same two levels as the individual delete,
+// one reason for the batch, one Deletion log entry per deleted employee.
+router.post("/workers/bulk/delete", requireCapability("delete_worker"), async (req: Request, res: Response) => {
+  const u = req.currentUser!;
+  const ids = parseBulkIds(req.body.ids);
+  const mode = req.body.mode === "delete" ? "delete" : "archive";
+  const reason = String(req.body.reason ?? "").trim();
+  if (!reason) {
+    flash(req, "danger", "A reason is required.");
+    return res.redirect(`/workers/bulk/delete?ids=${ids.join(",")}`);
+  }
+  const workers = await WorkerModel.find({ _id: { $in: ids }, status: { $nin: ["archived", "deleted"] } });
+  let done = 0;
+  let skipped = ids.length - workers.length;
+  for (const w of workers) {
+    if (!canUseWorker(u, w)) { skipped++; continue; }
+    w.status = mode === "delete" ? "deleted" : "archived";
+    w.deletedAt = new Date();
+    w.deletedBy = new Types.ObjectId(u.id);
+    pushRemark(w, u, reason, "soft_delete");
+    await w.save();
+    if (mode === "delete") {
+      await DeletionLogModel.create({
+        entityType: "worker",
+        entityId: w._id,
+        name: w.name,
+        detail: w.empRegNo,
+        siteName: w.siteName,
+        photoUrl: w.photoUrl,
+        deletedById: new Types.ObjectId(u.id),
+        deletedByName: u.name,
+        reason,
+      });
+    }
+    done++;
+  }
+  flash(req, done ? "success" : "danger",
+    `${done} employee(s) ${mode === "delete" ? "deleted (recorded in the Deletion log)" : "sent to Archives"}.${skipped ? ` ${skipped} skipped.` : ""}`);
+  res.redirect("/workers");
 });
 
 // ---- Enrollment form ----
@@ -336,10 +490,15 @@ router.post("/workers/:id", requireCapability("enroll_worker"), async (req: Requ
     return res.redirect("/workers?status=archived");
   }
   const name = String(req.body.name ?? "").trim();
+  const empRegNo = String(req.body.empRegNo ?? "").trim();
   const submitted = parseSiteIds(req.body);
   const status = req.body.status === "inactive" ? "inactive" : "active";
-  if (!name || !submitted.length) {
-    flash(req, "danger", "Name and at least one site are required.");
+  if (!name || !empRegNo || !submitted.length) {
+    flash(req, "danger", "Employee ID, name, and at least one site are required.");
+    return res.redirect(`/workers/${req.params.id}/edit`);
+  }
+  if (empRegNo !== worker.empRegNo && (await WorkerModel.findOne({ empRegNo, _id: { $ne: worker._id } }))) {
+    flash(req, "danger", `Employee ID "${empRegNo}" is already in use.`);
     return res.redirect(`/workers/${req.params.id}/edit`);
   }
   // The editor can only assign sites in their own scope; any site already on the
@@ -373,6 +532,8 @@ router.post("/workers/:id", requireCapability("enroll_worker"), async (req: Requ
   }
 
   const extras = parseEmployeeExtras(req);
+  const empRegNoChanged = empRegNo !== worker.empRegNo;
+  worker.empRegNo = empRegNo;
   worker.name = name;
   worker.designationId = designation.id;
   worker.designationName = designation.name;
@@ -387,7 +548,17 @@ router.post("/workers/:id", requireCapability("enroll_worker"), async (req: Requ
   worker.foodAllowance = extras.foodAllowance;
   worker.bank = extras.bank;
   if (extras.dateJoined) worker.dateJoined = extras.dateJoined;
-  await worker.save();
+  try {
+    await worker.save();
+  } catch (err) {
+    flash(req, "danger", isDuplicateKeyError(err) ? `Employee ID "${empRegNo}" is already in use.` : "Could not update employee.");
+    return res.redirect(`/workers/${req.params.id}/edit`);
+  }
+  // Keep the denormalized empRegNo in sync wherever it was copied — attendance
+  // history — when the Employee ID is actually changed.
+  if (empRegNoChanged) {
+    await AttendanceModel.updateMany({ workerId: worker._id }, { $set: { empRegNo } });
+  }
 
   flash(req, "success", "Employee updated.");
   res.redirect("/workers");
